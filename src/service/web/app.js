@@ -1,0 +1,3108 @@
+const API_BASE = "";
+const API_STATUS_INTERVAL = 10000;
+const AUTH_TOKEN_KEY = "hr_auth_token";
+const DEFAULT_AVATAR_COLOR = "#5A64F1";
+
+let metadataCache = null;
+let factorsChart = null;
+let chartsRendered = false;
+let apiStatusTimer = null;
+let currentTheme = "light";
+const predictionStore = {};
+let latestPredictionKey = null;
+let pendingPredictionContext = null;
+let analyticsCache = null;
+let analyticsLoadError = null;
+const dashboardCharts = {};
+let insightsInitialized = false;
+let queuedFormInputs = null;
+let pendingRouteAfterAuth = null;
+
+const authState = {
+  token: null,
+  user: null,
+  history: [],
+  initialized: false,
+};
+
+const ROUTE_SECTIONS = {
+  "/app": "page-form",
+  "/diagrams": "page-insights",
+  "/login": "page-login",
+  "/register": "page-register",
+  "/profile": "page-profile",
+  "/forgot-password": "page-forgot-password",
+  "/reset-password": "page-reset-password",
+};
+
+const ROUTE_ALIASES = {
+  "/": "/app",
+  "/form": "/app",
+};
+
+const SECTION_TO_ROUTE = {
+  "page-form": "/app",
+  "page-insights": "/diagrams",
+  "page-login": "/login",
+  "page-register": "/register",
+  "page-profile": "/profile",
+  "page-forgot-password": "/forgot-password",
+  "page-reset-password": "/reset-password",
+};
+
+const inputRefs = {};
+const liveIndicators = {
+  bmi: null,
+  glucose: null,
+  bp: null,
+};
+
+const factorInfo = {
+  RIDAGEYR: {
+    name: "Вік",
+    desc: "Вік учасника у повних роках. Допомагає зрозуміти вікові ризики.",
+    unit: "роки",
+  },
+  RIAGENDR: {
+    name: "Стать",
+    desc: "1 — чоловік, 2 — жінка.",
+  },
+  BMXBMI: {
+    name: "Індекс маси тіла (BMI)",
+    desc: "Розраховується як маса, поділена на квадрат зросту. Понад 25 свідчить про надмірну вагу.",
+    unit: "кг/м²",
+  },
+  BPXSY1: {
+    name: "Систолічний тиск",
+    desc: "Верхній показник артеріального тиску (тиск під час скорочення серця).",
+    unit: "мм рт. ст.",
+  },
+  BPXDI1: {
+    name: "Діастолічний тиск",
+    desc: "Нижній показник артеріального тиску (тиск у стані розслаблення серця).",
+    unit: "мм рт. ст.",
+  },
+  LBXGLU: {
+    name: "Глюкоза натще",
+    desc: "Вимірюється натщесерце. Допомагає виявити переддіабет та діабет.",
+    unit: "мг/дл",
+  },
+  LBXTC: {
+    name: "Загальний холестерин",
+    desc: "Сукупний рівень холестерину в крові. Важливо для оцінки ризику серцево-судинних захворювань.",
+    unit: "мг/дл",
+  },
+};
+
+const TARGET_LABELS = {
+  diabetes_present: "Ризик діабету",
+  obesity_present: "Ризик ожиріння",
+};
+
+const HEALTH_THRESHOLDS = {
+  BMXBMI: {
+    normal: 25,
+    overweight: 30,
+    obesity: 35,
+  },
+  LBXGLU: {
+    normal: 100,
+    prediabetes: 126,
+  },
+  LBXTC: {
+    optimal: 200,
+    borderline: 240,
+  },
+  BPXSY1: {
+    normal: 120,
+    elevated: 130,
+    stage1: 140,
+  },
+  BPXDI1: {
+    normal: 80,
+    stage1: 90,
+  },
+};
+
+const SEVERITY_COLORS = {
+  normal: "rgba(63, 194, 114, 0.85)",
+  warning: "rgba(245, 182, 73, 0.85)",
+  danger: "rgba(241, 94, 111, 0.85)",
+  info: "rgba(116, 137, 255, 0.85)",
+};
+
+const ANALYTICS_ENDPOINT = "/app/static/data/analytics_summary.json";
+
+const targetSelect = document.getElementById("target-select");
+const modelSelect = document.getElementById("model-select");
+const featuresContainer = document.getElementById("features-container");
+const form = document.getElementById("predict-form");
+const submitButton = document.getElementById("submit-button");
+const demoButton = document.getElementById("demo-button");
+const errorBox = document.getElementById("form-error");
+const resultCard = document.getElementById("result-card");
+const probabilityValue = document.getElementById("probability-value");
+const riskBadge = document.getElementById("risk-badge");
+const riskBarFill = document.getElementById("risk-bar-fill");
+const modelName = document.getElementById("model-name");
+const modelVersion = document.getElementById("model-version");
+const resultNote = document.getElementById("result-note");
+const chartEmpty = document.getElementById("chart-empty");
+const chartCanvas = document.getElementById("factors-chart");
+
+const navItems = document.querySelectorAll(".nav-item");
+const pages = document.querySelectorAll(".page");
+const themeToggleBtn = document.querySelector(".theme-toggle");
+const themeIconContainer = document.querySelector(".theme-icon");
+const apiStatusDot = document.getElementById("api-status-dot");
+const apiStatusText = document.getElementById("api-status-text");
+const userPanelGuest = document.getElementById("user-panel-guest");
+const userPanelAuth = document.getElementById("user-panel-auth");
+// Buttons removed - no longer needed in header
+const userPanelLoginBtn = null;
+const userPanelRegisterBtn = null;
+const userMenuTrigger = document.getElementById("user-menu-trigger");
+const userMenu = document.getElementById("user-menu");
+const userPillAvatar = document.getElementById("user-pill-avatar");
+const userPillName = document.getElementById("user-pill-name");
+const userPillEmail = document.getElementById("user-pill-email");
+const profileGuestState = document.getElementById("profile-guest-state");
+const profileAuthenticated = document.getElementById("profile-authenticated");
+const profileAvatar = document.getElementById("profile-avatar");
+const profileNameEl = document.getElementById("profile-name");
+const profileEmailEl = document.getElementById("profile-email");
+const profileJoinedEl = document.getElementById("profile-joined");
+const profileDisplayNameInput = document.getElementById("profile-display-name");
+const profileAvatarColorInput = document.getElementById("profile-avatar-color");
+const profileUpdateForm = document.getElementById("profile-update-form");
+const profileUpdateStatus = document.getElementById("profile-update-status");
+const profilePasswordForm = document.getElementById("profile-password-form");
+const profilePasswordStatus = document.getElementById("profile-password-status");
+const profilePasswordEmailInput = document.getElementById("profile-password-email");
+const profileCurrentPasswordInput = document.getElementById("profile-current-password");
+const profileNewPasswordInput = document.getElementById("profile-new-password");
+const profileConfirmPasswordInput = document.getElementById("profile-confirm-password");
+const avatarUploadInput = document.getElementById("avatar-upload-input");
+const avatarUploadBtn = document.getElementById("avatar-upload-btn");
+const avatarResetBtn = document.getElementById("avatar-reset-btn");
+const profileHistoryContainer = document.getElementById("profile-history");
+const forgotPasswordLink = document.getElementById("to-forgot-password");
+const forgotPasswordForm = document.getElementById("forgot-password-form");
+const forgotPasswordError = document.getElementById("forgot-password-error");
+const forgotPasswordSuccess = document.getElementById("forgot-password-success");
+const forgotEmailInput = document.getElementById("forgot-email");
+const forgotPasswordSubmitBtn = forgotPasswordForm?.querySelector('button[type="submit"]');
+const forgotToLoginLink = document.getElementById("forgot-to-login");
+const resetPasswordForm = document.getElementById("reset-password-form");
+const resetPasswordError = document.getElementById("reset-password-error");
+const appLoader = document.getElementById("app-loader");
+const historyEmpty = document.getElementById("history-empty");
+const historyContent = profileHistoryContainer?.querySelector(".profile-history__content");
+const historyTableBody = document.getElementById("history-table-body");
+const profileLoginShortcut = document.getElementById("profile-login-shortcut");
+const profileRegisterShortcut = document.getElementById("profile-register-shortcut");
+const loginForm = document.getElementById("login-form");
+const registerForm = document.getElementById("register-form");
+const loginErrorBox = document.getElementById("login-error");
+const registerErrorBox = document.getElementById("register-error");
+const navProfileItem = document.getElementById("nav-profile");
+const toRegisterLink = document.getElementById("to-register");
+const toLoginLink = document.getElementById("to-login");
+
+const riskLabels = {
+  low: "низький",
+  medium: "середній",
+  high: "високий",
+};
+
+const riskClasses = {
+  low: "risk-low",
+  medium: "risk-medium",
+  high: "risk-high",
+};
+
+const TOOLTIP_TEXTS = {
+  RIDAGEYR: "Вік учасника у повних роках.",
+  RIAGENDR: "Стать: 1 — чоловік, 2 — жінка.",
+  BMXBMI: "Індекс маси тіла (кг/м²). Понад 30 може свідчити про ожиріння.",
+  BPXSY1: "Систолічний артеріальний тиск (верхнє значення) у мм рт. ст.",
+  BPXDI1: "Діастолічний артеріальний тиск (нижнє значення) у мм рт. ст.",
+  LBXGLU: "Рівень глюкози у крові натще (мг/дл).",
+  LBXTC: "Рівень загального холестерину (мг/дл).",
+};
+
+const TOOLTIP_LIBRARY = {
+  "model-help": `Логістична регресія — базова лінійна модель, демонструє вплив кожного показника.
+Random Forest — ансамбль дерев рішень, стійкий до шуму.
+XGBoost — потужний бустинг для табличних даних.
+LightGBM — швидка реалізація градієнтного бустингу.
+SVM — шукає оптимальну межу між класами.
+KNN — порівнює зі схожими пацієнтами (сусіди).
+Нейромережа (MLP) — виявляє складні нелінійні взаємозв’язки.`,
+};
+
+function getFeatureName(code) {
+  return factorInfo[code]?.name ?? code;
+}
+
+function getFeatureDescription(code) {
+  return factorInfo[code]?.desc ?? "Показник здоров'я.";
+}
+
+function getFeatureUnit(code) {
+  return factorInfo[code]?.unit ?? "";
+}
+
+function formatMetricValue(feature, value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  let decimals = 0;
+  if (feature === "BMXBMI") decimals = 1;
+  if (feature === "LBXGLU") decimals = 0;
+  if (feature === "LBXTC") decimals = 0;
+  const formatted = Number.parseFloat(value).toFixed(decimals);
+  const unit = getFeatureUnit(feature);
+  return unit ? `${formatted} ${unit}` : formatted;
+}
+
+function getSeverityColor(level) {
+  return SEVERITY_COLORS[level] ?? SEVERITY_COLORS.info;
+}
+
+function classifyMetric(feature, value) {
+  const numeric = Number.parseFloat(value);
+  if (Number.isNaN(numeric)) {
+    return {
+      level: "info",
+      label: "Немає даних",
+      explanation: "Значення не вказано.",
+    };
+  }
+
+  if (feature === "BMXBMI") {
+    if (numeric < 18.5) {
+      return {
+        level: "warning",
+        label: "Недостатня вага",
+        explanation: "Маса тіла нижча за рекомендовану норму.",
+      };
+    }
+    if (numeric < HEALTH_THRESHOLDS.BMXBMI.normal) {
+      return {
+        level: "normal",
+        label: "Норма",
+        explanation: "ІМТ знаходиться у здоровому діапазоні 18.5–24.9.",
+      };
+    }
+    if (numeric < HEALTH_THRESHOLDS.BMXBMI.overweight) {
+      return {
+        level: "warning",
+        label: "Надмірна вага",
+        explanation: "Показник перевищує норму. Рекомендується звернути увагу на харчування й активність.",
+      };
+    }
+    if (numeric < HEALTH_THRESHOLDS.BMXBMI.obesity) {
+      return {
+        level: "danger",
+        label: "Ожиріння I",
+        explanation: "Рівень відповідає ожирінню першого ступеня.",
+      };
+    }
+    return {
+      level: "danger",
+      label: "Ожиріння II+",
+      explanation: "Рівень ІМТ ≥ 35. Потрібна консультація лікаря.",
+    };
+  }
+
+  if (feature === "BPXSY1") {
+    if (numeric < HEALTH_THRESHOLDS.BPXSY1.normal) {
+      return {
+        level: "normal",
+        label: "Норма",
+        explanation: "Систолічний тиск у межах безпечного рівня (<120 мм рт. ст.).",
+      };
+    }
+    if (numeric < HEALTH_THRESHOLDS.BPXSY1.elevated) {
+      return {
+        level: "warning",
+        label: "Підвищений",
+        explanation: "Верхній тиск 120–129 мм рт. ст. — важливо контролювати.",
+      };
+    }
+    if (numeric < HEALTH_THRESHOLDS.BPXSY1.stage1) {
+      return {
+        level: "warning",
+        label: "Гіпертонія 1 ступеня",
+        explanation: "Систолічний тиск 130–139 мм рт. ст.",
+      };
+    }
+    return {
+      level: "danger",
+      label: "Гіпертонія 2 ступеня",
+      explanation: "Систолічний тиск ≥ 140 мм рт. ст. Потрібна медична консультація.",
+    };
+  }
+
+  if (feature === "BPXDI1") {
+    if (numeric < HEALTH_THRESHOLDS.BPXDI1.normal) {
+      return {
+        level: "normal",
+        label: "Норма",
+        explanation: "Діастолічний тиск у межах безпечного рівня (<80 мм рт. ст.).",
+      };
+    }
+    if (numeric < HEALTH_THRESHOLDS.BPXDI1.stage1) {
+      return {
+        level: "warning",
+        label: "Підвищений",
+        explanation: "Діастолічний тиск 80–89 мм рт. ст.",
+      };
+    }
+    return {
+      level: "danger",
+      label: "Гіпертонія 2 ступеня",
+      explanation: "Діастолічний тиск ≥ 90 мм рт. ст. Потребує уваги.",
+    };
+  }
+
+  if (feature === "LBXGLU") {
+    if (numeric < HEALTH_THRESHOLDS.LBXGLU.normal) {
+      return {
+        level: "normal",
+        label: "Норма",
+        explanation: "Глюкоза натще нижча за 100 мг/дл.",
+      };
+    }
+    if (numeric < HEALTH_THRESHOLDS.LBXGLU.prediabetes) {
+      return {
+        level: "warning",
+        label: "Підвищена (переддіабет)",
+        explanation: "Глюкоза у діапазоні 100–125 мг/дл.",
+      };
+    }
+    return {
+      level: "danger",
+      label: "Можливий діабет",
+      explanation: "Глюкоза ≥ 126 мг/дл. Порадьтеся з лікарем.",
+    };
+  }
+
+  if (feature === "LBXTC") {
+    if (numeric < HEALTH_THRESHOLDS.LBXTC.optimal) {
+      return {
+        level: "normal",
+        label: "Оптимальний",
+        explanation: "Загальний холестерин нижче 200 мг/дл.",
+      };
+    }
+    if (numeric < HEALTH_THRESHOLDS.LBXTC.borderline) {
+      return {
+        level: "warning",
+        label: "Прикордонний рівень",
+        explanation: "Холестерин 200–239 мг/дл. Важливо контролювати харчування.",
+      };
+    }
+    return {
+      level: "danger",
+      label: "Високий рівень",
+      explanation: "Холестерин ≥ 240 мг/дл. Підвищений серцево-судинний ризик.",
+    };
+  }
+
+  return {
+    level: "info",
+    label: "Значення",
+    explanation: "Значення показника.",
+  };
+}
+
+function getChartStyles() {
+  const styles = getComputedStyle(document.body);
+  return {
+    textPrimary: styles.getPropertyValue("--text-primary")?.trim() || "#1c2333",
+    textSecondary: styles.getPropertyValue("--text-secondary")?.trim() || "#4c5472",
+    gridColor: styles.getPropertyValue("--border-glass")?.trim() || "rgba(99, 110, 145, 0.25)",
+    background: styles.getPropertyValue("--card-bg")?.trim() || "rgba(255,255,255,0.16)",
+    accent: "rgba(88, 101, 242, 0.8)",
+    accentLight: "rgba(88, 101, 242, 0.35)",
+    accentAlt: "rgba(125, 92, 255, 0.8)",
+  };
+}
+
+function percentToDisplay(probability) {
+  if (probability === null || probability === undefined) {
+    return 0;
+  }
+  const safeValue = Math.max(0, Math.min(1, Number.parseFloat(probability)));
+  return Number.isNaN(safeValue) ? 0 : Number.parseFloat((safeValue * 100).toFixed(2));
+}
+
+function toggleHidden(element, hidden) {
+  if (!element) return;
+  element.hidden = Boolean(hidden);
+}
+
+function toggleChartVisibility(canvasOrId, visible) {
+  const canvas = typeof canvasOrId === "string" ? document.getElementById(canvasOrId) : canvasOrId;
+  if (!canvas) return;
+  const wrapper = canvas.closest(".chart-wrapper") || canvas.parentElement;
+  if (wrapper) {
+    wrapper.style.display = visible ? "" : "none";
+  }
+}
+
+function setElementText(id, text) {
+  const el = typeof id === "string" ? document.getElementById(id) : id;
+  if (el) {
+    el.textContent = text;
+  }
+}
+
+function upsertDashboardChart(chartId, config) {
+  const canvas = document.getElementById(chartId);
+  if (!canvas) return null;
+  if (dashboardCharts[chartId]) {
+    dashboardCharts[chartId].destroy();
+  }
+  dashboardCharts[chartId] = new Chart(canvas.getContext("2d"), config);
+  return dashboardCharts[chartId];
+}
+
+function destroyDashboardCharts() {
+  Object.values(dashboardCharts).forEach((chart) => {
+    if (chart) chart.destroy();
+  });
+}
+
+function getPrediction(target) {
+  return predictionStore[target] ?? null;
+}
+
+function getLatestPredictionEntry() {
+  if (latestPredictionKey && predictionStore[latestPredictionKey]) {
+    return { target: latestPredictionKey, data: predictionStore[latestPredictionKey] };
+  }
+  const entries = Object.entries(predictionStore);
+  if (entries.length === 0) return null;
+  entries.sort((a, b) => (b[1]?.savedAt ?? 0) - (a[1]?.savedAt ?? 0));
+  const [target, data] = entries[0];
+  latestPredictionKey = target;
+  return { target, data };
+}
+
+function formatDateTime(timestamp) {
+  if (!timestamp) return "";
+  try {
+    const date = new Date(timestamp);
+    return date.toLocaleString("uk-UA", { hour12: false });
+  } catch (error) {
+    return "";
+  }
+}
+
+async function apiFetch(
+  path,
+  options = {},
+  { skipAuth = false } = {},
+) {
+  const init = {
+    method: "GET",
+    ...options,
+  };
+
+  const headers = new Headers(init.headers || {});
+  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (!skipAuth && authState.token) {
+    headers.set("Authorization", `Bearer ${authState.token}`);
+  }
+  init.headers = headers;
+
+  const response = await fetch(`${API_BASE}${path}`, init);
+  const contentType = response.headers.get("content-type") || "";
+  let data = null;
+  if (contentType.includes("application/json")) {
+    data = await response.json().catch(() => null);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401 && !skipAuth) {
+      handleUnauthorized();
+    }
+    const message = data?.detail || data?.message || "Сталася помилка під час запиту.";
+    throw new Error(message);
+  }
+  return data;
+}
+
+function setAuthFormError(box, message) {
+  if (!box) return;
+  if (message) {
+    box.textContent = message;
+    box.hidden = false;
+  } else {
+    box.textContent = "";
+    box.hidden = true;
+  }
+}
+
+function normalizePath(pathname) {
+  if (!pathname) return "/app";
+  let normalized = pathname;
+  if (normalized.length > 1 && normalized.endsWith("/")) {
+    normalized = normalized.slice(0, -1);
+  }
+  normalized = normalized.toLowerCase();
+  if (ROUTE_ALIASES[normalized]) {
+    normalized = ROUTE_ALIASES[normalized];
+  }
+  if (!ROUTE_SECTIONS[normalized]) {
+    return "/app";
+  }
+  return normalized;
+}
+
+function getSectionByPath(pathname) {
+  const normalized = normalizePath(pathname);
+  return {
+    path: normalized,
+    section: ROUTE_SECTIONS[normalized] || ROUTE_SECTIONS["/app"],
+  };
+}
+
+function showSectionForPath(pathname) {
+  const { path, section } = getSectionByPath(pathname);
+  
+  // Auth gating: require authentication for main app pages
+  const protectedSections = ["page-form", "page-insights", "page-profile"];
+  if (protectedSections.includes(section) && !authState.user && authState.initialized) {
+    pendingRouteAfterAuth = path;
+    return showSectionForPath("/login");
+  }
+  
+  // Redirect authenticated users away from login/register pages (but not forgot/reset password)
+  if ((section === "page-login" || section === "page-register") && authState.user) {
+    const redirectTarget = pendingRouteAfterAuth || "/app";
+    pendingRouteAfterAuth = null;
+    return showSectionForPath(redirectTarget);
+  }
+  
+  // Обробка маршруту reset-password з токеном
+  if (section === "page-reset-password") {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+    if (!token) {
+      // Якщо токен відсутній, перенаправляємо на forgot-password
+      return showSectionForPath("/forgot-password");
+    }
+  }
+  
+  activateSection(section);
+  return path;
+}
+
+function navigateTo(pathname, { replace = false } = {}) {
+  const targetPath = showSectionForPath(pathname);
+  const currentPath = window.location.pathname;
+  if (replace) {
+    if (currentPath !== targetPath) {
+      history.replaceState({}, "", targetPath);
+    }
+  } else if (currentPath !== targetPath) {
+    history.pushState({}, "", targetPath);
+  }
+}
+
+function syncRouteFromLocation() {
+  const actualPath = showSectionForPath(window.location.pathname);
+  if (window.location.pathname !== actualPath) {
+    history.replaceState({}, "", actualPath);
+  }
+}
+
+function persistToken(token) {
+  authState.token = token;
+  if (token) {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
+}
+
+function clearAuthState() {
+  persistToken(null);
+  authState.user = null;
+  authState.history = [];
+  pendingRouteAfterAuth = null;
+  setProfileStatus("");
+  updateUserPanel();
+  updateProfileSection();
+  renderHistoryTable();
+  updateNavigationVisibility();
+}
+
+function handleUnauthorized() {
+  clearAuthState();
+  navigateTo("/login", { replace: true });
+}
+
+function handleAuthSuccess(payload, options = {}) {
+  if (!payload?.access_token || !payload?.user) return;
+  persistToken(payload.access_token);
+  authState.user = payload.user;
+  authState.history = [];
+  updateUserPanel();
+  updateProfileSection();
+  loadHistory().catch((error) => console.error("Не вдалося оновити історію:", error));
+  updateNavigationVisibility();
+  refreshIcons();
+  
+  // After registration or login, always redirect to profile
+  const targetRoute = options.navigateToRoute || "/profile";
+  pendingRouteAfterAuth = null;
+  navigateTo(targetRoute, { replace: true });
+}
+
+function getInitials(name) {
+  if (!name) return "К";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "К";
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "К";
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+function applyAvatarStyle(element, user) {
+  if (!element) return;
+  
+  // Перевіряємо тип аватару
+  const avatarType = user?.avatar_type || "generated";
+  
+  if (avatarType === "uploaded" && user?.avatar_url) {
+    // Показуємо завантажене фото
+    const avatarUrl = user.avatar_url.startsWith("/") 
+      ? `${API_BASE}${user.avatar_url}`
+      : user.avatar_url;
+    
+    element.style.backgroundImage = `url(${avatarUrl})`;
+    element.style.backgroundSize = "cover";
+    element.style.backgroundPosition = "center";
+    element.style.backgroundRepeat = "no-repeat";
+    element.textContent = ""; // Приховуємо ініціали
+  } else {
+    // Показуємо згенерований аватар з ініціалами
+    const color = user?.avatar_color || DEFAULT_AVATAR_COLOR;
+    element.style.background = color;
+    element.style.backgroundImage = "none";
+    element.textContent = getInitials(user?.display_name || user?.email || "");
+  }
+}
+
+function formatDateTimeLong(timestamp) {
+  if (!timestamp) return "";
+  try {
+    return new Intl.DateTimeFormat("uk-UA", {
+      dateStyle: "long",
+      timeStyle: "short",
+    }).format(new Date(timestamp));
+  } catch (error) {
+    return "";
+  }
+}
+
+function formatProbability(probability) {
+  if (probability === null || probability === undefined) return "—";
+  const value = Math.max(0, Math.min(1, Number.parseFloat(probability)));
+  if (Number.isNaN(value)) return "—";
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatTargetLabel(target) {
+  return TARGET_LABELS[target] || target;
+}
+
+function getRiskColor(bucket) {
+  if (bucket === "low") return SEVERITY_COLORS.normal;
+  if (bucket === "medium") return SEVERITY_COLORS.warning;
+  if (bucket === "high") return SEVERITY_COLORS.danger;
+  return SEVERITY_COLORS.info;
+}
+
+function updateNavigationVisibility() {
+  if (!navProfileItem) return;
+  navProfileItem.hidden = !authState.user;
+}
+
+function updateUserPanel() {
+  if (!userPanelGuest || !userPanelAuth) return;
+  updateNavigationVisibility();
+  if (authState.user) {
+    // Користувач автентифікований: ховаємо гостя, показуємо авторизованого користувача
+    userPanelGuest.setAttribute("hidden", "");
+    userPanelGuest.hidden = true;
+    userPanelAuth.removeAttribute("hidden");
+    userPanelAuth.hidden = false;
+    toggleUserMenu(false);
+    if (userPillName) userPillName.textContent = authState.user.display_name;
+    if (userPillEmail) userPillEmail.textContent = authState.user.email;
+    applyAvatarStyle(userPillAvatar, authState.user);
+  } else {
+    // Користувач НЕ автентифікований: показуємо гостя, ховаємо авторизованого користувача
+    userPanelGuest.removeAttribute("hidden");
+    userPanelGuest.hidden = false;
+    userPanelAuth.setAttribute("hidden", "");
+    userPanelAuth.hidden = true;
+    toggleUserMenu(false);
+  }
+  refreshIcons();
+}
+
+function updateProfileSection() {
+  if (!profileGuestState || !profileAuthenticated) return;
+  if (authState.user) {
+    // Користувач автентифікований: показуємо профіль, ховаємо гостя
+    profileGuestState.setAttribute("hidden", "");
+    profileGuestState.hidden = true;
+    profileAuthenticated.removeAttribute("hidden");
+    profileAuthenticated.hidden = false;
+    if (profileNameEl) profileNameEl.textContent = authState.user.display_name;
+    if (profileEmailEl) profileEmailEl.textContent = authState.user.email;
+    if (profilePasswordEmailInput && authState.user.email) {
+      profilePasswordEmailInput.value = authState.user.email;
+    }
+    if (profileJoinedEl) {
+      profileJoinedEl.textContent = `З нами з ${formatDateTimeLong(authState.user.created_at) || "сьогодні"}`;
+    }
+    applyAvatarStyle(profileAvatar, authState.user);
+    if (profileDisplayNameInput) profileDisplayNameInput.value = authState.user.display_name;
+    if (profileAvatarColorInput) {
+      profileAvatarColorInput.value = authState.user.avatar_color || DEFAULT_AVATAR_COLOR;
+    }
+    // Оновлюємо видимість кнопок аватару
+    updateAvatarButtons();
+    setProfileStatus("");
+  } else {
+    // Користувач НЕ автентифікований: ховаємо профіль, показуємо гостя
+    profileGuestState.removeAttribute("hidden");
+    profileGuestState.hidden = false;
+    profileAuthenticated.setAttribute("hidden", "");
+    profileAuthenticated.hidden = true;
+  }
+}
+
+function updateAvatarButtons() {
+  if (!avatarResetBtn) return;
+  const avatarType = authState.user?.avatar_type || "generated";
+  if (avatarType === "uploaded") {
+    avatarResetBtn.removeAttribute("hidden");
+    avatarResetBtn.hidden = false;
+  } else {
+    avatarResetBtn.setAttribute("hidden", "");
+    avatarResetBtn.hidden = true;
+  }
+}
+
+function renderHistoryTable() {
+  if (!historyTableBody || !historyEmpty || !historyContent) return;
+  if (!authState.user) {
+    historyTableBody.innerHTML = "";
+    historyEmpty.textContent = "Історія доступна лише після входу до системи.";
+    historyEmpty.hidden = false;
+    historyContent.hidden = true;
+    return;
+  }
+
+  if (!authState.history || authState.history.length === 0) {
+    historyTableBody.innerHTML = "";
+    historyEmpty.textContent = "Історія поки порожня. Зробіть прогноз, щоб побачити його тут.";
+    historyEmpty.hidden = false;
+    historyContent.hidden = true;
+    return;
+  }
+
+  const rows = authState.history
+    .map((entry) => {
+      const dateLabel = formatDateTimeLong(entry.created_at);
+      const targetLabel = formatTargetLabel(entry.target);
+      const modelLabel = entry.model_name || "Автоматично";
+      const probabilityLabel = formatProbability(entry.probability);
+      const riskLabel = riskLabels[entry.risk_bucket] || entry.risk_bucket;
+      const color = getRiskColor(entry.risk_bucket);
+      return `
+        <tr data-id="${entry.id}">
+          <td>${dateLabel}</td>
+          <td>${targetLabel}</td>
+          <td>${modelLabel}</td>
+          <td>${probabilityLabel}</td>
+          <td><span class="history-actions__pill" style="background:${color};color:#fff;">${riskLabel}</span></td>
+          <td class="history-table__actions">
+            <div class="history-actions">
+              <button type="button" class="history-actions__button" data-action="replay" data-id="${entry.id}">Повторити</button>
+              <button type="button" class="history-actions__button history-actions__button--danger" data-action="delete" data-id="${entry.id}">Видалити</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  historyTableBody.innerHTML = rows;
+  historyEmpty.hidden = true;
+  historyContent.hidden = false;
+}
+
+async function loadHistory(limit = 50) {
+  if (!authState.token) {
+    authState.history = [];
+    renderHistoryTable();
+    return;
+  }
+  try {
+    const data = await apiFetch(`/users/me/history?limit=${limit}`);
+    authState.history = Array.isArray(data?.items) ? data.items : [];
+  } catch (error) {
+    console.error("Не вдалося отримати історію прогнозів:", error);
+  }
+  renderHistoryTable();
+}
+
+async function initializeAuth() {
+  const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (storedToken) {
+    persistToken(storedToken);
+    try {
+      const profile = await apiFetch("/auth/me");
+      authState.user = profile;
+      await loadHistory();
+    } catch (error) {
+      console.warn("Сесію не вдалося поновити:", error);
+      clearAuthState();
+    }
+  } else {
+    persistToken(null);
+    authState.user = null;
+    authState.history = [];
+  }
+  authState.initialized = true;
+  updateUserPanel();
+  updateProfileSection();
+  updateNavigationVisibility();
+  renderHistoryTable();
+  syncRouteFromLocation();
+}
+
+function toggleUserMenu(forceState) {
+  if (!userMenu || !userMenuTrigger) return;
+  const isCurrentlyHidden = userMenu.hasAttribute("hidden") || userMenu.hidden;
+  const shouldOpen = typeof forceState === "boolean" 
+    ? forceState 
+    : isCurrentlyHidden;
+  
+  if (shouldOpen) {
+    userMenu.removeAttribute("hidden");
+    userMenu.hidden = false;
+    userMenuTrigger.setAttribute("aria-expanded", "true");
+    refreshIcons();
+  } else {
+    userMenu.setAttribute("hidden", "");
+    userMenu.hidden = true;
+    userMenuTrigger.setAttribute("aria-expanded", "false");
+  }
+}
+
+function loadPredictionFromHistory(inputs) {
+  if (!inputs) return;
+  queuedFormInputs = { ...inputs };
+  applyQueuedPredictionInputs();
+  navigateTo("/app");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function applyQueuedPredictionInputs() {
+  if (!queuedFormInputs) return;
+  let applied = false;
+  Object.entries(queuedFormInputs).forEach(([key, value]) => {
+    if (key === "target" || key === "model") return;
+    const input = inputRefs[key];
+    if (input) {
+      input.value = value ?? "";
+      applied = true;
+    }
+  });
+  if (targetSelect && queuedFormInputs.target) {
+    targetSelect.value = queuedFormInputs.target;
+    applied = true;
+  }
+  if (modelSelect) {
+    const modelValue = queuedFormInputs.model && queuedFormInputs.model !== "" ? queuedFormInputs.model : "auto";
+    const optionExists = Array.from(modelSelect.options).some((opt) => opt.value === modelValue);
+    modelSelect.value = optionExists ? modelValue : "auto";
+    applied = true;
+  }
+  if (applied) {
+    queuedFormInputs = null;
+    updateAllIndicators();
+  }
+}
+
+function setProfileStatus(message, variant = "info") {
+  if (!profileUpdateStatus) return;
+  if (!message) {
+    profileUpdateStatus.textContent = "";
+    return;
+  }
+  profileUpdateStatus.textContent = message;
+  profileUpdateStatus.style.color = variant === "error" ? "#b21f2f" : "var(--text-secondary)";
+}
+
+function openLoginPage() {
+  // Perform real route change using window.location.href
+  window.location.href = "/login";
+}
+
+function openRegisterPage() {
+  // Perform real route change using window.location.href
+  window.location.href = "/register";
+}
+
+async function handleLoginSubmit(event) {
+  event.preventDefault();
+  if (!loginForm) return;
+  const submitButton = loginForm.querySelector("button[type='submit']");
+  const formData = new FormData(loginForm);
+  const email = formData.get("email")?.toString().trim() || "";
+  const password = formData.get("password")?.toString() || "";
+  
+  // Клієнтська валідація
+  setAuthFormError(loginErrorBox, "");
+  if (!email && !password) {
+    setAuthFormError(loginErrorBox, "Поля електронної пошти та пароля не можуть бути порожніми.");
+    return;
+  }
+  if (!email) {
+    setAuthFormError(loginErrorBox, "Поле електронної пошти не може бути порожнім.");
+    return;
+  }
+  if (!password) {
+    setAuthFormError(loginErrorBox, "Поле пароля не може бути порожнім.");
+    return;
+  }
+  
+  const payload = { email, password };
+  if (submitButton) submitButton.disabled = true;
+  
+  try {
+    const data = await apiFetch(
+      "/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      { skipAuth: true },
+    );
+    // Після успішної логінації завжди перенаправляємо на /profile
+    handleAuthSuccess(data, { navigateToRoute: "/profile" });
+  } catch (error) {
+    // Обробка помилок від backend
+    const errorMessage = error.message || error.detail || "Не вдалося увійти. Спробуйте ще раз.";
+    setAuthFormError(loginErrorBox, errorMessage);
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
+}
+
+async function handleRegisterSubmit(event) {
+  event.preventDefault();
+  if (!registerForm) return;
+  const submitButton = registerForm.querySelector("button[type='submit']");
+  const formData = new FormData(registerForm);
+  const displayName = formData.get("display_name")?.toString().trim();
+  const email = formData.get("email")?.toString().trim();
+  const password = formData.get("password")?.toString() ?? "";
+  const confirm = formData.get("confirm_password")?.toString() ?? "";
+
+  if (password !== confirm) {
+    setAuthFormError(registerErrorBox, "Паролі не співпадають.");
+    return;
+  }
+
+  if (submitButton) submitButton.disabled = true;
+  setAuthFormError(registerErrorBox, "");
+
+  try {
+    const data = await apiFetch(
+      "/auth/register",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          password,
+          confirm_password: confirm,
+          display_name: displayName,
+        }),
+      },
+      { skipAuth: true },
+    );
+    handleAuthSuccess(data, { isRegistration: true });
+  } catch (error) {
+    setAuthFormError(registerErrorBox, error.message);
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
+}
+
+async function handleProfileUpdate(event) {
+  event.preventDefault();
+  if (!profileDisplayNameInput || !profileAvatarColorInput || !authState.user) {
+    openLoginPage();
+    return;
+  }
+  const payload = {
+    display_name: profileDisplayNameInput.value.trim(),
+    avatar_color: profileAvatarColorInput.value || DEFAULT_AVATAR_COLOR,
+  };
+  setProfileStatus("Збереження...", "info");
+  try {
+    const data = await apiFetch("/users/me", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    authState.user = data;
+    updateUserPanel();
+    updateProfileSection();
+    setProfileStatus("Профіль оновлено.", "info");
+  } catch (error) {
+    setProfileStatus(error.message, "error");
+  }
+}
+
+async function handleAvatarUpload(event) {
+  if (!avatarUploadInput || !authState.user) return;
+  
+  const file = event.target.files?.[0];
+  if (!file) return;
+  
+  // Перевірка типу файлу
+  const validTypes = ["image/png", "image/jpeg", "image/jpg"];
+  if (!validTypes.includes(file.type)) {
+    setProfileStatus("Недозволений формат файлу. Дозволені: PNG, JPG, JPEG", "error");
+    return;
+  }
+  
+  // Перевірка розміру файлу (5MB)
+  const maxSize = 5 * 1024 * 1024;
+  if (file.size > maxSize) {
+    setProfileStatus("Файл занадто великий. Максимальний розмір: 5MB", "error");
+    return;
+  }
+  
+  setProfileStatus("Завантаження фото...", "info");
+  
+  // Додаємо індикатор завантаження
+  if (avatarUploadBtn) {
+    avatarUploadBtn.disabled = true;
+    const originalText = avatarUploadBtn.textContent;
+    avatarUploadBtn.textContent = "Завантаження...";
+  }
+  
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    const response = await fetch(`${API_BASE}/users/me/avatar`, {
+      method: "POST",
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || "Не вдалося завантажити фото. Спробуйте інший файл.");
+    }
+    
+    const data = await response.json();
+    authState.user = data;
+    updateUserPanel();
+    updateProfileSection();
+    setProfileStatus("Фото завантажено успішно.", "info");
+  } catch (error) {
+    setProfileStatus(error.message || "Не вдалося завантажити фото. Спробуйте інший файл.", "error");
+  } finally {
+    // Скидаємо інпут
+    if (avatarUploadInput) {
+      avatarUploadInput.value = "";
+    }
+    if (avatarUploadBtn) {
+      avatarUploadBtn.disabled = false;
+      avatarUploadBtn.textContent = "Завантажити фото";
+    }
+  }
+}
+
+async function handleAvatarReset() {
+  if (!authState.user) return;
+  
+  const confirmReset = confirm("Ви впевнені, що хочете повернутися до стандартного аватару?");
+  if (!confirmReset) return;
+  
+  setProfileStatus("Скидання аватару...", "info");
+  
+  if (avatarResetBtn) {
+    avatarResetBtn.disabled = true;
+  }
+  
+  try {
+    const data = await apiFetch("/users/me/avatar", {
+      method: "DELETE",
+    });
+    authState.user = data;
+    updateUserPanel();
+    updateProfileSection();
+    setProfileStatus("Аватар скинуто до стандартного.", "info");
+  } catch (error) {
+    setProfileStatus(error.message || "Не вдалося скинути аватар. Спробуйте пізніше.", "error");
+  } finally {
+    if (avatarResetBtn) {
+      avatarResetBtn.disabled = false;
+    }
+  }
+}
+
+async function handlePasswordChange(event) {
+  event.preventDefault();
+  if (!profileCurrentPasswordInput || !profileNewPasswordInput || !profileConfirmPasswordInput || !authState.user) {
+    openLoginPage();
+    return;
+  }
+  
+  const currentPassword = profileCurrentPasswordInput.value;
+  const newPassword = profileNewPasswordInput.value;
+  const confirmPassword = profileConfirmPasswordInput.value;
+  
+  // Валідація на клієнті
+  if (newPassword !== confirmPassword) {
+    setPasswordStatus("Паролі не співпадають.", "error");
+    return;
+  }
+  
+  if (newPassword.length < 8) {
+    setPasswordStatus("Пароль повинен містити мінімум 8 символів.", "error");
+    return;
+  }
+  
+  setPasswordStatus("Оновлення пароля...", "info");
+  
+  const submitButton = profilePasswordForm?.querySelector('button[type="submit"]');
+  if (submitButton) {
+    submitButton.disabled = true;
+  }
+  
+  try {
+    const response = await apiFetch("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_new_password: confirmPassword,
+      }),
+    });
+    
+    setPasswordStatus(response.message || "Пароль успішно змінено.", "info");
+    
+    // Очищаємо поля форми
+    if (profileCurrentPasswordInput) profileCurrentPasswordInput.value = "";
+    if (profileNewPasswordInput) profileNewPasswordInput.value = "";
+    if (profileConfirmPasswordInput) profileConfirmPasswordInput.value = "";
+  } catch (error) {
+    setPasswordStatus(error.message || "Не вдалося змінити пароль. Спробуйте ще раз.", "error");
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+    }
+  }
+}
+
+function setPasswordStatus(message, type = "info") {
+  if (!profilePasswordStatus) return;
+  profilePasswordStatus.textContent = message;
+  profilePasswordStatus.hidden = false;
+  
+  // Видаляємо старі класи
+  profilePasswordStatus.classList.remove("profile-form__status--error", "profile-form__status--info");
+  
+  if (type === "error") {
+    profilePasswordStatus.classList.add("profile-form__status--error");
+  } else {
+    profilePasswordStatus.classList.add("profile-form__status--info");
+  }
+}
+
+async function handleForgotPassword(event) {
+  event.preventDefault();
+  if (!forgotPasswordForm) return;
+  
+  const formData = new FormData(forgotPasswordForm);
+  const email = formData.get("email")?.toString().trim();
+  
+  if (!email) {
+    setForgotPasswordError("Будь ласка, введіть електронну пошту.");
+    return;
+  }
+  
+  const submitButton = forgotPasswordForm.querySelector('button[type="submit"]');
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Надсилання...";
+  }
+  
+  setForgotPasswordError("");
+  if (forgotPasswordSuccess) {
+    forgotPasswordSuccess.hidden = true;
+    forgotPasswordSuccess.textContent = "";
+    forgotPasswordSuccess.innerHTML = "";
+  }
+  
+  try {
+    const data = await apiFetch("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }, { skipAuth: true });
+    
+    // Якщо отримано reset_token - користувач існує
+    if (data.reset_token) {
+      const resetToken = data.reset_token;
+      const resetUrl = `${window.location.origin}/reset-password?token=${resetToken}`;
+
+      let copied = false;
+
+      // Спробуємо скопіювати через Clipboard API (сучасний метод)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(resetUrl);
+          copied = true;
+          console.log("🔗 Посилання скопійовано в буфер обміну через Clipboard API:", resetUrl);
+        } catch (clipboardError) {
+          console.warn("Не вдалося скопіювати через Clipboard API:", clipboardError);
+        }
+      }
+
+      // Fallback: спробуємо через execCommand (старіший метод)
+      if (!copied) {
+        try {
+          const textArea = document.createElement("textarea");
+          textArea.value = resetUrl;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-999999px";
+          textArea.style.top = "-999999px";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          const successful = document.execCommand("copy");
+          document.body.removeChild(textArea);
+
+          if (successful) {
+            copied = true;
+            console.log("🔗 Посилання скопійовано в буфер обміну через execCommand:", resetUrl);
+          }
+        } catch (execCommandError) {
+          console.warn("Не вдалося скопіювати через execCommand:", execCommandError);
+        }
+      }
+
+      // Відкриваємо посилання в новій вкладці
+      try {
+        window.open(resetUrl, '_blank', 'noopener,noreferrer');
+        console.log("🔗 Посилання відкрито в новій вкладці:", resetUrl);
+      } catch (openError) {
+        console.warn("Не вдалося відкрити посилання в новій вкладці:", openError);
+      }
+
+      // Показуємо повідомлення
+      if (forgotPasswordSuccess) {
+        if (copied) {
+          // Якщо успішно скопійовано - показуємо простий текст
+          forgotPasswordSuccess.innerHTML = "Посилання для скидання пароля скопійовано у буфер обміну<br>(дипломна версія).";
+          forgotPasswordSuccess.hidden = false;
+        } else {
+          // Якщо не вдалося скопіювати - показуємо URL для ручного копіювання
+          const escapedUrl = resetUrl.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+          const messageHTML = `<strong>Посилання для скидання пароля (дипломна версія):</strong><br><br><a href="${escapedUrl}" onclick="navigator.clipboard?.writeText('${escapedUrl}').then(() => alert('Посилання скопійовано!')).catch(() => {}); return false;" style="color: #15803d; text-decoration: underline; cursor: pointer; font-weight: 600; word-break: break-all;">${resetUrl}</a><br><br>Натисніть на посилання вище, щоб скопіювати його.`;
+          forgotPasswordSuccess.innerHTML = messageHTML;
+          forgotPasswordSuccess.hidden = false;
+        }
+        // Приховуємо помилку, якщо вона була показана
+        if (forgotPasswordError) {
+          forgotPasswordError.hidden = true;
+        }
+      }
+      
+      // Ховаємо кнопку та робимо поле readonly
+      if (forgotPasswordSubmitBtn) {
+        forgotPasswordSubmitBtn.hidden = true;
+      }
+      if (forgotEmailInput) {
+        forgotEmailInput.readOnly = true;
+      }
+      
+      console.log("🔐 Токен відновлення пароля:", resetToken);
+      console.log("🔗 Посилання для скидання пароля:", resetUrl);
+    } else {
+      // Якщо reset_token відсутній - користувача не знайдено
+      // (Але це не повинно статися, якщо backend правильно повертає помилку)
+      const errorMessage = "Користувача з такою електронною поштою не зареєстровано.";
+      console.log("❌ reset_token відсутній - користувача не знайдено");
+      setForgotPasswordError(errorMessage);
+      
+      // Приховуємо успішне повідомлення
+      if (forgotPasswordSuccess) {
+        forgotPasswordSuccess.hidden = true;
+        forgotPasswordSuccess.textContent = "";
+        forgotPasswordSuccess.innerHTML = "";
+      }
+      
+      // Ховаємо кнопку та робимо поле readonly
+      if (forgotPasswordSubmitBtn) {
+        forgotPasswordSubmitBtn.hidden = true;
+      }
+      if (forgotEmailInput) {
+        forgotEmailInput.readOnly = true;
+      }
+    }
+  } catch (error) {
+    // Помилка - користувача не знайдено або інша помилка
+    // apiFetch кидає Error з message, який містить detail з відповіді
+    const errorMessage = error.message || error.detail || "Користувача з такою електронною поштою не зареєстровано.";
+    console.log("❌ Помилка відновлення пароля:", errorMessage);
+    setForgotPasswordError(errorMessage);
+    
+    // Приховуємо успішне повідомлення, якщо воно було показано
+    if (forgotPasswordSuccess) {
+      forgotPasswordSuccess.hidden = true;
+      forgotPasswordSuccess.textContent = "";
+      forgotPasswordSuccess.innerHTML = "";
+    }
+    
+    // Ховаємо кнопку та робимо поле readonly
+    if (forgotPasswordSubmitBtn) {
+      forgotPasswordSubmitBtn.hidden = true;
+    }
+    if (forgotEmailInput) {
+      forgotEmailInput.readOnly = true;
+    }
+  } finally {
+    // Скидаємо стан кнопки тільки якщо вона видима
+    // Якщо кнопка прихована (після помилки або успіху), стан буде скинуто через resetForgotPasswordForm()
+    if (submitButton && !submitButton.hidden) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Надіслати інструкції";
+    }
+    // Якщо кнопка прихована, але все ще disabled, скидаємо її стан для майбутнього використання
+    if (submitButton && submitButton.hidden && submitButton.disabled) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Надіслати інструкції";
+    }
+  }
+}
+
+function setForgotPasswordError(message) {
+  if (!forgotPasswordError) return;
+  if (message) {
+    forgotPasswordError.textContent = message;
+    forgotPasswordError.hidden = false;
+    if (forgotPasswordSuccess) {
+      forgotPasswordSuccess.hidden = true;
+    }
+  } else {
+    forgotPasswordError.hidden = true;
+  }
+}
+
+function resetForgotPasswordForm() {
+  // Скидаємо стан форми відновлення пароля
+  if (forgotEmailInput) {
+    forgotEmailInput.readOnly = false;
+    forgotEmailInput.value = "";
+  }
+  if (forgotPasswordSubmitBtn) {
+    forgotPasswordSubmitBtn.hidden = false;
+    forgotPasswordSubmitBtn.disabled = false;
+    forgotPasswordSubmitBtn.textContent = "Надіслати інструкції";
+  }
+  setForgotPasswordError("");
+  if (forgotPasswordSuccess) {
+    forgotPasswordSuccess.hidden = true;
+    forgotPasswordSuccess.textContent = "";
+    forgotPasswordSuccess.innerHTML = "";
+  }
+  if (forgotPasswordForm) {
+    forgotPasswordForm.reset();
+  }
+}
+
+function setForgotPasswordSuccess(message) {
+  if (!forgotPasswordSuccess) return;
+  if (message) {
+    forgotPasswordSuccess.textContent = message;
+    forgotPasswordSuccess.hidden = false;
+    if (forgotPasswordError) {
+      forgotPasswordError.hidden = true;
+    }
+  } else {
+    forgotPasswordSuccess.hidden = true;
+  }
+}
+
+async function handleResetPassword(event) {
+  event.preventDefault();
+  if (!resetPasswordForm) return;
+  
+  // Отримуємо токен з URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get("token");
+  
+  if (!token) {
+    setResetPasswordError("Відсутній токен відновлення. Перевірте посилання з email.");
+    return;
+  }
+  
+  const formData = new FormData(resetPasswordForm);
+  const newPassword = formData.get("new_password")?.toString() || "";
+  const confirmPassword = formData.get("confirm_new_password")?.toString() || "";
+  
+  // Валідація на клієнті
+  if (newPassword !== confirmPassword) {
+    setResetPasswordError("Паролі не співпадають.");
+    return;
+  }
+  
+  if (newPassword.length < 8) {
+    setResetPasswordError("Пароль повинен містити мінімум 8 символів.");
+    return;
+  }
+  
+  const submitButton = resetPasswordForm.querySelector('button[type="submit"]');
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Оновлення...";
+  }
+  
+  setResetPasswordError("");
+  
+  try {
+    const data = await apiFetch("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({
+        token,
+        new_password: newPassword,
+        confirm_new_password: confirmPassword,
+      }),
+    }, { skipAuth: true });
+    
+    // Показуємо повідомлення про успіх
+    setResetPasswordError(""); // Очищаємо помилки
+    if (resetPasswordError) {
+      resetPasswordError.textContent = data.message || "Пароль успішно оновлено!";
+      resetPasswordError.style.color = "var(--success-color, #4ade80)";
+      resetPasswordError.hidden = false;
+    }
+    
+    // Ховаємо форму та показуємо лоадер
+    if (resetPasswordForm) {
+      resetPasswordForm.hidden = true;
+    }
+    showLoader();
+    
+    // Перенаправляємо на сторінку входу через 2 секунди
+    setTimeout(() => {
+      hideLoader();
+      navigateTo("/login");
+      // Очищаємо токен з URL
+      window.history.replaceState({}, document.title, "/login");
+    }, 2000);
+  } catch (error) {
+    // Обробка помилок від backend
+    const errorMessage = error.message || error.detail || "Не вдалося оновити пароль. Перевірте токен або спробуйте ще раз.";
+    setResetPasswordError(errorMessage);
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Оновити пароль";
+    }
+  }
+}
+
+function setResetPasswordError(message) {
+  if (!resetPasswordError) return;
+  if (message) {
+    resetPasswordError.textContent = message;
+    resetPasswordError.hidden = false;
+    resetPasswordError.style.color = ""; // Скидаємо колір для помилок
+  } else {
+    resetPasswordError.hidden = true;
+  }
+}
+
+function showLoader() {
+  if (appLoader) {
+    appLoader.hidden = false;
+    appLoader.setAttribute("aria-busy", "true");
+  }
+}
+
+function hideLoader() {
+  if (appLoader) {
+    appLoader.hidden = true;
+    appLoader.setAttribute("aria-busy", "false");
+  }
+}
+
+function openForgotPasswordPage() {
+  navigateTo("/forgot-password");
+}
+
+function openResetPasswordPage(token) {
+  navigateTo(`/reset-password?token=${encodeURIComponent(token)}`);
+}
+
+async function handleLogout() {
+  // Перевіряємо, чи вже не виконується logout (запобігаємо подвійному виклику)
+  if (handleLogout.inProgress) {
+    console.log("Logout вже виконується, ігноруємо повторний виклик");
+    return;
+  }
+  
+  handleLogout.inProgress = true;
+  
+  try {
+    await apiFetch("/auth/logout", { method: "POST" }, { skipAuth: false });
+  } catch (error) {
+    console.warn("Помилка під час виходу:", error);
+  } finally {
+    clearAuthState();
+    navigateTo("/login", { replace: true });
+    handleLogout.inProgress = false;
+  }
+}
+
+function handleHistoryTableClick(event) {
+  const actionButton = event.target.closest("[data-action]");
+  if (!actionButton) return;
+  const id = Number.parseInt(actionButton.dataset.id, 10);
+  if (!Number.isFinite(id)) return;
+  const action = actionButton.dataset.action;
+
+  if (action === "replay") {
+    const entry = authState.history.find((item) => item.id === id);
+    if (entry) {
+      setProfileStatus("Дані прогнозу завантажено до форми. Перейдіть до розділу «Форма прогнозування».", "info");
+      loadPredictionFromHistory(entry.inputs);
+    }
+    return;
+  }
+
+  if (action === "delete") {
+    const confirmed = window.confirm("Ви впевнені, що хочете видалити цей прогноз з історії?");
+    if (!confirmed) return;
+    actionButton.disabled = true;
+    apiFetch(`/users/me/history/${id}`, { method: "DELETE" })
+      .then(() => {
+        authState.history = authState.history.filter((item) => item.id !== id);
+        renderHistoryTable();
+        setProfileStatus("Запис історії видалено.", "info");
+      })
+      .catch((error) => {
+        setProfileStatus(error.message, "error");
+      })
+      .finally(() => {
+        actionButton.disabled = false;
+      });
+  }
+}
+
+function handleDocumentClick(event) {
+  if (!userMenu || !userMenuTrigger) return;
+  const isMenuHidden = userMenu.hasAttribute("hidden") || userMenu.hidden;
+  if (isMenuHidden) return;
+  // Перевіряємо, чи клік був по кнопці з data-action в меню
+  const actionButton = event.target.closest("[data-action]");
+  if (actionButton && userMenu.contains(actionButton)) {
+    // Клік по кнопці дії в меню - не закриваємо меню тут, воно буде закрито в обробнику кнопки
+    return;
+  }
+  if (userMenu.contains(event.target) || userMenuTrigger.contains(event.target)) return;
+  toggleUserMenu(false);
+}
+
+function handleGlobalKeydown(event) {
+  if (event.key === "Escape") {
+    toggleUserMenu(false);
+  }
+}
+
+
+function refreshIcons() {
+  if (window.lucide?.createIcons) {
+    const iconNodes = document.querySelectorAll("[data-lucide]");
+    window.lucide.createIcons({ nodes: iconNodes });
+  }
+  updateThemeIcon(currentTheme);
+}
+
+function updateThemeIcon(theme) {
+  if (!themeIconContainer) return;
+  const iconName = theme === "dark" ? "sun" : "moon";
+  if (window.lucide?.icons?.[iconName]) {
+    themeIconContainer.innerHTML = window.lucide.icons[iconName].toSvg({ width: 18, height: 18 });
+  } else {
+    themeIconContainer.textContent = theme === "dark" ? "☀️" : "🌙";
+  }
+}
+
+async function fetchMetadata() {
+  try {
+    const response = await fetch(`${API_BASE}/metadata`);
+    if (!response.ok) {
+      throw new Error("Не вдалося отримати метадані");
+    }
+    metadataCache = await response.json();
+    buildFeatureInputs(metadataCache.feature_schema || []);
+  } catch (error) {
+    showError(error.message || "Сталася помилка під час завантаження метаданих");
+  }
+}
+
+function createTooltipButton(content, tooltipId) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "tooltip-trigger";
+  if (tooltipId && TOOLTIP_LIBRARY[tooltipId]) {
+    btn.dataset.tooltip = TOOLTIP_LIBRARY[tooltipId];
+  } else {
+    btn.dataset.tooltip = content;
+  }
+  const icon = document.createElement("span");
+  icon.className = "icon";
+  icon.dataset.lucide = "help-circle";
+  btn.appendChild(icon);
+  return btn;
+}
+
+function createIndicator() {
+  const span = document.createElement("span");
+  span.className = "live-indicator live-indicator--info";
+  span.textContent = "—";
+  return span;
+}
+
+function buildFeatureInputs(schema) {
+  featuresContainer.innerHTML = "";
+  Object.keys(inputRefs).forEach((key) => delete inputRefs[key]);
+  liveIndicators.bmi = null;
+  liveIndicators.glucose = null;
+  liveIndicators.bp = null;
+
+  schema.forEach((feature) => {
+    const field = document.createElement("div");
+    field.className = "form__field";
+
+    const label = document.createElement("label");
+    label.setAttribute("for", feature.name);
+
+    const labelText = document.createElement("span");
+    labelText.textContent = feature.description || feature.name;
+
+    const tooltipText = TOOLTIP_TEXTS[feature.name] || "Параметр користувача.";
+    const tooltipBtn = createTooltipButton(tooltipText);
+
+    label.append(labelText, tooltipBtn);
+
+    let inputElement;
+    if (feature.name === "RIAGENDR") {
+      inputElement = document.createElement("select");
+      inputElement.innerHTML = `
+        <option value="" disabled selected>Оберіть стать</option>
+        <option value="1">Чоловік</option>
+        <option value="2">Жінка</option>
+      `;
+    } else {
+      inputElement = document.createElement("input");
+      inputElement.type = "number";
+      inputElement.step = "any";
+      if (typeof feature.min === "number") inputElement.min = feature.min;
+      if (typeof feature.max === "number") inputElement.max = feature.max;
+      inputElement.placeholder = feature.hint || "Введіть значення";
+    }
+
+    inputElement.id = feature.name;
+    inputElement.name = feature.name;
+    inputElement.required = Boolean(feature.required);
+
+    field.appendChild(label);
+    field.appendChild(inputElement);
+
+    if (feature.required) {
+      const hint = document.createElement("span");
+      hint.className = "form__hint";
+      hint.textContent = "Обов'язкове поле";
+      field.appendChild(hint);
+    }
+
+    if (feature.name === "BMXBMI") {
+      const indicator = createIndicator();
+      indicator.id = "bmi-indicator";
+      field.appendChild(indicator);
+      liveIndicators.bmi = indicator;
+      inputElement.addEventListener("input", updateBmiIndicator);
+    }
+
+    if (feature.name === "LBXGLU") {
+      const indicator = createIndicator();
+      indicator.id = "glucose-indicator";
+      field.appendChild(indicator);
+      liveIndicators.glucose = indicator;
+      inputElement.addEventListener("input", updateGlucoseIndicator);
+    }
+
+    if (feature.name === "BPXSY1") {
+      inputElement.addEventListener("input", updateBpIndicator);
+    }
+
+    if (feature.name === "BPXDI1") {
+      inputElement.addEventListener("input", updateBpIndicator);
+      const indicator = createIndicator();
+      indicator.id = "bp-indicator";
+      field.appendChild(indicator);
+      liveIndicators.bp = indicator;
+    }
+
+    featuresContainer.appendChild(field);
+    inputRefs[feature.name] = inputElement;
+  });
+
+  attachModelTooltip();
+  refreshIcons();
+  updateAllIndicators();
+  applyQueuedPredictionInputs();
+}
+
+function attachModelTooltip() {
+  const modelTooltipBtn = document.querySelector('[data-tooltip-id="model-help"]');
+  if (modelTooltipBtn && TOOLTIP_LIBRARY["model-help"]) {
+    modelTooltipBtn.dataset.tooltip = TOOLTIP_LIBRARY["model-help"];
+  }
+  refreshIcons();
+}
+
+function showError(message) {
+  errorBox.textContent = message || "Сталася помилка під час запиту. Перевірте введені дані та спробуйте ще раз.";
+  errorBox.hidden = false;
+}
+
+function clearError() {
+  errorBox.hidden = true;
+  errorBox.textContent = "";
+}
+
+function getFeatureSchema() {
+  return metadataCache?.feature_schema ?? [];
+}
+
+function collectPayload() {
+  const schema = getFeatureSchema();
+  const payload = {};
+  const missing = [];
+
+  schema.forEach((feature) => {
+    const input = inputRefs[feature.name];
+    if (!input) return;
+
+    const rawValue = input.value.trim();
+    if (!rawValue) {
+      if (feature.required) missing.push(feature.description || feature.name);
+      return;
+    }
+
+    if (feature.name === "RIAGENDR") {
+      payload[feature.name] = Number.parseInt(rawValue, 10);
+    } else {
+      const numeric = Number.parseFloat(rawValue);
+      if (Number.isNaN(numeric)) {
+        missing.push(feature.description || feature.name);
+      } else {
+        payload[feature.name] = numeric;
+      }
+    }
+  });
+
+  return { payload, missing };
+}
+
+function updateIndicator(indicator, text, level) {
+  if (!indicator) return;
+  indicator.textContent = text;
+  indicator.classList.remove(
+    "live-indicator--normal",
+    "live-indicator--warning",
+    "live-indicator--danger",
+    "live-indicator--info",
+  );
+  if (level) indicator.classList.add(`live-indicator--${level}`);
+}
+
+function updateBmiIndicator() {
+  const input = inputRefs["BMXBMI"];
+  if (!input || !liveIndicators.bmi) return;
+  const value = Number.parseFloat(input.value);
+  if (Number.isNaN(value)) {
+    updateIndicator(liveIndicators.bmi, "—", "info");
+    return;
+  }
+
+  if (value < 18.5) {
+    updateIndicator(liveIndicators.bmi, "Недостатня вага", "warning");
+  } else if (value < 25) {
+    updateIndicator(liveIndicators.bmi, "Норма", "normal");
+  } else if (value < 30) {
+    updateIndicator(liveIndicators.bmi, "Надмірна вага", "warning");
+  } else {
+    updateIndicator(liveIndicators.bmi, "Ожиріння", "danger");
+  }
+}
+
+function updateGlucoseIndicator() {
+  const input = inputRefs["LBXGLU"];
+  if (!input || !liveIndicators.glucose) return;
+  const value = Number.parseFloat(input.value);
+  if (Number.isNaN(value)) {
+    updateIndicator(liveIndicators.glucose, "—", "info");
+    return;
+  }
+
+  if (value < 100) {
+    updateIndicator(liveIndicators.glucose, "Норма", "normal");
+  } else if (value < 126) {
+    updateIndicator(liveIndicators.glucose, "Підвищена (переддіабет)", "warning");
+  } else {
+    updateIndicator(liveIndicators.glucose, "Можливий діабет", "danger");
+  }
+}
+
+function updateBpIndicator() {
+  const systolic = Number.parseFloat(inputRefs["BPXSY1"]?.value ?? "");
+  const diastolic = Number.parseFloat(inputRefs["BPXDI1"]?.value ?? "");
+  if (!liveIndicators.bp) return;
+
+  if (Number.isNaN(systolic) || Number.isNaN(diastolic)) {
+    updateIndicator(liveIndicators.bp, "—", "info");
+    return;
+  }
+
+  if (systolic < 120 && diastolic < 80) {
+    updateIndicator(liveIndicators.bp, "Норма", "normal");
+  } else if (systolic >= 140 || diastolic >= 90) {
+    updateIndicator(liveIndicators.bp, "Гіпертонія", "danger");
+  } else {
+    updateIndicator(liveIndicators.bp, "Передгіпертонія", "warning");
+  }
+}
+
+function updateAllIndicators() {
+  updateBmiIndicator();
+  updateGlucoseIndicator();
+  updateBpIndicator();
+}
+
+function updateRiskBar(probability, bucket) {
+  if (!riskBarFill) return;
+  const safeProbability = Math.max(0, Math.min(1, probability));
+  riskBarFill.style.width = `${(safeProbability * 100).toFixed(2)}%`;
+  riskBarFill.className = "risk-bar__fill";
+  if (riskClasses[bucket]) {
+    riskBarFill.classList.add(riskClasses[bucket]);
+  }
+}
+
+function renderRisk(probability, bucket) {
+  probabilityValue.textContent = `${(probability * 100).toFixed(2)}%`;
+  riskBadge.textContent = riskLabels[bucket] || bucket;
+  riskBadge.className = `badge ${riskClasses[bucket] || ""}`;
+  updateRiskBar(probability, bucket);
+}
+
+function renderFactors(factors) {
+  if (!factors || factors.length === 0) {
+    chartEmpty.hidden = false;
+    chartCanvas.hidden = true;
+    if (factorsChart) {
+      factorsChart.destroy();
+      factorsChart = null;
+    }
+    return;
+  }
+
+  chartEmpty.hidden = true;
+  chartCanvas.hidden = false;
+
+  const ctx = chartCanvas.getContext("2d");
+  const labels = factors.map((item) => {
+    const info = factorInfo[item.feature];
+    return `${info?.name ?? item.feature} (${item.feature})`;
+  });
+  const values = factors.map((item) => Number.parseFloat(item.impact));
+
+  if (factorsChart) {
+    factorsChart.destroy();
+  }
+
+  factorsChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Вплив",
+          data: values,
+          backgroundColor: "rgba(88, 101, 242, 0.75)",
+          borderRadius: 8,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const rawFeatureName = factors[context.dataIndex]?.feature;
+              const info = factorInfo[rawFeatureName] ?? {};
+              const lines = [];
+              lines.push(info.name ?? context.label);
+              lines.push(`Технічна назва: ${rawFeatureName}`);
+              if (info.desc) {
+                lines.push(`Пояснення: ${info.desc}`);
+              }
+              lines.push(`Вплив: ${context.parsed.y.toFixed(3)}`);
+              return lines;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: "#3a3f60" },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: "#3a3f60" },
+        },
+      },
+    },
+  });
+}
+
+function storePredictionResult(target, data, payload) {
+  if (!target) return;
+  const snapshot = {
+    ...data,
+    target: data.target ?? target,
+    inputValues: { ...(payload || {}) },
+    savedAt: Date.now(),
+    top_factors: Array.isArray(data.top_factors) ? [...data.top_factors] : [],
+  };
+  predictionStore[target] = snapshot;
+  latestPredictionKey = target;
+  if (insightsInitialized) {
+    renderProfileOverviewChart();
+    renderRiskComparisonChart();
+    renderInsightsFactorsChart();
+  }
+}
+
+function animateResultCard() {
+  resultCard.classList.remove("glass-card--pop");
+  void resultCard.offsetWidth;
+  resultCard.classList.add("glass-card--pop");
+}
+
+function renderResult(data) {
+  renderRisk(data.probability, data.risk_bucket);
+  modelName.textContent = data.model_name;
+  modelVersion.textContent = data.version;
+  resultNote.textContent = data.note || "";
+  renderFactors(data.top_factors || []);
+  resultCard.hidden = false;
+  animateResultCard();
+  if (pendingPredictionContext) {
+    storePredictionResult(
+      pendingPredictionContext.target,
+      data,
+      pendingPredictionContext.payload,
+    );
+    pendingPredictionContext = null;
+  }
+  if (authState.user) {
+    loadHistory().catch((error) => console.error("Не вдалося оновити історію після прогнозу:", error));
+  }
+}
+
+function setApiStatus(isOnline) {
+  if (!apiStatusDot || !apiStatusText) return;
+  apiStatusDot.classList.remove("status-dot--ok", "status-dot--fail");
+  if (isOnline) {
+    apiStatusDot.classList.add("status-dot--ok");
+    apiStatusText.textContent = "Підключено до API";
+  } else {
+    apiStatusDot.classList.add("status-dot--fail");
+    apiStatusText.textContent = "Відключено від API";
+  }
+}
+
+async function checkApiStatus() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(`${API_BASE}/health`, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error("Статус API недоступний");
+    }
+    setApiStatus(true);
+  } catch (error) {
+    setApiStatus(false);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function initializeApiStatus() {
+  checkApiStatus();
+  apiStatusTimer = setInterval(checkApiStatus, API_STATUS_INTERVAL);
+}
+
+function applyTheme(theme) {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  currentTheme = nextTheme;
+  document.body.classList.remove("theme-light", "theme-dark");
+  document.body.classList.add(`theme-${nextTheme}`);
+  updateThemeIcon(nextTheme);
+  localStorage.setItem("hr_theme", nextTheme);
+  refreshIcons();
+  refreshDashboardCharts();
+}
+
+function toggleTheme() {
+  const isDark = document.body.classList.contains("theme-dark");
+  applyTheme(isDark ? "light" : "dark");
+}
+
+function initializeTheme() {
+  const savedTheme = localStorage.getItem("hr_theme");
+  applyTheme(savedTheme === "dark" ? "dark" : "light");
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", toggleTheme);
+  }
+}
+
+function activateSection(sectionId) {
+  // Explicitly ensure only one page is active at a time
+  // First, remove page--active from ALL pages
+  pages.forEach((page) => {
+    page.classList.remove("page--active");
+  });
+  
+  // Then add page--active only to the target section
+  const targetPage = document.getElementById(sectionId);
+  if (targetPage) {
+    targetPage.classList.add("page--active");
+  }
+  
+  navItems.forEach((item) => {
+    item.classList.toggle("nav-item--active", item.dataset.section === sectionId);
+  });
+  toggleUserMenu(false);
+  if (sectionId === "page-insights") {
+    initializeInsightsPage().catch((error) => {
+      console.error("Не вдалося ініціалізувати діаграми:", error);
+    });
+  }
+  if (sectionId === "page-profile") {
+    updateProfileSection();
+    renderHistoryTable();
+  }
+  if (sectionId === "page-forgot-password") {
+    // Скидаємо стан форми при переході на сторінку відновлення пароля
+    resetForgotPasswordForm();
+  }
+}
+
+async function handleSubmit(event) {
+  event.preventDefault();
+  clearError();
+
+  if (!metadataCache) {
+    showError("Метадані ще завантажуються, спробуйте пізніше.");
+    return;
+  }
+
+  const target = targetSelect.value;
+  if (!target) {
+    showError("Оберіть ціль прогнозування");
+    return;
+  }
+
+  const { payload, missing } = collectPayload();
+  if (missing.length > 0) {
+    showError(`Заповніть поля: ${missing.join(", ")}`);
+    return;
+  }
+
+  submitButton.disabled = true;
+  submitButton.textContent = "Обробка...";
+
+  try {
+    const params = new URLSearchParams({ target });
+    if (modelSelect && modelSelect.value && modelSelect.value !== "auto") {
+      params.set("model", modelSelect.value);
+    }
+
+    const response = await fetch(`${API_BASE}/predict?${params.toString()}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}));
+      const detail = errorPayload.detail || "Сталася помилка під час запиту. Перевірте введені дані та спробуйте ще раз.";
+      throw new Error(detail);
+    }
+
+    const data = await response.json();
+    pendingPredictionContext = {
+      target,
+      payload: { ...payload },
+    };
+    renderResult(data);
+  } catch (error) {
+    showError(error.message);
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "Розрахувати ризик";
+  }
+}
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randomFloat(min, max, decimals = 1) {
+  const value = Math.random() * (max - min) + min;
+  return Number.parseFloat(value.toFixed(decimals));
+}
+
+function fillRandomDemoData() {
+  if (!metadataCache) {
+    showError("Метадані ще завантажуються, спробуйте пізніше.");
+    return;
+  }
+
+  if (inputRefs["RIDAGEYR"]) inputRefs["RIDAGEYR"].value = randomInt(18, 80);
+  if (inputRefs["RIAGENDR"]) inputRefs["RIAGENDR"].value = Math.random() < 0.5 ? "1" : "2";
+  if (inputRefs["BMXBMI"]) inputRefs["BMXBMI"].value = randomFloat(18.0, 38.0, 1);
+  if (inputRefs["BPXSY1"]) inputRefs["BPXSY1"].value = randomInt(100, 170);
+  if (inputRefs["BPXDI1"]) inputRefs["BPXDI1"].value = randomInt(60, 105);
+  if (inputRefs["LBXGLU"]) inputRefs["LBXGLU"].value = randomInt(80, 180);
+  if (inputRefs["LBXTC"]) inputRefs["LBXTC"].value = randomInt(140, 260);
+
+  updateAllIndicators();
+  clearError();
+}
+
+async function loadAnalyticsData() {
+  if (analyticsCache) return analyticsCache;
+  if (analyticsLoadError) throw analyticsLoadError;
+
+  try {
+    const response = await fetch(`${API_BASE}${ANALYTICS_ENDPOINT}`, {
+      headers: { "Cache-Control": "no-cache" },
+    });
+    if (!response.ok) {
+      throw new Error("Не вдалося завантажити статистику вибірки.");
+    }
+    const data = await response.json();
+    analyticsCache = data;
+    analyticsLoadError = null;
+    updateAnalyticsError(null);
+    return data;
+  } catch (error) {
+    analyticsLoadError = error;
+    updateAnalyticsError("Не вдалося завантажити статистику вибірки. Спробуйте пізніше або перевірте наявність файлу analytics_summary.json.");
+    throw error;
+  }
+}
+
+function updateAnalyticsError(message) {
+  const el = document.getElementById("analytics-error");
+  if (!el) return;
+  if (message) {
+    el.textContent = message;
+    el.hidden = false;
+  } else {
+    el.textContent = "";
+    el.hidden = true;
+  }
+}
+
+function renderProfileOverviewChart() {
+  const canvasId = "profile-overview-chart";
+  const empty = document.getElementById("profile-overview-empty");
+  const note = document.getElementById("profile-overview-note");
+
+  const latest = getLatestPredictionEntry();
+  const inputs = latest?.data?.inputValues ?? null;
+
+  if (!inputs) {
+    toggleChartVisibility(canvasId, false);
+    toggleHidden(empty, false);
+    if (note) {
+      note.textContent = "Кольори відображають, чи знаходиться показник у межах норми, попереджувальній або ризиковій зоні.";
+    }
+    if (dashboardCharts[canvasId]) {
+      dashboardCharts[canvasId].destroy();
+      delete dashboardCharts[canvasId];
+    }
+    return;
+  }
+
+  const metrics = [
+    { key: "BMXBMI", label: getFeatureName("BMXBMI"), normal: HEALTH_THRESHOLDS.BMXBMI.normal },
+    { key: "BPXSY1", label: getFeatureName("BPXSY1"), normal: HEALTH_THRESHOLDS.BPXSY1.normal },
+    { key: "BPXDI1", label: getFeatureName("BPXDI1"), normal: HEALTH_THRESHOLDS.BPXDI1.normal },
+    { key: "LBXGLU", label: getFeatureName("LBXGLU"), normal: HEALTH_THRESHOLDS.LBXGLU.normal },
+    { key: "LBXTC", label: getFeatureName("LBXTC"), normal: HEALTH_THRESHOLDS.LBXTC.optimal },
+  ];
+
+  const labels = [];
+  const userValues = [];
+  const normalValues = [];
+  const barColors = [];
+  const meta = [];
+
+  metrics.forEach((metric) => {
+    const rawValue = inputs[metric.key];
+    if (rawValue === undefined || rawValue === null || rawValue === "") return;
+    const numeric = Number.parseFloat(rawValue);
+    if (Number.isNaN(numeric)) return;
+    const classification = classifyMetric(metric.key, numeric);
+    labels.push(metric.label);
+    userValues.push(numeric);
+    normalValues.push(metric.normal);
+    barColors.push(getSeverityColor(classification.level));
+    meta.push({
+      feature: metric.key,
+      classification,
+      value: numeric,
+    });
+  });
+
+  if (labels.length === 0) {
+    toggleChartVisibility(canvasId, false);
+    toggleHidden(empty, false);
+    if (dashboardCharts[canvasId]) {
+      dashboardCharts[canvasId].destroy();
+      delete dashboardCharts[canvasId];
+    }
+    return;
+  }
+
+  toggleHidden(empty, true);
+  toggleChartVisibility(canvasId, true);
+  const styles = getChartStyles();
+
+  upsertDashboardChart(canvasId, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Ваш показник",
+          data: userValues,
+          backgroundColor: barColors,
+          borderRadius: 12,
+          maxBarThickness: 46,
+        },
+        {
+          label: "Верхня межа норми",
+          data: normalValues,
+          backgroundColor: styles.accentLight,
+          borderRadius: 12,
+          maxBarThickness: 46,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: styles.textSecondary },
+        },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const info = meta[context.dataIndex];
+              if (!info) return context.formattedValue;
+              const { classification, feature, value } = info;
+              const lines = [];
+              lines.push(`${context.dataset.label}: ${formatMetricValue(feature, value)}`);
+              lines.push(`Категорія: ${classification.label}`);
+              lines.push(classification.explanation);
+              const normalDataset = context.chart?.data?.datasets?.[1];
+              const normalValue = normalDataset?.data?.[context.dataIndex];
+              if (normalValue !== undefined) {
+                lines.push(`Норма: ${formatMetricValue(feature, normalValue)}`);
+              }
+              return lines;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: styles.textSecondary },
+          grid: {
+            color: styles.gridColor,
+          },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: styles.textSecondary },
+          grid: {
+            color: styles.gridColor,
+          },
+        },
+      },
+    },
+  });
+
+  const summary = meta
+    .map((item) => `${getFeatureName(item.feature)} — ${item.classification.label.toLowerCase()}`)
+    .join("; ");
+  const updated = formatDateTime(latest.data.savedAt) || "щойно";
+  if (note) {
+    note.textContent = summary
+      ? `Оновлено ${updated}: ${summary}.`
+      : "Кольори відображають, чи знаходиться показник у межах норми, попереджувальній або ризиковій зоні.";
+  }
+}
+
+function renderRiskComparisonChart() {
+  const canvasId = "model-risks-chart";
+  const empty = document.getElementById("model-risks-empty");
+  const note = document.getElementById("model-risks-note");
+  const styles = getChartStyles();
+
+  const targets = [
+    { key: "diabetes_present", label: TARGET_LABELS.diabetes_present },
+    { key: "obesity_present", label: TARGET_LABELS.obesity_present },
+  ];
+
+  const dataset = targets.map((item) => {
+    const prediction = getPrediction(item.key);
+    const probability = prediction?.probability;
+    const bucket = prediction?.risk_bucket;
+    const percentage = percentToDisplay(probability);
+    return {
+      label: item.label,
+      probability,
+      percentage,
+      bucket,
+      available: typeof probability === "number",
+      updatedAt: prediction?.savedAt,
+    };
+  });
+
+  const availableCount = dataset.filter((item) => item.available).length;
+
+  if (availableCount === 0) {
+    toggleChartVisibility(canvasId, false);
+    toggleHidden(empty, false);
+    if (note) {
+      note.textContent = "Щойно обидва ризики будуть розраховані, тут з’явиться порівняння.";
+    }
+    if (dashboardCharts[canvasId]) {
+      dashboardCharts[canvasId].destroy();
+      delete dashboardCharts[canvasId];
+    }
+    return;
+  }
+
+  toggleHidden(empty, true);
+  toggleChartVisibility(canvasId, true);
+
+  const dataValues = dataset.map((item) => (item.available ? item.percentage : 0));
+  const barColors = dataset.map((item) => (item.available ? styles.accent : "rgba(160, 164, 200, 0.45)"));
+
+  upsertDashboardChart(canvasId, {
+    type: "bar",
+    data: {
+      labels: dataset.map((item) => item.label),
+      datasets: [
+        {
+          label: "Ймовірність, %",
+          data: dataValues,
+          backgroundColor: barColors,
+          borderRadius: 14,
+          maxBarThickness: 52,
+        },
+      ],
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const info = dataset[context.dataIndex];
+              if (!info.available) {
+                return `${info.label}: ризик ще не розрахований`;
+              }
+              const lines = [];
+              lines.push(`${info.label}: ${info.percentage.toFixed(2)}%`);
+              if (info.bucket && riskLabels[info.bucket]) {
+                lines.push(`Категорія: ${riskLabels[info.bucket]}`);
+              }
+              if (info.updatedAt) {
+                lines.push(`Оновлено: ${formatDateTime(info.updatedAt)}`);
+              }
+              return lines;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          max: 100,
+          ticks: { color: styles.textSecondary, callback: (value) => `${value}%` },
+          grid: { color: styles.gridColor },
+        },
+        y: {
+          ticks: { color: styles.textSecondary },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+
+  if (note) {
+    if (availableCount === targets.length) {
+      const highest = [...dataset].sort((a, b) => b.percentage - a.percentage)[0];
+      note.textContent = `Зараз найвищий ${highest.label.toLowerCase()} — ${highest.percentage.toFixed(1)}%.`;
+    } else {
+      note.textContent = "Розрахуйте ще один ризик, щоб побачити повне порівняння.";
+    }
+  }
+}
+
+function renderInsightsFactorsChart() {
+  const canvasId = "insights-factors-chart";
+  const empty = document.getElementById("insights-factors-empty");
+  const latest = getLatestPredictionEntry();
+  const factors = latest?.data?.top_factors ?? [];
+  if (!factors || factors.length === 0) {
+    toggleChartVisibility(canvasId, false);
+    toggleHidden(empty, false);
+    if (dashboardCharts[canvasId]) {
+      dashboardCharts[canvasId].destroy();
+      delete dashboardCharts[canvasId];
+    }
+    return;
+  }
+
+  toggleHidden(empty, true);
+  toggleChartVisibility(canvasId, true);
+
+  const styles = getChartStyles();
+  const labels = [];
+  const values = [];
+  const meta = [];
+
+  factors.forEach((factor) => {
+    const value = Number.parseFloat(factor.impact);
+    if (Number.isNaN(value)) return;
+    const feature = factor.feature;
+    labels.push(`${getFeatureName(feature)} (${feature})`);
+    values.push(value);
+    meta.push({
+      feature,
+      value,
+    });
+  });
+
+  upsertDashboardChart(canvasId, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Вплив фактору",
+          data: values,
+          backgroundColor: styles.accent,
+          borderRadius: 12,
+          maxBarThickness: 38,
+        },
+      ],
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const info = meta[context.dataIndex];
+              const details = [];
+              details.push(`${getFeatureName(info.feature)} (${info.feature})`);
+              details.push(getFeatureDescription(info.feature));
+              details.push(`Вплив: ${info.value.toFixed(3)}`);
+              return details;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: styles.textSecondary },
+          grid: { color: styles.gridColor },
+        },
+        y: {
+          ticks: { color: styles.textSecondary },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
+
+function renderBmiDistributionChart(analytics) {
+  const canvasId = "dataset-bmi-chart";
+  const data = analytics?.bmi_distribution ?? [];
+  if (!data.length) {
+    toggleChartVisibility(canvasId, false);
+    return;
+  }
+  const styles = getChartStyles();
+  upsertDashboardChart(canvasId, {
+    type: "bar",
+    data: {
+      labels: data.map((item) => item.category),
+      datasets: [
+        {
+          label: "Частка, %",
+          data: data.map((item) => item.percentage),
+          backgroundColor: data.map(() => styles.accent),
+          borderRadius: 12,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const item = data[context.dataIndex];
+              return [
+                `${item.category}`,
+                `Частка: ${item.percentage.toFixed(2)}%`,
+                `Кількість людей: ${item.count}`,
+              ];
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: styles.textSecondary },
+          grid: { color: styles.gridColor },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: styles.textSecondary, callback: (value) => `${value}%` },
+          grid: { color: styles.gridColor },
+        },
+      },
+    },
+  });
+}
+
+function renderBpDistributionChart(analytics) {
+  const canvasId = "dataset-bp-chart";
+  const data = analytics?.bp_distribution ?? [];
+  if (!data.length) {
+    toggleChartVisibility(canvasId, false);
+    return;
+  }
+  const colors = [
+    "rgba(63, 194, 114, 0.85)",
+    "rgba(245, 182, 73, 0.85)",
+    "rgba(241, 150, 94, 0.85)",
+    "rgba(241, 94, 111, 0.85)",
+  ];
+  upsertDashboardChart(canvasId, {
+    type: "doughnut",
+    data: {
+      labels: data.map((item) => item.category),
+      datasets: [
+        {
+          label: "Частка, %",
+          data: data.map((item) => item.percentage),
+          backgroundColor: colors,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+        },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const info = data[context.dataIndex];
+              return `${info.category}: ${info.percentage.toFixed(2)}% (${info.count} осіб)`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function renderCholDistributionChart(analytics) {
+  const canvasId = "dataset-chol-chart";
+  const data = analytics?.cholesterol_distribution ?? [];
+  if (!data.length) {
+    toggleChartVisibility(canvasId, false);
+    return;
+  }
+  const styles = getChartStyles();
+  upsertDashboardChart(canvasId, {
+    type: "bar",
+    data: {
+      labels: data.map((item) => item.category),
+      datasets: [
+        {
+          label: "Частка, %",
+          data: data.map((item) => item.percentage),
+          backgroundColor: styles.accentAlt,
+          borderRadius: 12,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const info = data[context.dataIndex];
+              return `${info.category}: ${info.percentage.toFixed(2)}% (${info.count} осіб)`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: styles.textSecondary },
+          grid: { color: styles.gridColor },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: styles.textSecondary, callback: (value) => `${value}%` },
+          grid: { color: styles.gridColor },
+        },
+      },
+    },
+  });
+}
+
+function renderGlucoseDistributionChart(analytics) {
+  const canvasId = "dataset-glucose-chart";
+  const empty = document.getElementById("dataset-glucose-empty");
+  const data = analytics?.glucose_distribution ?? [];
+  if (!data.length) {
+    toggleChartVisibility(canvasId, false);
+    toggleHidden(empty, false);
+    if (dashboardCharts[canvasId]) {
+      dashboardCharts[canvasId].destroy();
+      delete dashboardCharts[canvasId];
+    }
+    return;
+  }
+  toggleHidden(empty, true);
+  toggleChartVisibility(canvasId, true);
+  const styles = getChartStyles();
+  upsertDashboardChart(canvasId, {
+    type: "bar",
+    data: {
+      labels: data.map((item) => item.category),
+      datasets: [
+        {
+          label: "Частка, %",
+          data: data.map((item) => item.percentage),
+          backgroundColor: ["rgba(63, 194, 114, 0.85)", "rgba(245, 182, 73, 0.85)", "rgba(241, 94, 111, 0.85)"],
+          borderRadius: 12,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const info = data[context.dataIndex];
+              return `${info.category}: ${info.percentage.toFixed(2)}% (${info.count} осіб)`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: styles.textSecondary },
+          grid: { color: styles.gridColor },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: styles.textSecondary, callback: (value) => `${value}%` },
+          grid: { color: styles.gridColor },
+        },
+      },
+    },
+  });
+}
+
+function renderAgePrevalenceChart(analytics, key, canvasId) {
+  const data = analytics?.[key] ?? [];
+  if (!data.length) {
+    toggleChartVisibility(canvasId, false);
+    return;
+  }
+  const styles = getChartStyles();
+  upsertDashboardChart(canvasId, {
+    type: "line",
+    data: {
+      labels: data.map((item) => item.age_group),
+      datasets: [
+        {
+          label: "Частка, %",
+          data: data.map((item) => item.prevalence),
+          borderColor: styles.accent,
+          backgroundColor: "rgba(88, 101, 242, 0.15)",
+          tension: 0.35,
+          fill: true,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const info = data[context.dataIndex];
+              return `${info.age_group}: ${info.prevalence.toFixed(2)}% (${info.count} осіб)`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: styles.textSecondary },
+          grid: { color: styles.gridColor },
+        },
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: { color: styles.textSecondary, callback: (value) => `${value}%` },
+          grid: { color: styles.gridColor },
+        },
+      },
+    },
+  });
+}
+
+function renderCorrelationChart(analytics) {
+  const canvasId = "dataset-correlation-chart";
+  const empty = document.getElementById("dataset-correlation-empty");
+  const matrix = analytics?.correlation_matrix ?? null;
+  if (!matrix) {
+    toggleChartVisibility(canvasId, false);
+    toggleHidden(empty, false);
+    if (dashboardCharts[canvasId]) {
+      dashboardCharts[canvasId].destroy();
+      delete dashboardCharts[canvasId];
+    }
+    return;
+  }
+
+  const pairs = [];
+  const features = Object.keys(matrix);
+  features.forEach((source, i) => {
+    features.forEach((target, j) => {
+      if (j <= i) return;
+      const value = matrix[source]?.[target];
+      if (value === null || value === undefined) return;
+      pairs.push({
+        label: `${getFeatureName(source)} ↔ ${getFeatureName(target)}`,
+        value,
+      });
+    });
+  });
+
+  if (!pairs.length) {
+    toggleChartVisibility(canvasId, false);
+    toggleHidden(empty, false);
+    if (dashboardCharts[canvasId]) {
+      dashboardCharts[canvasId].destroy();
+      delete dashboardCharts[canvasId];
+    }
+    return;
+  }
+
+  toggleHidden(empty, true);
+  toggleChartVisibility(canvasId, true);
+  const styles = getChartStyles();
+
+  upsertDashboardChart(canvasId, {
+    type: "bar",
+    data: {
+      labels: pairs.map((item) => item.label),
+      datasets: [
+        {
+          label: "Коефіцієнт кореляції",
+          data: pairs.map((item) => item.value),
+          backgroundColor: pairs.map((item) => (item.value >= 0 ? styles.accent : "rgba(241, 94, 111, 0.75)")),
+          borderRadius: 10,
+        },
+      ],
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const pair = pairs[context.dataIndex];
+              return `${pair.label}: ${pair.value.toFixed(2)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          min: -1,
+          max: 1,
+          ticks: { color: styles.textSecondary },
+          grid: { color: styles.gridColor },
+        },
+        y: {
+          ticks: { color: styles.textSecondary },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
+
+function renderAllAnalyticsCharts(analytics) {
+  if (!analytics) return;
+  renderBmiDistributionChart(analytics);
+  renderBpDistributionChart(analytics);
+  renderCholDistributionChart(analytics);
+  renderGlucoseDistributionChart(analytics);
+  renderAgePrevalenceChart(analytics, "diabetes_prevalence_age", "dataset-diabetes-age-chart");
+  renderAgePrevalenceChart(analytics, "obesity_prevalence_age", "dataset-obesity-age-chart");
+  renderCorrelationChart(analytics);
+}
+
+async function initializeInsightsPage() {
+  if (insightsInitialized) {
+    refreshDashboardCharts();
+    return;
+  }
+
+  renderProfileOverviewChart();
+  renderRiskComparisonChart();
+  renderInsightsFactorsChart();
+
+  try {
+    const analytics = await loadAnalyticsData();
+    renderAllAnalyticsCharts(analytics);
+  } catch (error) {
+    console.warn("Аналітика недоступна:", error);
+  }
+
+  insightsInitialized = true;
+}
+
+function refreshDashboardCharts() {
+  renderProfileOverviewChart();
+  renderRiskComparisonChart();
+  renderInsightsFactorsChart();
+  if (analyticsCache) {
+    renderAllAnalyticsCharts(analyticsCache);
+  }
+}
+
+function registerEventListeners() {
+  // Only add listeners for prediction form if it exists (not on auth pages)
+  if (form) {
+    form.addEventListener("submit", handleSubmit);
+  }
+
+  if (demoButton) {
+    demoButton.addEventListener("click", fillRandomDemoData);
+  }
+
+  navItems.forEach((item) => {
+    item.addEventListener("click", () => {
+      const sectionId = item.dataset.section;
+      const route = SECTION_TO_ROUTE[sectionId] || "/app";
+      navigateTo(route);
+    });
+  });
+
+  if (userPanelLoginBtn) {
+    userPanelLoginBtn.addEventListener("click", openLoginPage);
+  }
+  if (userPanelRegisterBtn) {
+    userPanelRegisterBtn.addEventListener("click", openRegisterPage);
+  }
+  if (profileLoginShortcut) {
+    profileLoginShortcut.addEventListener("click", openLoginPage);
+  }
+  if (profileRegisterShortcut) {
+    profileRegisterShortcut.addEventListener("click", openRegisterPage);
+  }
+  if (toRegisterLink) {
+    toRegisterLink.addEventListener("click", openRegisterPage);
+  }
+  if (toLoginLink) {
+    toLoginLink.addEventListener("click", openLoginPage);
+  }
+  if (userMenuTrigger) {
+    userMenuTrigger.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleUserMenu();
+    });
+  }
+  if (loginForm) {
+    loginForm.addEventListener("submit", handleLoginSubmit);
+  }
+  if (registerForm) {
+    registerForm.addEventListener("submit", handleRegisterSubmit);
+  }
+  if (profileUpdateForm) {
+    profileUpdateForm.addEventListener("submit", handleProfileUpdate);
+  }
+  if (profilePasswordForm) {
+    profilePasswordForm.addEventListener("submit", handlePasswordChange);
+  }
+  if (avatarUploadInput) {
+    avatarUploadInput.addEventListener("change", handleAvatarUpload);
+  }
+  if (avatarUploadBtn) {
+    avatarUploadBtn.addEventListener("click", () => {
+      if (avatarUploadInput) {
+        avatarUploadInput.click();
+      }
+    });
+  }
+  if (avatarResetBtn) {
+    avatarResetBtn.addEventListener("click", handleAvatarReset);
+  }
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener("click", openForgotPasswordPage);
+  }
+  if (forgotPasswordForm) {
+    forgotPasswordForm.addEventListener("submit", handleForgotPassword);
+  }
+  if (forgotToLoginLink) {
+    forgotToLoginLink.addEventListener("click", () => {
+      resetForgotPasswordForm();
+      navigateTo("/login");
+    });
+  }
+  if (resetPasswordForm) {
+    resetPasswordForm.addEventListener("submit", handleResetPassword);
+  }
+  if (historyTableBody) {
+    historyTableBody.addEventListener("click", handleHistoryTableClick);
+  }
+  if (userMenu) {
+    userMenu.addEventListener("click", (event) => {
+      // Перевіряємо, чи клік був по кнопці з data-action
+      const actionButton = event.target.closest("[data-action]");
+      if (!actionButton) return;
+      
+      // Блокуємо поширення події одразу
+      event.stopPropagation();
+      event.preventDefault();
+      
+      const action = actionButton.dataset?.action;
+      if (action === "profile") {
+        toggleUserMenu(false);
+        navigateTo("/profile");
+      } else if (action === "logout") {
+        toggleUserMenu(false);
+        handleLogout();
+      }
+    });
+  }
+
+  document.addEventListener("click", handleDocumentClick);
+  document.addEventListener("keydown", handleGlobalKeydown);
+  window.addEventListener("popstate", () => syncRouteFromLocation());
+}
+
+(function init() {
+  refreshIcons();
+  initializeTheme();
+  // Ensure user menu is hidden on initialization
+  if (userMenu) {
+    userMenu.setAttribute("hidden", "");
+    userMenu.hidden = true;
+  }
+  if (userMenuTrigger) {
+    userMenuTrigger.setAttribute("aria-expanded", "false");
+  }
+  initializeAuth().catch((error) => console.error("Помилка під час ініціалізації аутентифікації:", error));
+  initializeApiStatus();
+  registerEventListeners();
+  fetchMetadata();
+})();

@@ -1,0 +1,177 @@
+{
+  "meta": {
+    "rows": 9770
+  },
+  "bmi_distribution": [
+    {
+      "category": "Недостатня вага",
+      "count": 1807,
+      "percentage": 19.96
+    },
+    {
+      "category": "Норма",
+      "count": 2802,
+      "percentage": 30.94
+    },
+    {
+      "category": "Надмірна вага",
+      "count": 2099,
+      "percentage": 23.18
+    },
+    {
+      "category": "Ожиріння I",
+      "count": 1290,
+      "percentage": 14.25
+    },
+    {
+      "category": "Ожиріння II+",
+      "count": 1057,
+      "percentage": 11.67
+    }
+  ],
+  "cholesterol_distribution": [
+    {
+      "category": "Оптимальний (<200)",
+      "count": 5487,
+      "percentage": 71.97
+    },
+    {
+      "category": "Прикордонний (200-239)",
+      "count": 1525,
+      "percentage": 20.0
+    },
+    {
+      "category": "Високий (≥240)",
+      "count": 612,
+      "percentage": 8.03
+    }
+  ],
+  "bp_distribution": [
+    {
+      "category": "Норма",
+      "count": 4145,
+      "percentage": 57.79
+    },
+    {
+      "category": "Підвищений",
+      "count": 991,
+      "percentage": 13.82
+    },
+    {
+      "category": "Гіпертонія 1 ступеня",
+      "count": 1367,
+      "percentage": 19.06
+    },
+    {
+      "category": "Гіпертонія 2 ступеня",
+      "count": 669,
+      "percentage": 9.33
+    }
+  ],
+  "glucose_distribution": [],
+  "diabetes_prevalence_age": [
+    {
+      "age_group": "18-29",
+      "prevalence": 0.42,
+      "count": 4957
+    },
+    {
+      "age_group": "30-44",
+      "prevalence": 5.24,
+      "count": 1547
+    },
+    {
+      "age_group": "45-59",
+      "prevalence": 13.89,
+      "count": 1425
+    },
+    {
+      "age_group": "60-74",
+      "prevalence": 24.01,
+      "count": 1283
+    },
+    {
+      "age_group": "75+",
+      "prevalence": 23.12,
+      "count": 558
+    }
+  ],
+  "obesity_prevalence_age": [
+    {
+      "age_group": "18-29",
+      "prevalence": 10.79,
+      "count": 4957
+    },
+    {
+      "age_group": "30-44",
+      "prevalence": 39.11,
+      "count": 1547
+    },
+    {
+      "age_group": "45-59",
+      "prevalence": 39.37,
+      "count": 1425
+    },
+    {
+      "age_group": "60-74",
+      "prevalence": 38.58,
+      "count": 1283
+    },
+    {
+      "age_group": "75+",
+      "prevalence": 27.06,
+      "count": 558
+    }
+  ],
+  "feature_means": {
+    "RIDAGEYR": 32.79,
+    "BMXBMI": 25.68,
+    "BPXSY1": 118.12,
+    "BPXDI1": 65.77,
+    "LBXTC": 179.53
+  },
+  "available_features": [
+    "RIDAGEYR",
+    "BMXBMI",
+    "BPXSY1",
+    "BPXDI1",
+    "LBXTC"
+  ],
+  "correlation_matrix": {
+    "RIDAGEYR": {
+      "RIDAGEYR": 1.0,
+      "BMXBMI": 0.31,
+      "BPXSY1": 0.57,
+      "BPXDI1": 0.32,
+      "LBXTC": 0.29
+    },
+    "BMXBMI": {
+      "RIDAGEYR": 0.31,
+      "BMXBMI": 1.0,
+      "BPXSY1": 0.29,
+      "BPXDI1": 0.27,
+      "LBXTC": 0.16
+    },
+    "BPXSY1": {
+      "RIDAGEYR": 0.57,
+      "BMXBMI": 0.29,
+      "BPXSY1": 1.0,
+      "BPXDI1": 0.42,
+      "LBXTC": 0.22
+    },
+    "BPXDI1": {
+      "RIDAGEYR": 0.32,
+      "BMXBMI": 0.27,
+      "BPXSY1": 0.42,
+      "BPXDI1": 1.0,
+      "LBXTC": 0.24
+    },
+    "LBXTC": {
+      "RIDAGEYR": 0.29,
+      "BMXBMI": 0.16,
+      "BPXSY1": 0.22,
+      "BPXDI1": 0.24,
+      "LBXTC": 1.0
+    }
+  }
+}

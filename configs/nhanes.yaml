@@ -1,0 +1,34 @@
+# Конфігурація набору даних NHANES для оцінки ризиків здоров'я
+dataset_name: "nhanes"
+join_key: "SEQN"
+local_paths:
+  demographics: "datasets/raw/demographic.csv"
+  diet: "datasets/raw/diet.csv"
+  examination: "datasets/raw/examination.csv"
+  labs: "datasets/raw/labs.csv"
+  medications: "datasets/raw/medications.csv"
+  questionnaire: "datasets/raw/questionnaire.csv"
+features:
+  keep:
+    - age
+    - gender
+    - bmi
+    - systolic_bp
+    - diastolic_bp
+    - cholesterol
+    - glucose
+    - smoke_status
+    - alcohol_use
+    - activity_level
+    - sleep_hours
+targets:
+  obesity_present:
+    type: "derived"
+    formula: "bmi >= 30"
+  diabetes_present:
+    type: "from_column"
+    column: "diabetes_dx"
+split:
+  strategy: "random"
+  test_size: 0.2
+  seed: 42
