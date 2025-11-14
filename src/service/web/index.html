@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Оцінка ризиків здоров’я</title>
+  <title>Health Risk AI</title>
+  <link rel="shortcut icon" href="/app/static/images/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="/app/static/app.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -340,6 +341,17 @@
                   <p class="profile-form__status" id="profile-password-status"></p>
                 </form>
               </div>
+              <div class="profile-danger-zone">
+                <h3 class="profile-danger-zone__title">
+                  <span class="icon" data-lucide="alert-triangle"></span>
+                  <span>Небезпечна зона</span>
+                </h3>
+                <p class="profile-danger-zone__warning">Видалення облікового запису є незворотним. Усі ваші дані будуть втрачені.</p>
+                <button type="button" class="button button--destructive" id="delete-account-btn">
+                  <span class="icon" data-lucide="trash-2"></span>
+                  <span>Видалити обліковий запис</span>
+                </button>
+              </div>
             </div>
           </section>
           <section class="glass-card profile-card profile-card--history">
@@ -383,6 +395,7 @@
               <input type="password" id="login-password" name="password" autocomplete="current-password" placeholder="Ваш пароль" required />
             </div>
             <p class="auth-form__error" id="login-error" hidden></p>
+            <p class="auth-form__success" id="login-success" hidden></p>
             <button type="submit" class="button auth-form__submit">Увійти</button>
             <p class="auth-form__footer">
               <button type="button" class="auth-form__link" id="to-forgot-password">Забули пароль?</button>
@@ -472,6 +485,43 @@
         <div class="app-loader__circle"></div>
       </div>
       <p class="app-loader__text">Перенаправлення...</p>
+    </div>
+  </div>
+
+  <!-- Контейнер для сповіщень (notifications/toasts) -->
+  <div id="notifications-container" class="notifications-container" aria-live="polite" aria-label="Сповіщення"></div>
+
+  <!-- Модальне вікно підтвердження видалення облікового запису -->
+  <div id="delete-account-modal" class="modal" hidden role="dialog" aria-labelledby="delete-account-modal-title" aria-modal="true">
+    <div class="modal__backdrop" id="delete-account-modal-backdrop"></div>
+    <div class="modal__container">
+      <div class="modal__content glass-card">
+        <div class="modal__header">
+          <h2 class="modal__title" id="delete-account-modal-title">
+            <span class="icon" data-lucide="alert-triangle"></span>
+            <span>Ви впевнені, що хочете видалити обліковий запис?</span>
+          </h2>
+        </div>
+        <div class="modal__body">
+          <p class="modal__message">
+            Ця дія є незворотною. Після видалення вашого облікового запису:
+          </p>
+          <ul class="modal__list">
+            <li>Всі ваші особисті дані будуть видалені</li>
+            <li>Вся історія прогнозів буде втрачена</li>
+            <li>Відновити обліковий запис буде неможливо</li>
+          </ul>
+          <p class="modal__message modal__message--warning">Ви впевнені, що хочете продовжити?</p>
+          <p class="modal__error" id="delete-account-error" hidden role="alert"></p>
+        </div>
+        <div class="modal__actions">
+          <button type="button" class="button button--ghost" id="delete-account-cancel-btn">Скасувати</button>
+          <button type="button" class="button button--destructive" id="delete-account-confirm-btn">
+            <span class="icon" data-lucide="trash-2"></span>
+            <span>Так, видалити</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

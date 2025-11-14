@@ -21,7 +21,7 @@ from .auth_utils import (
 )
 from .avatar_utils import AVATARS_DIR, delete_avatar, save_avatar, validate_image_file
 from .db import get_session
-from .models import PasswordResetToken, User
+from .models import PasswordResetToken, PredictionHistory, User
 from .repositories import (
     add_prediction_history,
     delete_prediction,
@@ -807,5 +807,62 @@ async def users_delete_history_entry(
             detail="Запис історії не знайдено.",
         )
     return {"message": "Запис успішно видалено."}
+
+
+@users_router.delete("/me", status_code=status.HTTP_200_OK)
+async def delete_account(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_current_user),
+) -> dict:
+    """
+    Видаляє обліковий запис поточного користувача.
+    
+    Видаляє:
+    - Всю історію прогнозів користувача
+    - Токени відновлення пароля
+    - Завантажений аватар (якщо є)
+    - Самого користувача з бази даних
+    
+    Ця дія незворотна. Тільки автентифікований користувач може видалити свій власний обліковий запис.
+    """
+    try:
+        user_id = current_user.id
+        
+        # Видаляємо всю історію прогнозів користувача
+        history_statement = select(PredictionHistory).where(PredictionHistory.user_id == user_id)
+        history_entries = session.exec(history_statement).all()
+        for entry in history_entries:
+            session.delete(entry)
+        
+        # Видаляємо токени відновлення пароля
+        token_statement = select(PasswordResetToken).where(PasswordResetToken.user_id == user_id)
+        reset_tokens = session.exec(token_statement).all()
+        for token in reset_tokens:
+            session.delete(token)
+        
+        # Видаляємо завантажений аватар, якщо він існує
+        if current_user.avatar_type == "uploaded" and current_user.avatar_url:
+            try:
+                delete_avatar(user_id)
+            except Exception as e:
+                # Логуємо помилку, але не блокуємо видалення облікового запису
+                print(f"⚠️ Помилка під час видалення аватару (ігнорується): {e}")
+        
+        # Видаляємо користувача
+        session.delete(current_user)
+        session.commit()
+        
+        return {"detail": "Обліковий запис успішно видалено."}
+        
+    except Exception as e:
+        session.rollback()
+        print(f"❌ Помилка під час видалення облікового запису: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # Не розкриваємо деталі помилки для безпеки
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не вдалося видалити обліковий запис. Спробуйте пізніше.",
+        ) from e
 
 

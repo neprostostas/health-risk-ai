@@ -179,6 +179,7 @@ const profileUpdateStatus = document.getElementById("profile-update-status");
 const profilePasswordForm = document.getElementById("profile-password-form");
 const profilePasswordStatus = document.getElementById("profile-password-status");
 const profilePasswordEmailInput = document.getElementById("profile-password-email");
+const loginSuccessBox = document.getElementById("login-success");
 const profileCurrentPasswordInput = document.getElementById("profile-current-password");
 const profileNewPasswordInput = document.getElementById("profile-new-password");
 const profileConfirmPasswordInput = document.getElementById("profile-confirm-password");
@@ -186,6 +187,12 @@ const avatarUploadInput = document.getElementById("avatar-upload-input");
 const avatarUploadBtn = document.getElementById("avatar-upload-btn");
 const avatarResetBtn = document.getElementById("avatar-reset-btn");
 const profileHistoryContainer = document.getElementById("profile-history");
+const deleteAccountBtn = document.getElementById("delete-account-btn");
+const deleteAccountModal = document.getElementById("delete-account-modal");
+const deleteAccountModalBackdrop = document.getElementById("delete-account-modal-backdrop");
+const deleteAccountCancelBtn = document.getElementById("delete-account-cancel-btn");
+const deleteAccountConfirmBtn = document.getElementById("delete-account-confirm-btn");
+const deleteAccountError = document.getElementById("delete-account-error");
 const forgotPasswordLink = document.getElementById("to-forgot-password");
 const forgotPasswordForm = document.getElementById("forgot-password-form");
 const forgotPasswordError = document.getElementById("forgot-password-error");
@@ -1587,6 +1594,100 @@ async function handleLogout() {
   }
 }
 
+function openDeleteAccountModal() {
+  if (!deleteAccountModal) return;
+  deleteAccountModal.removeAttribute("hidden");
+  deleteAccountModal.hidden = false;
+  // Ховаємо помилки при відкритті
+  if (deleteAccountError) {
+    deleteAccountError.hidden = true;
+    deleteAccountError.textContent = "";
+  }
+  // Фокус на кнопку скасування для доступності
+  if (deleteAccountCancelBtn) {
+    deleteAccountCancelBtn.focus();
+  }
+  // Блокуємо скрол сторінки
+  document.body.style.overflow = "hidden";
+  refreshIcons();
+}
+
+function closeDeleteAccountModal() {
+  if (!deleteAccountModal) return;
+  deleteAccountModal.setAttribute("hidden", "");
+  deleteAccountModal.hidden = true;
+  // Прибираємо помилки
+  if (deleteAccountError) {
+    deleteAccountError.hidden = true;
+    deleteAccountError.textContent = "";
+  }
+  // Відновлюємо скрол сторінки
+  document.body.style.overflow = "";
+  // Розблоковуємо кнопку підтвердження
+  if (deleteAccountConfirmBtn) {
+    deleteAccountConfirmBtn.disabled = false;
+  }
+}
+
+async function handleDeleteAccount() {
+  if (!deleteAccountConfirmBtn) return;
+  
+  // Перевіряємо, чи вже не виконується видалення
+  if (handleDeleteAccount.inProgress) {
+    return;
+  }
+  
+  handleDeleteAccount.inProgress = true;
+  deleteAccountConfirmBtn.disabled = true;
+  
+  // Ховаємо помилку
+  if (deleteAccountError) {
+    deleteAccountError.hidden = true;
+    deleteAccountError.textContent = "";
+  }
+  
+  try {
+    // Викликаємо API для видалення облікового запису
+    const response = await apiFetch("/users/me", { method: "DELETE" }, { skipAuth: false });
+    
+    // Показуємо повідомлення про успіх (опційно)
+    console.log("Обліковий запис успішно видалено:", response);
+    
+    // Закриваємо модальне вікно
+    closeDeleteAccountModal();
+    
+    // Показуємо сповіщення про успіх ПЕРЕД очищенням стану та перенаправленням
+    // Це гарантує, що сповіщення відобразиться навіть після зміни маршруту
+    showNotification({
+      type: "success",
+      title: "Обліковий запис видалено",
+      message: "Ваш обліковий запис успішно видалено. Ви можете створити новий або завершити роботу з системою.",
+      duration: 8000, // 8 секунд для важливого повідомлення
+    });
+    
+    // Невелика затримка перед очищенням стану для того, щоб сповіщення встигло відобразитися
+    setTimeout(() => {
+      // Очищаємо стан автентифікації
+      clearAuthState();
+      
+      // Перенаправляємо на сторінку входу
+      navigateTo("/login", { replace: true });
+    }, 100);
+    
+  } catch (error) {
+    // Показуємо помилку в модальному вікні
+    const errorMessage = error.detail || error.message || "Не вдалося видалити обліковий запис. Спробуйте пізніше.";
+    if (deleteAccountError) {
+      deleteAccountError.textContent = errorMessage;
+      deleteAccountError.hidden = false;
+    }
+    // Розблоковуємо кнопку для повторної спроби
+    deleteAccountConfirmBtn.disabled = false;
+  } finally {
+    handleDeleteAccount.inProgress = false;
+  }
+}
+
 function handleHistoryTableClick(event) {
   const actionButton = event.target.closest("[data-action]");
   if (!actionButton) return;
@@ -1638,10 +1739,154 @@ function handleDocumentClick(event) {
 
 function handleGlobalKeydown(event) {
   if (event.key === "Escape") {
+    // Закриваємо модальне вікно видалення облікового запису, якщо воно відкрите
+    if (deleteAccountModal && !deleteAccountModal.hidden) {
+      closeDeleteAccountModal();
+      return;
+    }
+    // Закриваємо меню користувача
     toggleUserMenu(false);
   }
 }
 
+
+// Notification system
+const notificationsContainer = document.getElementById("notifications-container");
+const MAX_NOTIFICATIONS = 4;
+const DEFAULT_NOTIFICATION_DURATION = 5000; // 5 секунд
+let notificationIdCounter = 0;
+const activeNotifications = new Map();
+
+/**
+ * Показує сповіщення (toast notification)
+ * @param {Object} options - Опції сповіщення
+ * @param {string} options.type - Тип сповіщення: "success" | "error" | "info"
+ * @param {string} options.title - Заголовок сповіщення (українською)
+ * @param {string} [options.message] - Повідомлення (українською)
+ * @param {number} [options.duration] - Тривалість відображення в мілісекундах (за замовчуванням 5000)
+ * @returns {string} ID сповіщення
+ */
+function showNotification({ type = "info", title, message = "", duration = DEFAULT_NOTIFICATION_DURATION }) {
+  if (!notificationsContainer) {
+    console.warn("Контейнер сповіщень не знайдено");
+    return null;
+  }
+
+  if (!title) {
+    console.warn("Заголовок сповіщення є обов'язковим");
+    return null;
+  }
+
+  const notificationId = `notification-${++notificationIdCounter}`;
+  
+  // Обмежуємо кількість одночасних сповіщень
+  if (activeNotifications.size >= MAX_NOTIFICATIONS) {
+    // Видаляємо найстаріше сповіщення
+    const oldestId = Array.from(activeNotifications.keys())[0];
+    hideNotification(oldestId);
+  }
+
+  // Визначаємо іконку та ARIA роль залежно від типу
+  let iconName = "info";
+  let ariaRole = "status";
+  
+  switch (type) {
+    case "success":
+      iconName = "check-circle";
+      ariaRole = "status";
+      break;
+    case "error":
+      iconName = "alert-circle";
+      ariaRole = "alert";
+      break;
+    case "info":
+    default:
+      iconName = "info";
+      ariaRole = "status";
+      break;
+  }
+
+  // Створюємо HTML елемент сповіщення
+  const notificationEl = document.createElement("div");
+  notificationEl.className = `notification notification--${type}`;
+  notificationEl.id = notificationId;
+  notificationEl.setAttribute("role", ariaRole);
+  notificationEl.setAttribute("aria-live", type === "error" ? "assertive" : "polite");
+
+  notificationEl.innerHTML = `
+    <span class="icon notification__icon" data-lucide="${iconName}" aria-hidden="true"></span>
+    <div class="notification__content">
+      <h3 class="notification__title">${escapeHtml(title)}</h3>
+      ${message ? `<p class="notification__message">${escapeHtml(message)}</p>` : ""}
+    </div>
+    <button type="button" class="notification__close" aria-label="Закрити сповіщення" data-notification-id="${notificationId}">
+      <span class="icon" data-lucide="x" aria-hidden="true"></span>
+    </button>
+  `;
+
+  // Додаємо сповіщення до контейнера
+  notificationsContainer.appendChild(notificationEl);
+  
+  // Оновлюємо іконки
+  refreshIcons();
+
+  // Зберігаємо інформацію про сповіщення
+  const timeoutId = setTimeout(() => {
+    hideNotification(notificationId);
+  }, duration);
+
+  activeNotifications.set(notificationId, {
+    element: notificationEl,
+    timeoutId,
+    type,
+  });
+
+  // Додаємо обробник закриття
+  const closeBtn = notificationEl.querySelector(".notification__close");
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      hideNotification(notificationId);
+    });
+  }
+
+  return notificationId;
+}
+
+/**
+ * Ховає сповіщення з анімацією
+ * @param {string} notificationId - ID сповіщення для приховування
+ */
+function hideNotification(notificationId) {
+  const notification = activeNotifications.get(notificationId);
+  if (!notification) return;
+
+  // Зупиняємо таймер авто-приховування
+  if (notification.timeoutId) {
+    clearTimeout(notification.timeoutId);
+  }
+
+  // Додаємо клас для анімації виходу
+  notification.element.classList.add("notification--exiting");
+
+  // Видаляємо елемент після завершення анімації
+  setTimeout(() => {
+    if (notification.element.parentNode) {
+      notification.element.parentNode.removeChild(notification.element);
+    }
+    activeNotifications.delete(notificationId);
+  }, 300); // Тривалість анімації виходу
+}
+
+/**
+ * Екранує HTML для безпеки
+ * @param {string} text - Текст для екранування
+ * @returns {string} Екранований текст
+ */
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
 
 function refreshIcons() {
   if (window.lucide?.createIcons) {
@@ -3063,6 +3308,23 @@ function registerEventListeners() {
   }
   if (historyTableBody) {
     historyTableBody.addEventListener("click", handleHistoryTableClick);
+  }
+  if (deleteAccountBtn) {
+    deleteAccountBtn.addEventListener("click", openDeleteAccountModal);
+  }
+  if (deleteAccountCancelBtn) {
+    deleteAccountCancelBtn.addEventListener("click", closeDeleteAccountModal);
+  }
+  if (deleteAccountConfirmBtn) {
+    deleteAccountConfirmBtn.addEventListener("click", handleDeleteAccount);
+  }
+  if (deleteAccountModalBackdrop) {
+    deleteAccountModalBackdrop.addEventListener("click", (event) => {
+      // Закриваємо модальне вікно при кліку на backdrop
+      if (event.target === deleteAccountModalBackdrop) {
+        closeDeleteAccountModal();
+      }
+    });
   }
   if (userMenu) {
     userMenu.addEventListener("click", (event) => {
