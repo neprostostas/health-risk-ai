@@ -9,17 +9,21 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="theme-light">
+<body class="theme-light preload">
   <div class="layout">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar__header">
-        <div class="sidebar__logo">
-          <span class="icon" data-lucide="activity"></span>
-          <span>Health Risk AI</span>
+        <div class="sidebar__logo-row">
+          <div class="sidebar__logo" title="Автоматизована система оцінки та прогнозування ризиків для здоров'я з використанням методів штучного інтелекту">
+            <span class="icon" data-lucide="activity"></span>
+            <span class="sidebar__logo-text">Health Risk AI</span>
+          </div>
+          <button type="button" class="sidebar__toggle" id="sidebar-toggle" aria-label="Згорнути/розгорнути бокову панель" title="Згорнути/розгорнути бокову панель">
+            <span class="icon" data-lucide="panel-left-close"></span>
+          </button>
         </div>
-        <p class="sidebar__subtitle">Автоматизована оцінка ризиків здоров'я</p>
         <div class="sidebar__controls">
-          <div class="api-status" id="api-status">
+          <div class="api-status" id="api-status" role="tooltip" aria-label="Статус підключення до API">
             <span class="status-dot" id="api-status-dot"></span>
             <div class="api-status__info">
               <span class="api-status__label">Статус API</span>
@@ -32,51 +36,43 @@
         </div>
       </div>
       <nav class="sidebar__nav" aria-label="Основна навігація">
-        <button type="button" class="nav-item" data-section="page-profile" id="nav-profile" hidden>
+        <button type="button" class="nav-item" data-section="page-profile" data-tooltip="Профіль" id="nav-profile" hidden>
           <span class="icon" data-lucide="user"></span>
-          <span>Профіль</span>
+          <span class="nav-item__text">Профіль</span>
         </button>
-        <button type="button" class="nav-item nav-item--active" data-section="page-form">
+        <button type="button" class="nav-item nav-item--active" data-section="page-form" data-tooltip="Форма прогнозування">
           <span class="icon" data-lucide="clipboard-list"></span>
-          <span>Форма прогнозування</span>
+          <span class="nav-item__text">Форма прогнозування</span>
         </button>
-        <button type="button" class="nav-item" data-section="page-insights">
+        <button type="button" class="nav-item" data-section="page-history" data-tooltip="Історія прогнозів" id="nav-history" hidden>
+          <span class="icon" data-lucide="history"></span>
+          <span class="nav-item__text">Історія прогнозів</span>
+        </button>
+        <button type="button" class="nav-item" data-section="page-insights" data-tooltip="Діаграми">
           <span class="icon" data-lucide="chart-bar"></span>
-          <span>Діаграми</span>
+          <span class="nav-item__text">Діаграми</span>
         </button>
       </nav>
     </aside>
 
     <div class="main-wrapper">
       <header class="app-header">
+        <h1 id="page-title" class="app-header__title">Форма прогнозування</h1>
         <div class="app-header__user" id="user-panel">
           <div class="user-panel__guest" id="user-panel-guest" hidden></div>
           <div class="user-panel__auth" id="user-panel-auth" hidden>
-            <button type="button" class="user-pill" id="user-menu-trigger" aria-haspopup="true" aria-expanded="false">
-              <span class="user-pill__avatar" id="user-pill-avatar" aria-hidden="true">?</span>
-              <span class="user-pill__details">
-                <span class="user-pill__name" id="user-pill-name">Гість</span>
-                <span class="user-pill__email" id="user-pill-email">guest@example.com</span>
-              </span>
-              <span class="icon user-pill__icon" data-lucide="chevron-down" aria-hidden="true"></span>
+            <button type="button" class="user-avatar-btn" id="user-avatar-btn" aria-label="Відкрити профіль">
+              <span class="user-avatar" id="user-avatar" aria-hidden="true">?</span>
             </button>
-            <div class="user-menu" id="user-menu" role="menu" hidden>
-              <button type="button" class="user-menu__item" data-action="profile">
-                <span class="icon" data-lucide="user" aria-hidden="true"></span>
-                <span>Відкрити профіль</span>
-              </button>
-              <button type="button" class="user-menu__item" data-action="logout">
-                <span class="icon" data-lucide="log-out" aria-hidden="true"></span>
-                <span>Вийти</span>
-              </button>
-            </div>
+            <button type="button" class="user-logout-btn" id="user-logout-btn" aria-label="Вийти з акаунту">
+              <span class="icon" data-lucide="log-out" aria-hidden="true"></span>
+            </button>
           </div>
         </div>
       </header>
 
     <main class="main">
-      <section id="page-form" class="page page--active" aria-labelledby="page-form-title">
-        <h1 id="page-form-title" class="page__title">Форма прогнозування</h1>
+      <section id="page-form" class="page page--active" aria-labelledby="page-title">
         <div class="page__grid">
           <section class="glass-card">
             <h2 class="glass-card__title">Параметри користувача</h2>
@@ -155,8 +151,7 @@
         </div>
       </section>
 
-      <section id="page-insights" class="page" aria-labelledby="page-insights-title">
-        <h1 id="page-insights-title" class="page__title">Діаграми</h1>
+      <section id="page-insights" class="page" aria-labelledby="page-title">
         <p class="analytics-error" id="analytics-error" hidden></p>
         <div class="analytics-grid">
           <section class="glass-card analytics-card" id="card-profile-overview">
@@ -263,106 +258,227 @@
               <span class="icon" data-lucide="git-merge"></span>
               <span>Кореляції факторів</span>
             </h2>
-            <p class="analytics-card__subtitle">Наскільки тісно пов’язані основні показники між собою у вибірці.</p>
+            <p class="analytics-card__subtitle">Наскільки тісно пов'язані основні показники між собою у вибірці.</p>
             <div class="chart-wrapper chart-wrapper--tall">
               <canvas id="dataset-correlation-chart" aria-label="Кореляції факторів" role="img"></canvas>
             </div>
-            <p class="analytics-card__note">Значення від -1 до 1: чим ближче до 1, тим сильніший позитивний зв’язок між показниками.</p>
+            <p class="analytics-card__note">Значення від -1 до 1: чим ближче до 1, тим сильніший позитивний зв'язок між показниками.</p>
             <p class="analytics-card__empty" id="dataset-correlation-empty" hidden>Для цього графіка недостатньо даних про всі фактори. Переконайтеся, що у датасеті присутні всі ключові показники.</p>
+          </section>
+
+          <!-- Діаграми історії прогнозів користувача -->
+          <section class="glass-card analytics-card" id="card-history-timeline">
+            <h2 class="glass-card__title">
+              <span class="icon" data-lucide="trending-up"></span>
+              <span>Історія прогнозів</span>
+            </h2>
+            <p class="analytics-card__subtitle">Динаміка ймовірностей ризиків у часі для ваших прогнозів.</p>
+            <div class="chart-wrapper chart-wrapper--tall">
+              <canvas id="history-timeline-chart" aria-label="Історія прогнозів у часі" role="img"></canvas>
+            </div>
+            <p class="analytics-card__note">Лінії показують зміну ймовірності ризику для кожної цілі з часом.</p>
+            <p class="analytics-card__empty" id="history-timeline-empty" hidden>Щоб побачити діаграми, спочатку виконайте хоча б один прогноз на сторінці «Форма прогнозування».</p>
+          </section>
+
+          <section class="glass-card analytics-card" id="card-history-risk-distribution">
+            <h2 class="glass-card__title">
+              <span class="icon" data-lucide="bar-chart-3"></span>
+              <span>Розподіл по категоріях ризику</span>
+            </h2>
+            <p class="analytics-card__subtitle">Кількість ваших прогнозів по кожній категорії ризику для кожної цілі.</p>
+            <div class="chart-wrapper">
+              <canvas id="history-risk-distribution-chart" aria-label="Розподіл прогнозів по категоріях ризику" role="img"></canvas>
+            </div>
+            <p class="analytics-card__note">Показує, скільки прогнозів у кожній категорії ризику ви зробили.</p>
+            <p class="analytics-card__empty" id="history-risk-distribution-empty" hidden>Щоб побачити діаграми, спочатку виконайте хоча б один прогноз на сторінці «Форма прогнозування».</p>
+          </section>
+
+          <section class="glass-card analytics-card" id="card-history-models">
+            <h2 class="glass-card__title">
+              <span class="icon" data-lucide="pie-chart"></span>
+              <span>Використані моделі</span>
+            </h2>
+            <p class="analytics-card__subtitle">Частка прогнозів, виконаних з різними моделями машинного навчання.</p>
+            <div class="chart-wrapper">
+              <canvas id="history-models-chart" aria-label="Розподіл прогнозів по моделях" role="img"></canvas>
+            </div>
+            <p class="analytics-card__note">Діаграма показує, які моделі ви використовували найчастіше.</p>
+            <p class="analytics-card__empty" id="history-models-empty" hidden>Щоб побачити діаграми, спочатку виконайте хоча б один прогноз на сторінці «Форма прогнозування».</p>
           </section>
         </div>
       </section>
 
-      <section id="page-profile" class="page" aria-labelledby="page-profile-title">
-        <h1 id="page-profile-title" class="page__title">Профіль</h1>
-        <div class="profile-grid">
-          <section class="glass-card profile-card">
-            <h2 class="glass-card__title">
-              <span class="icon" data-lucide="id-card"></span>
-              <span>Особисті дані</span>
-            </h2>
-            <div class="profile-card__empty" id="profile-guest-state">
-              <p>Щоб переглянути профіль та зберігати прогнози, увійдіть або створіть обліковий запис.</p>
-              <div class="profile-card__actions">
-                <button type="button" class="button button--ghost" id="profile-login-shortcut">Увійти</button>
-                <button type="button" class="button" id="profile-register-shortcut">Зареєструватися</button>
-              </div>
-            </div>
-            <div class="profile-card__body" id="profile-authenticated" hidden>
-              <div class="profile-overview">
-                <div class="profile-meta">
-                  <h3 class="profile-meta__name" id="profile-name">Ім’я користувача</h3>
-                  <p class="profile-meta__email" id="profile-email">user@example.com</p>
-                  <p class="profile-meta__joined" id="profile-joined">З нами з ...</p>
+      <section id="page-profile" class="page" aria-labelledby="page-title">
+        <div class="profile-container">
+          <!-- Guest state -->
+          <div class="profile-guest-state" id="profile-guest-state">
+            <section class="glass-card profile-card">
+              <div class="profile-card__empty">
+                <div class="profile-empty__icon">
+                  <span class="icon" data-lucide="user"></span>
                 </div>
-                <div class="profile-avatar-wrapper">
-                  <div class="profile-avatar" id="profile-avatar">A</div>
-                  <div class="profile-avatar-actions">
+                <h2>Профіль недоступний</h2>
+                <p>Щоб переглянути профіль та зберігати прогнози, увійдіть або створіть обліковий запис.</p>
+                <div class="profile-card__actions">
+                  <button type="button" class="button button--ghost" id="profile-login-shortcut">Увійти</button>
+                  <button type="button" class="button" id="profile-register-shortcut">Зареєструватися</button>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- Authenticated state -->
+          <div class="profile-authenticated" id="profile-authenticated" hidden>
+            <section class="glass-card profile-card">
+              <!-- Profile Header -->
+              <div class="profile-header">
+                <div class="profile-avatar-large-wrapper">
+                  <div class="profile-avatar-large" id="profile-avatar-large">A</div>
+                  <div class="profile-avatar-overlay">
                     <input type="file" id="avatar-upload-input" accept="image/*" hidden />
-                    <button type="button" class="button button--ghost button--small btn-full-width" id="avatar-upload-btn">Завантажити фото</button>
-                    <button type="button" class="button button--ghost button--small btn-full-width" id="avatar-reset-btn" hidden>Скинути до стандартного</button>
+                    <button type="button" class="button button--ghost button--small" id="avatar-upload-btn">
+                      <span class="icon" data-lucide="camera"></span>
+                      <span>Змінити</span>
+                    </button>
                   </div>
-                  <p class="profile-avatar-note">Рекомендовано: квадратне зображення, до 5MB, PNG або JPG</p>
+                </div>
+                <div class="profile-header-info">
+                  <h2 class="profile-header__name" id="profile-name">Ім'я користувача</h2>
+                  <p class="profile-header__email" id="profile-email">user@example.com</p>
+                  <p class="profile-header__joined" id="profile-joined">Зареєстрований</p>
                 </div>
               </div>
-              <form id="profile-update-form" class="profile-form">
-                <div class="profile-form__group">
-                  <label for="profile-display-name">Ім’я профілю</label>
-                  <input type="text" id="profile-display-name" name="display_name" placeholder="Ваше ім’я" required />
-                </div>
-                <div class="profile-form__group">
-                  <label for="profile-avatar-color">Колір аватару</label>
-                  <input type="color" id="profile-avatar-color" name="avatar_color" value="#5A64F1" />
-                </div>
-                <div class="profile-form__actions">
-                  <button type="submit" class="button">Зберегти зміни</button>
-                </div>
-                <p class="profile-form__status" id="profile-update-status"></p>
-              </form>
-              <div class="profile-password-section">
-                <h3 class="profile-password-section__title">Зміна пароля</h3>
-                <form id="profile-password-form" class="profile-form">
-                  <input type="email" id="profile-password-email" name="email" autocomplete="username" class="visually-hidden" aria-hidden="true" />
-                  <div class="profile-form__group">
-                    <label for="profile-current-password">Поточний пароль</label>
-                    <input type="password" id="profile-current-password" name="current_password" placeholder="Введіть поточний пароль" required autocomplete="current-password" />
-                  </div>
-                  <div class="profile-form__group">
-                    <label for="profile-new-password">Новий пароль</label>
-                    <input type="password" id="profile-new-password" name="new_password" placeholder="Введіть новий пароль" required autocomplete="new-password" />
-                  </div>
-                  <div class="profile-form__group">
-                    <label for="profile-confirm-password">Підтвердження нового пароля</label>
-                    <input type="password" id="profile-confirm-password" name="confirm_new_password" placeholder="Підтвердіть новий пароль" required autocomplete="new-password" />
-                  </div>
-                  <div class="profile-form__actions">
-                    <button type="submit" class="button">Оновити пароль</button>
-                  </div>
-                  <p class="profile-form__status" id="profile-password-status"></p>
-                </form>
-              </div>
-              <div class="profile-danger-zone">
-                <h3 class="profile-danger-zone__title">
-                  <span class="icon" data-lucide="alert-triangle"></span>
-                  <span>Небезпечна зона</span>
-                </h3>
-                <p class="profile-danger-zone__warning">Видалення облікового запису є незворотним. Усі ваші дані будуть втрачені.</p>
-                <button type="button" class="button button--destructive" id="delete-account-btn">
+
+              <!-- Tabs -->
+              <div class="profile-tabs" role="tablist">
+                <button type="button" class="profile-tab profile-tab--active" data-tab="profile" role="tab" aria-selected="true">
+                  <span class="icon" data-lucide="user"></span>
+                  <span>Профіль</span>
+                </button>
+                <button type="button" class="profile-tab" data-tab="password" role="tab" aria-selected="false">
+                  <span class="icon" data-lucide="key"></span>
+                  <span>Зміна пароля</span>
+                </button>
+                <button type="button" class="profile-tab" data-tab="delete-account" role="tab" aria-selected="false">
                   <span class="icon" data-lucide="trash-2"></span>
-                  <span>Видалити обліковий запис</span>
+                  <span>Видалення акаунту</span>
                 </button>
               </div>
-            </div>
-          </section>
-          <section class="glass-card profile-card profile-card--history">
+
+              <!-- Tab Content -->
+              <div class="profile-tab-content">
+                <!-- Profile Tab (Overview + Edit) -->
+                <div class="profile-tab-panel profile-tab-panel--active" id="profile-tab-profile" role="tabpanel">
+                  <form id="profile-update-form" class="profile-form">
+                    <div class="profile-form__grid">
+                      <div class="profile-form__group">
+                        <label for="profile-edit-first-name">Ім'я *</label>
+                        <input type="text" id="profile-edit-first-name" name="first_name" placeholder="Ваше ім'я" required />
+                      </div>
+                      <div class="profile-form__group">
+                        <label for="profile-edit-last-name">Прізвище</label>
+                        <input type="text" id="profile-edit-last-name" name="last_name" placeholder="Ваше прізвище" />
+                      </div>
+                      <div class="profile-form__group">
+                        <label for="profile-edit-date-of-birth">Дата народження</label>
+                        <input type="date" id="profile-edit-date-of-birth" name="date_of_birth" />
+                      </div>
+                      <div class="profile-form__group">
+                        <label for="profile-edit-gender">Стать</label>
+                        <select id="profile-edit-gender" name="gender">
+                          <option value="">Не вказано</option>
+                          <option value="male">Чоловік</option>
+                          <option value="female">Жінка</option>
+                        </select>
+                      </div>
+                      <div class="profile-form__group" id="profile-edit-avatar-color-group" hidden>
+                        <label for="profile-edit-avatar-color">Колір аватару</label>
+                        <input type="color" id="profile-edit-avatar-color" name="avatar_color" value="#5A64F1" />
+                      </div>
+                    </div>
+                    <div class="profile-form__actions" id="profile-form-actions" hidden>
+                      <button type="button" class="button button--ghost" id="profile-edit-cancel-btn">Скасувати</button>
+                      <button type="submit" class="button" id="profile-edit-save-btn">Зберегти зміни</button>
+                    </div>
+                    <p class="profile-form__status" id="profile-update-status"></p>
+                  </form>
+                  <div class="profile-history-link" id="profile-history-link" hidden>
+                    <button type="button" class="button button--ghost" id="profile-history-link-btn">
+                      <span class="icon" data-lucide="history"></span>
+                      <span>Переглянути всю історію прогнозів</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Password Change Tab -->
+                <div class="profile-tab-panel" id="profile-tab-password" role="tabpanel">
+                  <div class="profile-password-section">
+                    <h3 class="profile-password-section__title">
+                      <span class="icon" data-lucide="key"></span>
+                      <span>Зміна пароля</span>
+                    </h3>
+                    <form id="profile-password-form" class="profile-form">
+                      <input type="email" id="profile-password-email" name="email" autocomplete="username" class="visually-hidden" aria-hidden="true" />
+                      <div class="profile-form__group">
+                        <label for="profile-current-password">Поточний пароль</label>
+                        <input type="password" id="profile-current-password" name="current_password" placeholder="Введіть поточний пароль" required autocomplete="current-password" />
+                      </div>
+                      <div class="profile-form__group">
+                        <label for="profile-new-password">Новий пароль</label>
+                        <input type="password" id="profile-new-password" name="new_password" placeholder="Введіть новий пароль" required autocomplete="new-password" />
+                      </div>
+                      <div class="profile-form__group">
+                        <label for="profile-confirm-password">Підтвердження нового пароля</label>
+                        <input type="password" id="profile-confirm-password" name="confirm_new_password" placeholder="Підтвердіть новий пароль" required autocomplete="new-password" />
+                      </div>
+                      <div class="profile-form__actions">
+                        <button type="submit" class="button">Оновити пароль</button>
+                      </div>
+                      <p class="profile-form__status" id="profile-password-status"></p>
+                    </form>
+                  </div>
+                </div>
+
+                <!-- Delete Account Tab -->
+                <div class="profile-tab-panel" id="profile-tab-delete-account" role="tabpanel">
+                  <div class="profile-danger-zone">
+                    <h3 class="profile-danger-zone__title">
+                      <span class="icon" data-lucide="alert-triangle"></span>
+                      <span>Видалення облікового запису</span>
+                    </h3>
+                    <div class="profile-danger-zone__content">
+                      <p class="profile-danger-zone__warning">Видалення облікового запису є незворотним. Усі ваші дані будуть втрачені:</p>
+                      <ul class="profile-danger-zone__list">
+                        <li>Ваш профіль та особисті дані</li>
+                        <li>Вся історія прогнозів</li>
+                        <li>Завантажені фото та налаштування</li>
+                        <li>Всі інші пов’язані дані</li>
+                      </ul>
+                      <p class="profile-danger-zone__note">Якщо ви впевнені, що хочете продовжити, натисніть кнопку нижче.</p>
+                      <button type="button" class="button button--destructive" id="delete-account-btn">
+                        <span class="icon" data-lucide="trash-2"></span>
+                        <span>Видалити обліковий запис</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-history" class="page" aria-labelledby="page-title">
+        <div class="history-page-content">
+          <section class="glass-card history-card">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="history"></span>
-              <span>Історія прогнозів</span>
+              <span>Всі прогнози</span>
             </h2>
-            <div class="profile-history" id="profile-history">
-              <p class="profile-history__empty" id="history-empty">Історія поки порожня. Зробіть прогноз, щоб побачити його тут.</p>
-              <div class="profile-history__content" hidden>
-                <table class="history-table" aria-describedby="page-profile-title">
+            <div class="history-content" id="history-content">
+              <p class="history-empty" id="history-empty">Історія поки порожня. Зробіть прогноз, щоб побачити його тут.</p>
+              <div class="history-table-wrapper" id="history-table-wrapper" hidden>
+                <table class="history-table" aria-describedby="page-history-title">
                   <thead>
                     <tr>
                       <th scope="col">Дата</th>
@@ -381,9 +497,112 @@
         </div>
       </section>
 
-      <section id="page-login" class="page auth-page" aria-labelledby="page-login-title">
+      <section id="page-api-status" class="page" aria-labelledby="page-title">
+        <div class="api-status-page-content">
+          <section class="glass-card api-status-card">
+            <h2 class="glass-card__title">
+              <span class="icon" data-lucide="activity"></span>
+              <span>Поточний статус</span>
+            </h2>
+            <div class="api-status-page__status" id="api-status-page-status">
+              <div class="api-status-page__status-indicator">
+                <span class="status-dot" id="api-status-page-dot"></span>
+                <span class="api-status-page__status-text" id="api-status-page-status-text">Перевірка...</span>
+              </div>
+              <button type="button" class="button button--ghost" id="api-status-refresh-btn">
+                <span class="icon" data-lucide="refresh-cw"></span>
+                <span>Перевірити знову</span>
+              </button>
+            </div>
+          </section>
+
+          <div class="api-status-page__grid">
+            <section class="glass-card api-status-card">
+              <h2 class="glass-card__title">
+                <span class="icon" data-lucide="clock"></span>
+                <span>Час відгуку</span>
+              </h2>
+              <div class="api-status-page__metrics" id="api-status-page-metrics">
+                <div class="api-status-page__metric">
+                  <span class="api-status-page__metric-label">Latency (Ping)</span>
+                  <span class="api-status-page__metric-value" id="api-status-latency">—</span>
+                </div>
+                <div class="api-status-page__metric">
+                  <span class="api-status-page__metric-label">HTTP статус</span>
+                  <span class="api-status-page__metric-value" id="api-status-http-status">—</span>
+                </div>
+                <div class="api-status-page__metric">
+                  <span class="api-status-page__metric-label">Остання перевірка</span>
+                  <span class="api-status-page__metric-value" id="api-status-last-check">—</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="glass-card api-status-card">
+              <h2 class="glass-card__title">
+                <span class="icon" data-lucide="info"></span>
+                <span>Інформація про API</span>
+              </h2>
+              <div class="api-status-page__info" id="api-status-page-info">
+                <div class="api-status-page__info-item">
+                  <span class="api-status-page__info-label">Версія</span>
+                  <span class="api-status-page__info-value" id="api-status-version">—</span>
+                </div>
+                <div class="api-status-page__info-item">
+                  <span class="api-status-page__info-label">Загальна кількість маршрутів</span>
+                  <span class="api-status-page__info-value" id="api-status-total-routes">—</span>
+                </div>
+                <div class="api-status-page__info-item">
+                  <span class="api-status-page__info-label">Основних ендпоінтів</span>
+                  <span class="api-status-page__info-value" id="api-status-main-endpoints">—</span>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section class="glass-card api-status-card">
+            <h2 class="glass-card__title">
+              <span class="icon" data-lucide="list"></span>
+              <span>Основні маршрути</span>
+            </h2>
+            <div class="api-status-page__routes" id="api-status-page-routes">
+              <p class="api-status-page__empty">Завантаження...</p>
+            </div>
+          </section>
+
+          <section class="glass-card api-status-card">
+            <h2 class="glass-card__title">
+              <span class="icon" data-lucide="cpu"></span>
+              <span>Технічні характеристики</span>
+            </h2>
+            <div class="api-status-page__tech-specs">
+              <div class="api-status-page__tech-spec-item">
+                <span class="api-status-page__tech-spec-label">Платформа</span>
+                <span class="api-status-page__tech-spec-value">FastAPI</span>
+              </div>
+              <div class="api-status-page__tech-spec-item">
+                <span class="api-status-page__tech-spec-label">База даних</span>
+                <span class="api-status-page__tech-spec-value">SQLite</span>
+              </div>
+              <div class="api-status-page__tech-spec-item">
+                <span class="api-status-page__tech-spec-label">Збереження користувачів</span>
+                <span class="api-status-page__tech-spec-value">SQLModel</span>
+              </div>
+              <div class="api-status-page__tech-spec-item">
+                <span class="api-status-page__tech-spec-label">Моделі ШІ</span>
+                <span class="api-status-page__tech-spec-value">LogReg, RandomForest, XGB, MLP</span>
+              </div>
+              <div class="api-status-page__tech-spec-item">
+                <span class="api-status-page__tech-spec-label">Формат відповіді API</span>
+                <span class="api-status-page__tech-spec-value">JSON</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="page-login" class="page auth-page" aria-labelledby="page-title">
         <div class="auth-card">
-          <h1 id="page-login-title" class="auth-card__title">Вхід до облікового запису</h1>
           <p class="auth-card__subtitle">Уведіть електронну пошту та пароль, щоб продовжити.</p>
           <form id="login-form" class="auth-form" novalidate>
             <div class="auth-form__field">
@@ -405,9 +624,8 @@
         </div>
       </section>
 
-      <section id="page-forgot-password" class="page auth-page" aria-labelledby="page-forgot-password-title">
+      <section id="page-forgot-password" class="page auth-page" aria-labelledby="page-title">
         <div class="auth-card">
-          <h1 id="page-forgot-password-title" class="auth-card__title">Відновлення пароля</h1>
           <p class="auth-card__subtitle">Введіть вашу електронну пошту, і ми надішлемо інструкції для відновлення пароля.</p>
           <form id="forgot-password-form" class="auth-form" novalidate>
             <div class="auth-form__field">
@@ -424,9 +642,8 @@
         </div>
       </section>
 
-      <section id="page-reset-password" class="page auth-page" aria-labelledby="page-reset-password-title">
+      <section id="page-reset-password" class="page auth-page" aria-labelledby="page-title">
         <div class="auth-card">
-          <h1 id="page-reset-password-title" class="auth-card__title">Встановлення нового пароля</h1>
           <p class="auth-card__subtitle">Введіть новий пароль для вашого облікового запису.</p>
           <form id="reset-password-form" class="auth-form" novalidate>
             <input type="email" id="reset-password-email" name="email" autocomplete="username" class="visually-hidden" aria-hidden="true" />
@@ -444,25 +661,40 @@
         </div>
       </section>
 
-      <section id="page-register" class="page auth-page" aria-labelledby="page-register-title">
+      <section id="page-register" class="page auth-page" aria-labelledby="page-title">
         <div class="auth-card">
-          <h1 id="page-register-title" class="auth-card__title">Створення облікового запису</h1>
           <p class="auth-card__subtitle">Заповніть форму, щоб почати зберігати свою історію прогнозів.</p>
           <form id="register-form" class="auth-form" novalidate>
             <div class="auth-form__field">
-              <label for="register-display-name">Ім’я профілю</label>
-              <input type="text" id="register-display-name" name="display_name" placeholder="Як до вас звертатися?" minlength="2" required />
+              <label for="register-first-name">Ім'я *</label>
+              <input type="text" id="register-first-name" name="first_name" placeholder="Ваше ім'я" minlength="1" required />
             </div>
             <div class="auth-form__field">
-              <label for="register-email">Електронна пошта</label>
+              <label for="register-last-name">Прізвище *</label>
+              <input type="text" id="register-last-name" name="last_name" placeholder="Ваше прізвище" minlength="1" required />
+            </div>
+            <div class="auth-form__field">
+              <label for="register-date-of-birth">Дата народження *</label>
+              <input type="date" id="register-date-of-birth" name="date_of_birth" required />
+            </div>
+            <div class="auth-form__field">
+              <label for="register-gender">Стать *</label>
+              <select id="register-gender" name="gender" required>
+                <option value="">Оберіть стать</option>
+                <option value="male">Чоловік</option>
+                <option value="female">Жінка</option>
+              </select>
+            </div>
+            <div class="auth-form__field">
+              <label for="register-email">Електронна пошта *</label>
               <input type="email" id="register-email" name="email" autocomplete="username" placeholder="name@example.com" required />
             </div>
             <div class="auth-form__field">
-              <label for="register-password">Пароль</label>
+              <label for="register-password">Пароль *</label>
               <input type="password" id="register-password" name="password" autocomplete="new-password" placeholder="Мінімум 8 символів" minlength="8" required />
             </div>
             <div class="auth-form__field">
-              <label for="register-confirm">Підтвердження пароля</label>
+              <label for="register-confirm">Підтвердження пароля *</label>
               <input type="password" id="register-confirm" name="confirm_password" autocomplete="new-password" placeholder="Повторіть пароль" minlength="8" required />
             </div>
             <p class="auth-form__error" id="register-error" hidden></p>

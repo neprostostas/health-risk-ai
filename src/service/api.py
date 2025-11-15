@@ -114,6 +114,20 @@ async def serve_profile_page():
     return serve_frontend()
 
 
+@app.get("/history", response_class=HTMLResponse)
+async def serve_history_page():
+    """Повертає сторінку історії прогнозів."""
+    print("🖥️ Видача сторінки /history")
+    return serve_frontend()
+
+
+@app.get("/api-status", response_class=HTMLResponse)
+async def serve_api_status_page():
+    """Повертає сторінку статусу API."""
+    print("🖥️ Видача сторінки /api-status")
+    return serve_frontend()
+
+
 @app.get("/diagrams", response_class=HTMLResponse)
 async def serve_diagrams_page():
     print("🖥️ Видача сторінки /diagrams")
@@ -233,10 +247,30 @@ async def health_check():
     Перевірка стану сервісу.
     
     Returns:
-        Стан сервісу
+        Стан сервісу з додатковою інформацією
     """
     print("✅ Перевірка стану сервісу")
-    return {"status": "ok", "message": "Сервіс працює нормально"}
+    from datetime import datetime
+    
+    # Отримуємо список маршрутів
+    routes = []
+    for route in app.routes:
+        if hasattr(route, "path") and hasattr(route, "methods"):
+            methods = list(route.methods) if route.methods else []
+            if "GET" in methods or "POST" in methods or "PUT" in methods or "DELETE" in methods:
+                routes.append({
+                    "path": route.path,
+                    "methods": [m for m in methods if m != "HEAD" and m != "OPTIONS"]
+                })
+    
+    return {
+        "status": "ok",
+        "message": "Сервіс працює нормально",
+        "version": "1.0.0",
+        "timestamp": datetime.utcnow().isoformat(),
+        "routes": routes[:20],  # Обмежуємо кількість для продуктивності
+        "total_routes": len(routes)
+    }
 
 
 @app.get("/metadata", response_model=MetadataResponse)

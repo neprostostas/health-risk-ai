@@ -25,6 +25,7 @@ from .models import PasswordResetToken, PredictionHistory, User
 from .repositories import (
     add_prediction_history,
     delete_prediction,
+    get_all_prediction_history,
     get_user_by_email,
     list_prediction_history,
     update_user_profile,
@@ -34,6 +35,7 @@ from .schemas import (
     ForgotPasswordRequest,
     PredictionHistoryItem,
     PredictionHistoryResponse,
+    PredictionHistoryStats,
     ResetPasswordRequest,
     TokenResponse,
     UserLoginRequest,
@@ -51,6 +53,10 @@ def _build_profile_response(user: User) -> UserProfileResponse:
         id=user.id,
         email=user.email,
         display_name=user.display_name,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        date_of_birth=user.date_of_birth,
+        gender=user.gender,
         avatar_url=user.avatar_url,
         avatar_type=user.avatar_type or "generated",
         avatar_color=user.avatar_color,
@@ -113,13 +119,46 @@ def register_user(
                 detail="Користувач з такою електронною поштою вже існує.",
             )
         
-        # Валідація display_name
-        display_name = payload.display_name.strip()
-        if len(display_name) < 2:
+        # Валідація імені та прізвища
+        first_name = payload.first_name.strip()
+        last_name = payload.last_name.strip()
+        if len(first_name) < 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Ім'я профілю повинно містити мінімум 2 символи.",
+                detail="Ім'я є обов'язковим полем.",
             )
+        if len(last_name) < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Прізвище є обов'язковим полем.",
+            )
+        
+        # Валідація статі
+        if payload.gender not in ["male", "female"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Стать повинна бути: male або female",
+            )
+        
+        # Валідація дати народження
+        date_of_birth = None
+        if payload.date_of_birth:
+            try:
+                from datetime import datetime as dt
+                date_of_birth = dt.fromisoformat(payload.date_of_birth)
+            except (ValueError, TypeError):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Невірний формат дати народження. Використовуйте формат YYYY-MM-DD.",
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Дата народження є обов'язковим полем.",
+            )
+        
+        # display_name використовуємо з first_name для сумісності
+        display_name = first_name
         
         # Перевірка мінімальної довжини пароля (вже валідується Pydantic)
         if len(payload.password) < 8:
@@ -157,6 +196,10 @@ def register_user(
             email=email,
             hashed_password=hashed_password,
             display_name=display_name,
+            first_name=first_name,
+            last_name=last_name,
+            date_of_birth=date_of_birth,
+            gender=payload.gender,
             avatar_color="#5A64F1",
             avatar_type="generated",
             is_active=True,
@@ -582,12 +625,12 @@ async def reset_password(
         ) from e
 
 
-@router.get("/me", response_model=UserProfileResponse)
+@users_router.get("/me", response_model=UserProfileResponse)
 async def get_profile(current_user: User = Depends(require_current_user)) -> UserProfileResponse:
     return _build_profile_response(current_user)
 
 
-@router.put("/me", response_model=UserProfileResponse)
+@users_router.put("/me", response_model=UserProfileResponse)
 async def update_profile(
     payload: UserUpdateRequest,
     session: Session = Depends(get_session),
@@ -598,14 +641,50 @@ async def update_profile(
     
     Не змінює avatar_type при оновленні інших полів.
     """
+    from datetime import datetime as dt
+    
     # Не оновлюємо avatar_url напряму, щоб не перезаписати тип аватару
     # avatar_url оновлюється через окремі endpoints для аватару
-    update_data = {
-        "display_name": payload.display_name,
-        "avatar_color": payload.avatar_color,
-    }
-    # Видаляємо None значення
-    update_data = {k: v for k, v in update_data.items() if v is not None}
+    update_data = {}
+    
+    # first_name обов'язкове (новий підхід)
+    if payload.first_name:
+        update_data["first_name"] = payload.first_name.strip()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ім'я є обов'язковим полем.",
+        )
+    
+    # display_name опційне (для сумісності зі старими користувачами)
+    # Якщо не передано display_name, використовуємо first_name як display_name
+    if payload.display_name is not None:
+        update_data["display_name"] = payload.display_name
+    else:
+        # Якщо display_name не передано, оновлюємо його з first_name для сумісності
+        update_data["display_name"] = update_data["first_name"]
+    
+    # Додаємо інші поля (None або порожній рядок означає очищення поля)
+    if payload.last_name is not None:
+        update_data["last_name"] = payload.last_name.strip() if payload.last_name else None
+    if payload.gender is not None:
+        update_data["gender"] = payload.gender if payload.gender else None
+    if payload.avatar_color is not None:
+        update_data["avatar_color"] = payload.avatar_color
+    
+    # Обробляємо date_of_birth якщо він є (конвертуємо з рядка в datetime)
+    if payload.date_of_birth is not None:
+        if payload.date_of_birth:
+            try:
+                update_data["date_of_birth"] = dt.fromisoformat(payload.date_of_birth)
+            except (ValueError, TypeError):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Невірний формат дати народження. Використовуйте формат YYYY-MM-DD.",
+                )
+        else:
+            # Порожня дата означає очищення
+            update_data["date_of_birth"] = None
     
     if update_data:
         updated = update_user_profile(session, current_user, **update_data)
@@ -787,11 +866,60 @@ async def patch_profile(
 
 @users_router.get("/me/history", response_model=PredictionHistoryResponse)
 async def users_history(
-    limit: int = 20,
+    limit: int = 50,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_current_user),
 ) -> PredictionHistoryResponse:
+    """Повертає історію прогнозів користувача."""
     return _build_history_response(session, current_user, limit)
+
+
+@users_router.get("/me/history/stats", response_model=PredictionHistoryStats)
+async def users_history_stats(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_current_user),
+) -> PredictionHistoryStats:
+    """Повертає статистику історії прогнозів користувача для діаграм."""
+    from collections import defaultdict
+    from datetime import datetime
+    
+    # Отримуємо всю історію (без ліміту)
+    history = get_all_prediction_history(session, current_user.id)
+    
+    # Ініціалізуємо структури для підрахунку
+    by_target = defaultdict(int)
+    by_risk_bucket = defaultdict(int)
+    by_model = defaultdict(int)
+    by_target_and_risk = defaultdict(int)
+    time_series = []
+    
+    # Обробляємо кожен запис
+    for entry in history:
+        by_target[entry.target] += 1
+        by_risk_bucket[entry.risk_bucket] += 1
+        model_key = entry.model_name or "unknown"
+        by_model[model_key] += 1
+        by_target_and_risk[f"{entry.target}:{entry.risk_bucket}"] += 1
+        
+        # Додаємо до часової серії
+        time_series.append({
+            "date": entry.created_at.isoformat(),
+            "target": entry.target,
+            "probability": entry.probability,
+            "risk_bucket": entry.risk_bucket,
+        })
+    
+    # Сортуємо часову серію за датою (від старіших до новіших)
+    time_series.sort(key=lambda x: x["date"])
+    
+    return PredictionHistoryStats(
+        total_predictions=len(history),
+        by_target=dict(by_target),
+        by_risk_bucket=dict(by_risk_bucket),
+        by_model=dict(by_model),
+        by_target_and_risk=dict(by_target_and_risk),
+        time_series=time_series,
+    )
 
 
 @users_router.delete("/me/history/{prediction_id}", status_code=status.HTTP_200_OK)

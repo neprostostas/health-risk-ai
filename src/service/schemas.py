@@ -80,6 +80,10 @@ class UserBase(BaseModel):
 
     email: EmailStr
     display_name: str = Field(..., min_length=2, max_length=80)
+    first_name: Optional[str] = Field(None, max_length=50, description="Ім'я")
+    last_name: Optional[str] = Field(None, max_length=50, description="Прізвище")
+    date_of_birth: Optional[datetime] = Field(None, description="Дата народження")
+    gender: Optional[str] = Field(None, description="Стать (male/female/other)")
     avatar_url: Optional[str] = None
     avatar_type: str = Field(default="generated", description="Тип аватару: 'generated' або 'uploaded'")
     avatar_color: Optional[str] = None
@@ -91,7 +95,18 @@ class UserRegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
     confirm_password: str = Field(..., min_length=8, max_length=128)
-    display_name: str = Field(..., min_length=2, max_length=80)
+    first_name: str = Field(..., min_length=1, max_length=50, description="Ім'я (обов'язкове)")
+    last_name: str = Field(..., min_length=1, max_length=50, description="Прізвище (обов'язкове)")
+    date_of_birth: str = Field(..., description="Дата народження у форматі YYYY-MM-DD (обов'язкова)")
+    gender: str = Field(..., description="Стать (обов'язкова): male або female")
+
+    @field_validator("gender")
+    @classmethod
+    def validate_gender(cls, v):
+        """Валідація статі - тільки male або female."""
+        if v not in ["male", "female"]:
+            raise ValueError("Стать повинна бути: male або female")
+        return v
 
     @model_validator(mode="after")
     def check_passwords_match(self):
@@ -118,14 +133,20 @@ class UserProfileResponse(UserBase):
 class UserUpdateRequest(BaseModel):
     """Запит оновлення профілю."""
 
-    display_name: Optional[str] = Field(None, min_length=2, max_length=80)
+    display_name: Optional[str] = Field(None, min_length=2, max_length=80, description="Ім'я профілю (застаріле, використовуйте first_name)")
+    first_name: str = Field(..., min_length=1, max_length=50, description="Ім'я (обов'язкове)")
+    last_name: Optional[str] = Field(None, max_length=50, description="Прізвище")
+    date_of_birth: Optional[str] = Field(None, description="Дата народження у форматі YYYY-MM-DD")
+    gender: Optional[str] = Field(None, description="Стать (male/female/other)")
     avatar_color: Optional[str] = None
 
-    @model_validator(mode="after")
-    def check_any_field(self):
-        if not any([self.display_name, self.avatar_color]):
-            raise ValueError("Потрібно вказати хоча б одне поле для оновлення.")
-        return self
+    @field_validator("gender")
+    @classmethod
+    def validate_gender(cls, v):
+        """Валідація статі - тільки male або female."""
+        if v is not None and v not in ["male", "female"]:
+            raise ValueError("Стать повинна бути: male або female")
+        return v
 
 
 class ChangePasswordRequest(BaseModel):
@@ -186,4 +207,15 @@ class PredictionHistoryResponse(BaseModel):
     """Відповідь зі списком історії прогнозів."""
 
     items: List[PredictionHistoryItem]
+
+
+class PredictionHistoryStats(BaseModel):
+    """Статистика історії прогнозів для діаграм."""
+
+    total_predictions: int
+    by_target: dict = Field(..., description="Кількість прогнозів по кожній цілі")
+    by_risk_bucket: dict = Field(..., description="Кількість прогнозів по кожній категорії ризику")
+    by_model: dict = Field(..., description="Кількість прогнозів по кожній моделі")
+    by_target_and_risk: dict = Field(..., description="Кількість прогнозів по комбінації ціль-ризик")
+    time_series: List[dict] = Field(..., description="Часова серія прогнозів з датами та ймовірностями")
 

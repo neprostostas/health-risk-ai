@@ -7,6 +7,7 @@ from typing import List, Optional
 from sqlmodel import Session, select
 
 from .models import PredictionHistory, User
+from collections import defaultdict
 
 
 def get_user_by_email(session: Session, email: str) -> Optional[User]:
@@ -82,5 +83,15 @@ def delete_prediction(session: Session, user_id: int, prediction_id: int) -> boo
     session.delete(history)
     session.commit()
     return True
+
+
+def get_all_prediction_history(session: Session, user_id: int) -> List[PredictionHistory]:
+    """Повертає всю історію прогнозів користувача (без ліміту)."""
+    statement = (
+        select(PredictionHistory)
+        .where(PredictionHistory.user_id == user_id)
+        .order_by(PredictionHistory.created_at.desc())
+    )
+    return list(session.exec(statement))
 
 

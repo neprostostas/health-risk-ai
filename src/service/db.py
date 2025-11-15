@@ -26,19 +26,32 @@ def migrate_add_missing_columns() -> None:
     inspector = inspect(engine)
     
     with engine.connect() as conn:
-        # Перевіряємо та додаємо avatar_type до таблиці user
+        # Перевіряємо та додаємо відсутні колонки до таблиці user
         if "user" in inspector.get_table_names():
             columns = [col["name"] for col in inspector.get_columns("user")]
             
+            # Додаємо avatar_type якщо відсутня
             if "avatar_type" not in columns:
                 print("🔧 Додавання колонки avatar_type до таблиці user...")
-                # SQLite підтримує NOT NULL з DEFAULT тільки в новіших версіях
-                # Спочатку додаємо колонку як nullable
                 conn.execute(text("ALTER TABLE user ADD COLUMN avatar_type VARCHAR"))
-                # Потім оновлюємо існуючі записи та встановлюємо DEFAULT
                 conn.execute(text("UPDATE user SET avatar_type = 'generated' WHERE avatar_type IS NULL"))
                 conn.commit()
                 print("✅ Колонка avatar_type додана до таблиці user")
+            
+            # Додаємо нові поля для профілю
+            new_fields = {
+                "first_name": "VARCHAR",
+                "last_name": "VARCHAR",
+                "date_of_birth": "DATETIME",
+                "gender": "VARCHAR",
+            }
+            
+            for field_name, field_type in new_fields.items():
+                if field_name not in columns:
+                    print(f"🔧 Додавання колонки {field_name} до таблиці user...")
+                    conn.execute(text(f"ALTER TABLE user ADD COLUMN {field_name} {field_type}"))
+                    conn.commit()
+                    print(f"✅ Колонка {field_name} додана до таблиці user")
 
 
 def init_db() -> None:
