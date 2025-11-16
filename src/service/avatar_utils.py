@@ -4,6 +4,7 @@
 
 import io
 import shutil
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -23,22 +24,36 @@ ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 ALLOWED_MIME_TYPES = {"image/png", "image/jpeg", "image/jpg"}
 
 
-def get_avatar_path(user_id: int, extension: str) -> Path:
-    """Повертає шлях до файлу аватару для користувача."""
+def get_avatar_path(user_id: int, extension: str, unique_id: Optional[str] = None) -> Path:
+    """
+    Повертає шлях до файлу аватару для користувача.
+    
+    Args:
+        user_id: ID користувача
+        extension: Розширення файлу (.png, .jpg, .jpeg)
+        unique_id: Унікальний ідентифікатор (timestamp) для уникнення конфліктів. 
+                   Якщо не вказано, генерується автоматично.
+    """
     if extension not in ALLOWED_EXTENSIONS:
         raise ValueError(f"Недозволений формат файлу: {extension}")
-    return AVATARS_DIR / f"{user_id}{extension}"
+    
+    if unique_id is None:
+        unique_id = str(int(time.time() * 1000))  # Timestamp в мілісекундах
+    
+    return AVATARS_DIR / f"{user_id}_{unique_id}{extension}"
 
 
-def get_avatar_url(user_id: int, extension: str) -> str:
+def get_avatar_url(user_id: int, extension: str, unique_id: Optional[str] = None) -> str:
     """Повертає URL для доступу до аватару."""
-    filename = f"{user_id}{extension}"
+    if unique_id is None:
+        unique_id = str(int(time.time() * 1000))
+    filename = f"{user_id}_{unique_id}{extension}"
     return f"/static/avatars/{filename}"
 
 
 def save_avatar(user_id: int, file_content: bytes, extension: str) -> tuple[str, Path]:
     """
-    Зберігає файл аватару.
+    Зберігає файл аватару з унікальним ім'ям для уникнення конфліктів.
     
     Returns:
         Tuple з URL та Path до збереженого файлу
@@ -51,8 +66,11 @@ def save_avatar(user_id: int, file_content: bytes, extension: str) -> tuple[str,
     if extension not in ALLOWED_EXTENSIONS:
         raise ValueError(f"Недозволений формат файлу. Дозволені: {', '.join(ALLOWED_EXTENSIONS)}")
     
-    # Отримуємо шлях до файлу
-    avatar_path = get_avatar_path(user_id, extension)
+    # Генеруємо унікальний ID (timestamp в мілісекундах)
+    unique_id = str(int(time.time() * 1000))
+    
+    # Отримуємо шлях до файлу з унікальним ім'ям
+    avatar_path = get_avatar_path(user_id, extension, unique_id)
     
     # Зберігаємо файл
     with open(avatar_path, "wb") as f:
@@ -81,29 +99,32 @@ def save_avatar(user_id: int, file_content: bytes, extension: str) -> tuple[str,
             avatar_path.unlink()
         raise ValueError(f"Не вдалося обробити зображення: {str(e)}")
     
-    # Повертаємо URL та шлях
-    avatar_url = get_avatar_url(user_id, extension)
+    # Повертаємо URL та шлях (з унікальним ID)
+    avatar_url = get_avatar_url(user_id, extension, unique_id)
     return avatar_url, avatar_path
 
 
 def delete_avatar(user_id: int, extension: Optional[str] = None) -> bool:
     """
-    Видаляє файл аватару.
+    Видаляє файл(и) аватару.
     
-    Якщо extension не вказано, спробує видалити всі можливі варіанти.
+    Якщо extension не вказано, видаляє всі файли аватара користувача
+    (включаючи різні формати та унікальні ID).
     """
     deleted = False
     if extension:
-        # Видаляємо конкретний файл
-        avatar_path = get_avatar_path(user_id, extension)
-        if avatar_path.exists():
+        # Видаляємо конкретний файл (для сумісності, хоча зараз не використовується)
+        # Оскільки файли мають унікальні ID, потрібно шукати за патерном
+        pattern = f"{user_id}_*.{extension.lstrip('.')}"
+        for avatar_path in AVATARS_DIR.glob(pattern):
             avatar_path.unlink()
             deleted = True
     else:
-        # Видаляємо всі можливі варіанти
-        for ext in ALLOWED_EXTENSIONS:
-            avatar_path = get_avatar_path(user_id, ext)
-            if avatar_path.exists():
+        # Видаляємо всі файли аватара користувача незалежно від формату та унікального ID
+        # Шукаємо всі файли, що починаються з user_id_
+        pattern = f"{user_id}_*"
+        for avatar_path in AVATARS_DIR.glob(pattern):
+            if avatar_path.is_file():
                 avatar_path.unlink()
                 deleted = True
     

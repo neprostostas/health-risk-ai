@@ -388,6 +388,8 @@ async def predict(
                         **input_values,
                         "target": target,
                         "model": model or "auto",
+                        # Зберігаємо top_factors для відображення в діаграмах після перезавантаження
+                        "top_factors": response.top_factors if hasattr(response, 'top_factors') else [],
                     },
                 )
             except Exception as history_error:  # noqa: B902

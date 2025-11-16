@@ -720,11 +720,9 @@ async def upload_avatar(
             ) from e
         
         # Видаляємо старий аватар, якщо він існує
-        if current_user.avatar_type == "uploaded" and current_user.avatar_url:
-            # Визначаємо розширення з URL
-            old_extension = Path(current_user.avatar_url).suffix
-            if old_extension:
-                delete_avatar(current_user.id, old_extension)
+        # Видаляємо всі можливі файли аватара користувача (назви можуть відрізнятися)
+        if current_user.avatar_type == "uploaded":
+            delete_avatar(current_user.id)  # Видаляємо всі файли без вказання розширення
         
         # Зберігаємо новий аватар
         try:

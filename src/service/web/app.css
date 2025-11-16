@@ -2,6 +2,12 @@ html, body {
   overscroll-behavior: none;
 }
 
+/* Hide elements with hidden attribute */
+[hidden],
+[hidden]:not([hidden="false"]) {
+  display: none !important;
+}
+
 /* Visually hidden but accessible to browsers and screen readers */
 .visually-hidden {
   position: absolute !important;
@@ -1654,13 +1660,61 @@ select:focus {
 .profile-avatar-overlay {
   position: absolute;
   bottom: 0;
+  left: 0;
   right: 0;
   opacity: 0;
   transition: opacity var(--transition-medium);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 0 0 50% 50%;
 }
 
 .profile-avatar-large-wrapper:hover .profile-avatar-overlay {
   opacity: 1;
+}
+
+.profile-avatar-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.button--icon-only {
+  padding: 8px;
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button--icon-only .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.button--icon-only span:not(.icon) {
+  display: none;
+}
+
+/* Приховуємо колор пікер - він використовується програмно */
+.avatar-color-input-hidden {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .profile-header-info {

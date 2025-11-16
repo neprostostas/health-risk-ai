@@ -219,6 +219,9 @@ const profileConfirmPasswordInput = document.getElementById("profile-confirm-pas
 const avatarUploadInput = document.getElementById("avatar-upload-input");
 const avatarUploadBtn = document.getElementById("avatar-upload-btn");
 const avatarResetBtn = document.getElementById("avatar-reset-btn");
+const avatarDeleteBtn = document.getElementById("avatar-delete-btn");
+const avatarColorBtn = document.getElementById("avatar-color-btn");
+const avatarColorInput = document.getElementById("avatar-color-input");
 const profileHistoryContainer = document.getElementById("profile-history");
 const historyContent = document.getElementById("history-content");
 const historyTableWrapper = document.getElementById("history-table-wrapper");
@@ -228,6 +231,14 @@ const deleteAccountModalBackdrop = document.getElementById("delete-account-modal
 const deleteAccountCancelBtn = document.getElementById("delete-account-cancel-btn");
 const deleteAccountConfirmBtn = document.getElementById("delete-account-confirm-btn");
 const deleteAccountError = document.getElementById("delete-account-error");
+const deleteHistoryModal = document.getElementById("delete-history-modal");
+const deleteHistoryModalBackdrop = document.getElementById("delete-history-modal-backdrop");
+const deleteHistoryCancelBtn = document.getElementById("delete-history-cancel-btn");
+const deleteHistoryConfirmBtn = document.getElementById("delete-history-confirm-btn");
+const deleteAvatarModal = document.getElementById("delete-avatar-modal");
+const deleteAvatarModalBackdrop = document.getElementById("delete-avatar-modal-backdrop");
+const deleteAvatarCancelBtn = document.getElementById("delete-avatar-cancel-btn");
+const deleteAvatarConfirmBtn = document.getElementById("delete-avatar-confirm-btn");
 const forgotPasswordLink = document.getElementById("to-forgot-password");
 const forgotPasswordForm = document.getElementById("forgot-password-form");
 const forgotPasswordError = document.getElementById("forgot-password-error");
@@ -292,7 +303,7 @@ XGBoost — потужний бустинг для табличних даних
 LightGBM — швидка реалізація градієнтного бустингу.
 SVM — шукає оптимальну межу між класами.
 KNN — порівнює зі схожими пацієнтами (сусіди).
-Нейромережа (MLP) — виявляє складні нелінійні взаємозв’язки.`,
+Нейромережа (MLP) — виявляє складні нелінійні взаємозв'язки.`,
 };
 
 function getFeatureName(code) {
@@ -532,6 +543,69 @@ function getPrediction(target) {
   return predictionStore[target] ?? null;
 }
 
+// Заповнює predictionStore з історії прогнозів для відображення в діаграмах
+function populatePredictionStoreFromHistory() {
+  if (!authState.history || authState.history.length === 0) {
+    // Якщо історії немає, очищаємо predictionStore
+    Object.keys(predictionStore).forEach(key => delete predictionStore[key]);
+    latestPredictionKey = null;
+    return;
+  }
+  
+  // Групуємо історію за target та беремо останній запис для кожного target
+  const latestByTarget = {};
+  authState.history.forEach((entry) => {
+    const target = entry.target;
+    if (!target) return;
+    
+    // Беремо останній запис для кожного target (історія вже відсортована за датою desc)
+    if (!latestByTarget[target]) {
+      latestByTarget[target] = entry;
+    }
+  });
+  
+  // Заповнюємо predictionStore
+  let latestTimestamp = 0;
+  let latestTarget = null;
+  
+  Object.entries(latestByTarget).forEach(([target, entry]) => {
+    const createdTimestamp = new Date(entry.created_at).getTime();
+    
+    // Витягуємо inputs, виключаючи service поля
+    const { target: _, model: __, top_factors: ___, ...inputValues } = entry.inputs || {};
+    
+    const snapshot = {
+      target: entry.target,
+      probability: entry.probability,
+      risk_bucket: entry.risk_bucket,
+      model_name: entry.model_name,
+      version: null, // Версія моделі не зберігається в історії
+      top_factors: entry.inputs?.top_factors || [],
+      inputValues: inputValues,
+      savedAt: createdTimestamp,
+    };
+    
+    predictionStore[target] = snapshot;
+    
+    // Визначаємо найновіший прогноз
+    if (createdTimestamp > latestTimestamp) {
+      latestTimestamp = createdTimestamp;
+      latestTarget = target;
+    }
+  });
+  
+  if (latestTarget) {
+    latestPredictionKey = latestTarget;
+  }
+  
+  // Оновлюємо діаграми якщо вони вже ініціалізовані
+  if (insightsInitialized) {
+    renderProfileOverviewChart();
+    renderRiskComparisonChart();
+    renderInsightsFactorsChart();
+  }
+}
+
 function getLatestPredictionEntry() {
   if (latestPredictionKey && predictionStore[latestPredictionKey]) {
     return { target: latestPredictionKey, data: predictionStore[latestPredictionKey] };
@@ -752,10 +826,10 @@ function applyAvatarStyle(element, user) {
     element.textContent = ""; // Приховуємо ініціали
   } else {
     // Показуємо згенерований аватар з ініціалами
-    const color = user?.avatar_color || DEFAULT_AVATAR_COLOR;
-    element.style.background = color;
+  const color = user?.avatar_color || DEFAULT_AVATAR_COLOR;
+  element.style.background = color;
     element.style.backgroundImage = "none";
-    element.textContent = getInitials(user?.display_name || user?.email || "");
+  element.textContent = getInitials(user?.display_name || user?.email || "");
   }
 }
 
@@ -830,12 +904,22 @@ function updateNavigationVisibility() {
   const navProfile = document.getElementById("nav-profile");
   const navHistory = document.getElementById("nav-history");
   
+  // Знаходимо кнопки "Форма прогнозування" та "Діаграми" через data-section (безпечний селектор)
+  const navForm = document.querySelector('.sidebar__nav [data-section="page-form"]');
+  const navInsights = document.querySelector('.sidebar__nav [data-section="page-insights"]');
+  
   // Ці кнопки приховуємо повністю, якщо користувач не автентифікований
   if (navProfile) {
     navProfile.hidden = !authState.user;
   }
   if (navHistory) {
     navHistory.hidden = !authState.user;
+  }
+  if (navForm) {
+    navForm.hidden = !authState.user;
+  }
+  if (navInsights) {
+    navInsights.hidden = !authState.user;
   }
 }
 
@@ -863,14 +947,27 @@ function updateUserPanel() {
 
 function updateProfileSection() {
   if (!profileGuestState || !profileAuthenticated) return;
-  if (authState.user) {
+  
+  // Перевіряємо, що authState.user існує і оновлено
+  const user = authState.user;
+  if (!user) {
+    // Користувач НЕ автентифікований: ховаємо профіль, показуємо гостя
+    profileGuestState.removeAttribute("hidden");
+    profileGuestState.hidden = false;
+    profileAuthenticated.setAttribute("hidden", "");
+    profileAuthenticated.hidden = true;
+    return;
+  }
+  
+  if (user) {
     // Користувач автентифікований: показуємо профіль, ховаємо гостя
     profileGuestState.setAttribute("hidden", "");
     profileGuestState.hidden = true;
     profileAuthenticated.removeAttribute("hidden");
     profileAuthenticated.hidden = false;
     
-    const user = authState.user;
+    // Використовуємо актуальні дані з authState (вже отримані вище)
+    // const user = authState.user; - вже визначено вище
     
     // Оновлюємо header (показуємо first_name + last_name)
     if (profileNameEl) {
@@ -892,40 +989,43 @@ function updateProfileSection() {
       applyAvatarStyle(profileAvatarPreviewImage, user);
     }
     
-    // Оновлюємо таб "Огляд" (використовуємо first_name)
-    if (profileInfoDisplayName) profileInfoDisplayName.textContent = user.first_name || user.display_name || "—";
-    if (profileInfoFirstName) profileInfoFirstName.textContent = user.first_name || "—";
-    if (profileInfoLastName) profileInfoLastName.textContent = user.last_name || "—";
-    if (profileInfoDateOfBirth) {
-      if (user.date_of_birth) {
-        const date = new Date(user.date_of_birth);
-        profileInfoDateOfBirth.textContent = date.toLocaleDateString("uk-UA", {
-          year: "numeric",
-          month: "long",
-          day: "numeric"
-        });
-      } else {
-        profileInfoDateOfBirth.textContent = "—";
-      }
-    }
-    if (profileInfoGender) {
-      const genderMap = { male: "Чоловік", female: "Жінка", other: "Інше" };
-      profileInfoGender.textContent = user.gender ? (genderMap[user.gender] || user.gender) : "—";
-    }
-    if (profileInfoEmail) profileInfoEmail.textContent = user.email || "—";
-    
-    // Оновлюємо форму редагування
+    // Оновлюємо форму редагування (дані відображаються в полях форми)
     if (profileEditFirstNameInput) profileEditFirstNameInput.value = user.first_name || "";
     if (profileEditLastNameInput) profileEditLastNameInput.value = user.last_name || "";
-    if (profileEditDateOfBirthInput && user.date_of_birth) {
-      const date = new Date(user.date_of_birth);
-      profileEditDateOfBirthInput.value = date.toISOString().split("T")[0];
-    } else if (profileEditDateOfBirthInput) {
-      profileEditDateOfBirthInput.value = "";
+    if (profileEditDateOfBirthInput) {
+      if (user.date_of_birth) {
+        try {
+          // Нормалізуємо дату до формату YYYY-MM-DD для поля input[type="date"]
+          const dateStr = String(user.date_of_birth);
+          let normalizedDate = "";
+          
+          if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Вже в правильному форматі YYYY-MM-DD
+            normalizedDate = dateStr;
+          } else if (dateStr.includes('T')) {
+            // ISO формат з часом, витягуємо тільки дату
+            normalizedDate = dateStr.split('T')[0];
+          } else {
+            // Спробуємо парсити як дату
+            const date = new Date(dateStr);
+            if (!isNaN(date.getTime())) {
+              normalizedDate = date.toISOString().split('T')[0];
+            }
+          }
+          
+          profileEditDateOfBirthInput.value = normalizedDate;
+        } catch (e) {
+          console.error("Помилка парсингу дати для форми:", e, user.date_of_birth);
+          profileEditDateOfBirthInput.value = "";
+        }
+      } else {
+        profileEditDateOfBirthInput.value = "";
+      }
     }
     if (profileEditGenderSelect) profileEditGenderSelect.value = user.gender || "";
-    if (profileEditAvatarColorInput) {
-      profileEditAvatarColorInput.value = user.avatar_color || DEFAULT_AVATAR_COLOR;
+    // Оновлюємо прихований input кольору аватару
+    if (avatarColorInput) {
+      avatarColorInput.value = user.avatar_color || DEFAULT_AVATAR_COLOR;
     }
     
     // Зберігаємо оригінальні значення для відстеження змін
@@ -933,17 +1033,6 @@ function updateProfileSection() {
     
     // Ховаємо кнопки дій при оновленні профілю
     hideProfileFormActions();
-    
-    // Оновлюємо видимість кольору аватару (показуємо тільки якщо немає фото)
-    if (profileEditAvatarColorGroup) {
-      if (user.avatar_type === "uploaded" && user.avatar_url) {
-        profileEditAvatarColorGroup.setAttribute("hidden", "");
-        profileEditAvatarColorGroup.hidden = true;
-      } else {
-        profileEditAvatarColorGroup.removeAttribute("hidden");
-        profileEditAvatarColorGroup.hidden = false;
-      }
-    }
     
     // Оновлюємо видимість кнопок аватару
     updateAvatarButtons();
@@ -964,11 +1053,62 @@ function updateProfileSection() {
 }
 
 function updateAvatarButtons() {
-  const avatarType = authState.user?.avatar_type || "generated";
+  if (!authState.user) return;
   
-  // Оновлюємо старий кнопку скидання (якщо існує)
+  const avatarType = authState.user?.avatar_type || "generated";
+  const hasUploadedAvatar = avatarType === "uploaded" && authState.user?.avatar_url;
+  
+  // Якщо є завантажене фото - показуємо ТІЛЬКИ 2 кнопки: "Завантажити іншу фото" і "Видалити"
+  if (hasUploadedAvatar) {
+    // Показуємо кнопку завантаження з іконкою camera
+    if (avatarUploadBtn) {
+      avatarUploadBtn.removeAttribute("hidden");
+      avatarUploadBtn.hidden = false;
+      const icon = avatarUploadBtn.querySelector(".icon");
+      if (icon) {
+        icon.setAttribute("data-lucide", "camera");
+        lucide.createIcons();
+      }
+      avatarUploadBtn.setAttribute("aria-label", "Завантажити іншу фото");
+    }
+    // Показуємо кнопку видалення
+    if (avatarDeleteBtn) {
+      avatarDeleteBtn.removeAttribute("hidden");
+      avatarDeleteBtn.hidden = false;
+    }
+    // ОБОВ'ЯЗКОВО ховаємо кнопку зміни кольору - вона не потрібна коли є фото
+    if (avatarColorBtn) {
+      avatarColorBtn.setAttribute("hidden", "");
+      avatarColorBtn.hidden = true;
+    }
+  } else {
+    // Якщо немає завантаженого фото - показуємо ТІЛЬКИ 2 кнопки: "Завантажити фото" і "Змінити колір"
+    // Показуємо кнопку завантаження з іконкою upload
+    if (avatarUploadBtn) {
+      avatarUploadBtn.removeAttribute("hidden");
+      avatarUploadBtn.hidden = false;
+      const icon = avatarUploadBtn.querySelector(".icon");
+      if (icon) {
+        icon.setAttribute("data-lucide", "upload");
+        lucide.createIcons();
+      }
+      avatarUploadBtn.setAttribute("aria-label", "Завантажити фото");
+    }
+    // ОБОВ'ЯЗКОВО ховаємо кнопку видалення - вона не потрібна коли немає фото
+    if (avatarDeleteBtn) {
+      avatarDeleteBtn.setAttribute("hidden", "");
+      avatarDeleteBtn.hidden = true;
+    }
+    // Показуємо кнопку зміни кольору
+    if (avatarColorBtn) {
+      avatarColorBtn.removeAttribute("hidden");
+      avatarColorBtn.hidden = false;
+    }
+  }
+  
+  // Оновлюємо старий кнопку скидання (якщо існує) - для сумісності
   if (avatarResetBtn) {
-    if (avatarType === "uploaded") {
+    if (hasUploadedAvatar) {
       avatarResetBtn.removeAttribute("hidden");
       avatarResetBtn.hidden = false;
     } else {
@@ -977,9 +1117,9 @@ function updateAvatarButtons() {
     }
   }
   
-  // Оновлюємо inline кнопку скидання (якщо існує)
+  // Оновлюємо inline кнопку скидання (якщо існує) - для сумісності
   if (profileAvatarResetBtnInline) {
-    if (avatarType === "uploaded") {
+    if (hasUploadedAvatar) {
       profileAvatarResetBtnInline.removeAttribute("hidden");
       profileAvatarResetBtnInline.hidden = false;
     } else {
@@ -1001,6 +1141,11 @@ function saveOriginalProfileData() {
     gender: user.gender || "",
     avatar_color: user.avatar_color || DEFAULT_AVATAR_COLOR,
   };
+  
+  // Оновлюємо значення прихованого поля кольору аватару
+  if (avatarColorInput) {
+    avatarColorInput.value = originalProfileData.avatar_color;
+  }
 }
 
 // Перевіряє чи є зміни в формі профілю
@@ -1015,10 +1160,10 @@ function hasProfileChanges() {
     gender: profileEditGenderSelect?.value || "",
   };
   
-  // Для avatar_color перевіряємо тільки якщо поле видиме
+  // Для avatar_color перевіряємо тільки якщо була зміна через колір picker
   let currentAvatarColor = originalProfileData.avatar_color;
-  if (profileEditAvatarColorInput && profileEditAvatarColorGroup && !profileEditAvatarColorGroup.hidden) {
-    currentAvatarColor = profileEditAvatarColorInput.value || DEFAULT_AVATAR_COLOR;
+  if (avatarColorInput && avatarColorInput.value) {
+    currentAvatarColor = avatarColorInput.value || DEFAULT_AVATAR_COLOR;
   }
   
   // Порівнюємо значення
@@ -1063,8 +1208,8 @@ function renderHistoryTable() {
   if (!authState.user) {
     historyTableBody.innerHTML = "";
     if (historyEmpty) {
-      historyEmpty.textContent = "Історія доступна лише після входу до системи.";
-      historyEmpty.hidden = false;
+    historyEmpty.textContent = "Історія доступна лише після входу до системи.";
+    historyEmpty.hidden = false;
     }
     if (historyTableWrapper) {
       historyTableWrapper.hidden = true;
@@ -1086,8 +1231,8 @@ function renderHistoryTable() {
   if (!authState.history || authState.history.length === 0) {
     historyTableBody.innerHTML = "";
     if (historyEmpty) {
-      historyEmpty.textContent = "Історія поки порожня. Зробіть прогноз, щоб побачити його тут.";
-      historyEmpty.hidden = false;
+    historyEmpty.textContent = "Історія поки порожня. Зробіть прогноз, щоб побачити його тут.";
+    historyEmpty.hidden = false;
     }
     if (historyTableWrapper) {
       historyTableWrapper.hidden = true;
@@ -1123,7 +1268,7 @@ function renderHistoryTable() {
 
   historyTableBody.innerHTML = rows;
   if (historyEmpty) {
-    historyEmpty.hidden = true;
+  historyEmpty.hidden = true;
   }
   if (historyTableWrapper) {
     historyTableWrapper.hidden = false;
@@ -1135,6 +1280,7 @@ async function loadHistory(limit = 50) {
   if (!authState.token) {
     authState.history = [];
     renderHistoryTable();
+    populatePredictionStoreFromHistory();
     return;
   }
   try {
@@ -1145,9 +1291,24 @@ async function loadHistory(limit = 50) {
     if (authState.history.length > 0) {
       console.log("Перший запис:", authState.history[0]);
     }
+    // Заповнюємо predictionStore з історії для відображення в діаграмах
+    populatePredictionStoreFromHistory();
   } catch (error) {
     console.error("❌ Не вдалося отримати історію прогнозів:", error);
     authState.history = [];
+    populatePredictionStoreFromHistory();
+    
+    // Показуємо сповіщення про помилку тільки якщо це не автоматичне завантаження при ініціалізації
+    // (щоб не показувати помилку при першому завантаженні, коли користувач ще не на сторінці історії)
+    const currentSection = window.location.pathname;
+    if (currentSection === "/history" || currentSection.includes("history")) {
+      showNotification({
+        type: "error",
+        title: "Помилка завантаження історії",
+        message: error.message || "Не вдалося завантажити історію прогнозів. Спробуйте оновити сторінку.",
+        duration: 5000,
+      });
+    }
   }
   renderHistoryTable();
 }
@@ -1158,11 +1319,26 @@ async function initializeAuth() {
     persistToken(storedToken);
     try {
       const profile = await apiFetch("/users/me");
+      // Нормалізуємо date_of_birth до формату YYYY-MM-DD для поля форми
+      if (profile.date_of_birth) {
+        const dateStr = String(profile.date_of_birth);
+        if (dateStr.includes('T')) {
+          profile.date_of_birth = dateStr.split('T')[0];
+        } else if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // Якщо формат не YYYY-MM-DD, спробуємо парсити
+          const date = new Date(dateStr);
+          if (!isNaN(date.getTime())) {
+            profile.date_of_birth = date.toISOString().split('T')[0];
+          }
+        }
+      }
       authState.user = profile;
       await loadHistory();
     } catch (error) {
       console.warn("Сесію не вдалося поновити:", error);
       clearAuthState();
+      // Не показуємо сповіщення про помилку відновлення сесії, бо це нормально при першому відвідуванні
+      // або якщо токен застарів - просто очищаємо стан
     }
   } else {
     persistToken(null);
@@ -1188,6 +1364,13 @@ function loadPredictionFromHistory(inputs) {
   applyQueuedPredictionInputs();
   navigateTo("/app");
   window.scrollTo({ top: 0, behavior: "smooth" });
+  
+  showNotification({
+    type: "info",
+    title: "Прогноз завантажено",
+    message: "Дані з історії прогнозів успішно завантажено в форму. Можете розрахувати новий прогноз.",
+    duration: 4000,
+  });
 }
 
 function applyQueuedPredictionInputs() {
@@ -1274,10 +1457,22 @@ async function handleLoginSubmit(event) {
     );
     // Після успішної логінації завжди перенаправляємо на /profile
     handleAuthSuccess(data, { navigateToRoute: "/profile" });
+    showNotification({
+      type: "success",
+      title: "Вхід успішний",
+      message: "Ви успішно увійшли в систему.",
+      duration: 3000,
+    });
   } catch (error) {
     // Обробка помилок від backend
     const errorMessage = error.message || error.detail || "Не вдалося увійти. Спробуйте ще раз.";
     setAuthFormError(loginErrorBox, errorMessage);
+    showNotification({
+      type: "error",
+      title: "Помилка входу",
+      message: errorMessage,
+      duration: 5000,
+    });
   } finally {
     if (submitButton) submitButton.disabled = false;
   }
@@ -1340,8 +1535,21 @@ async function handleRegisterSubmit(event) {
       { skipAuth: true },
     );
     handleAuthSuccess(data, { isRegistration: true });
+    showNotification({
+      type: "success",
+      title: "Реєстрація успішна",
+      message: "Ваш обліковий запис успішно створено. Ласкаво просимо!",
+      duration: 4000,
+    });
   } catch (error) {
-    setAuthFormError(registerErrorBox, error.message);
+    const errorMessage = error.message || "Не вдалося зареєструватися. Спробуйте ще раз.";
+    setAuthFormError(registerErrorBox, errorMessage);
+    showNotification({
+      type: "error",
+      title: "Помилка реєстрації",
+      message: errorMessage,
+      duration: 5000,
+    });
   } finally {
     if (submitButton) submitButton.disabled = false;
   }
@@ -1374,8 +1582,9 @@ async function handleProfileUpdate(event) {
   if (profileEditGenderSelect) {
     payload.gender = profileEditGenderSelect.value || null;
   }
-  if (profileEditAvatarColorInput && !profileEditAvatarColorGroup?.hidden) {
-    payload.avatar_color = profileEditAvatarColorInput.value || DEFAULT_AVATAR_COLOR;
+  // Додаємо avatar_color якщо була зміна через колір picker
+  if (avatarColorInput && avatarColorInput.value && avatarColorInput.value !== (originalProfileData?.avatar_color || DEFAULT_AVATAR_COLOR)) {
+    payload.avatar_color = avatarColorInput.value;
   }
   
   setProfileStatus("Збереження...", "info");
@@ -1388,7 +1597,28 @@ async function handleProfileUpdate(event) {
       method: "PUT",
       body: JSON.stringify(payload),
     });
-    authState.user = data;
+    
+    // Оновлюємо authState з новими даними (конвертуємо date_of_birth якщо потрібно)
+    const updatedUser = { ...authState.user, ...data };
+    
+    // Нормалізуємо date_of_birth до формату YYYY-MM-DD якщо він прийшов в іншому форматі
+    if (updatedUser.date_of_birth) {
+      const dateStr = String(updatedUser.date_of_birth);
+      if (dateStr.includes('T')) {
+        // ISO формат з часом, витягуємо тільки дату
+        updatedUser.date_of_birth = dateStr.split('T')[0];
+      } else if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // Якщо не в форматі YYYY-MM-DD, спробуємо парсити
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          updatedUser.date_of_birth = date.toISOString().split('T')[0];
+        }
+      }
+    }
+    
+    authState.user = updatedUser;
+    
+    // Оновлюємо UI компоненти
     updateUserPanel();
     updateProfileSection();
     
@@ -1398,19 +1628,51 @@ async function handleProfileUpdate(event) {
     // Ховаємо кнопки дій після збереження
     hideProfileFormActions();
     
-    // Переключаємо на таб "Профіль"
+    // Переключаємо на таб "Профіль" ПІСЛЯ оновлення даних
     switchProfileTab("profile");
+    
+    // Додатково перевіряємо, що дані оновлені після перемикання табу
+    // Використовуємо подвійний requestAnimationFrame для гарантії рендерингу
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateProfileSection();
+        console.log("🔄 Повторне оновлення профілю після перемикання табу");
+        if (profileInfoDateOfBirth) {
+          console.log("📅 profileInfoDateOfBirth.textContent (після повторного оновлення):", profileInfoDateOfBirth.textContent);
+        }
+      });
+    });
     
     setProfileStatus("Профіль успішно оновлено.", "info");
     
-    // Показуємо повідомлення про успіх
-    showNotification({
-      type: "success",
-      title: "Профіль оновлено",
-      message: "Ваші дані успішно збережено.",
-    });
+    // Показуємо повідомлення про успіх (з перевіркою, чи була зміна кольору аватара)
+    const wasAvatarColorChanged = avatarColorInput && 
+      avatarColorInput.value !== (originalProfileData?.avatar_color || DEFAULT_AVATAR_COLOR);
+    
+    if (wasAvatarColorChanged) {
+      showNotification({
+        type: "success",
+        title: "Колір аватара змінено",
+        message: "Колір аватара успішно оновлено.",
+        duration: 4000,
+      });
+    } else {
+      showNotification({
+        type: "success",
+        title: "Профіль оновлено",
+        message: "Дані профілю успішно збережено.",
+        duration: 3000,
+      });
+    }
   } catch (error) {
-    setProfileStatus(error.message || "Не вдалося оновити профіль. Спробуйте ще раз.", "error");
+    const errorMessage = error.message || "Не вдалося оновити профіль. Спробуйте ще раз.";
+    setProfileStatus(errorMessage, "error");
+    showNotification({
+      type: "error",
+      title: "Помилка оновлення профілю",
+      message: errorMessage,
+      duration: 5000,
+    });
   } finally {
     if (submitButton) submitButton.disabled = false;
   }
@@ -1473,8 +1735,11 @@ async function handleAvatarUpload(event) {
   // Додаємо індикатор завантаження
   if (avatarUploadBtn) {
     avatarUploadBtn.disabled = true;
-    const originalText = avatarUploadBtn.textContent;
-    avatarUploadBtn.textContent = "Завантаження...";
+    const icon = avatarUploadBtn.querySelector(".icon");
+    if (icon) {
+      icon.setAttribute("data-lucide", "loader-2");
+      lucide.createIcons();
+    }
   }
   
   try {
@@ -1508,13 +1773,23 @@ async function handleAvatarUpload(event) {
       applyAvatarStyle(profileAvatarPreviewImage, data);
     }
     
-    // Оновлюємо видимість кольору аватару після завантаження
-    if (profileEditAvatarColorGroup && data.avatar_type === "uploaded" && data.avatar_url) {
-      profileEditAvatarColorGroup.setAttribute("hidden", "");
-      profileEditAvatarColorGroup.hidden = true;
-    }
+    // Видимість кнопок оновлюється через updateAvatarButtons()
+    
+    // Показуємо нотифікацію про успіх
+    showNotification({
+      type: "success",
+      title: "Фото завантажено",
+      message: "Фото профілю успішно завантажено та оновлено.",
+      duration: 4000,
+    });
   } catch (error) {
     setProfileStatus(error.message || "Не вдалося завантажити фото. Спробуйте інший файл.", "error");
+    showNotification({
+      type: "error",
+      title: "Помилка завантаження",
+      message: error.message || "Не вдалося завантажити фото. Спробуйте інший файл.",
+      duration: 5000,
+    });
   } finally {
     // Скидаємо інпут
     if (avatarUploadInput) {
@@ -1522,21 +1797,146 @@ async function handleAvatarUpload(event) {
     }
     if (avatarUploadBtn) {
       avatarUploadBtn.disabled = false;
-      avatarUploadBtn.textContent = "Завантажити фото";
+      // Відновлюємо правильну іконку залежно від стану аватару
+      const avatarType = authState.user?.avatar_type || "generated";
+      const hasUploadedAvatar = avatarType === "uploaded" && authState.user?.avatar_url;
+      const icon = avatarUploadBtn.querySelector(".icon");
+      if (icon) {
+        icon.setAttribute("data-lucide", hasUploadedAvatar ? "camera" : "upload");
+        lucide.createIcons();
+      }
+      avatarUploadBtn.setAttribute("aria-label", hasUploadedAvatar ? "Завантажити іншу фото" : "Завантажити фото");
     }
+  }
+}
+
+// Функція для відкриття модалки видалення прогнозу з історії
+function openDeleteHistoryModal(predictionId, actionButton) {
+  const modal = document.getElementById("delete-history-modal");
+  if (modal) {
+    // Зберігаємо ID прогнозу та кнопку для видалення в дата-атрибутах модалки
+    modal.dataset.predictionId = predictionId;
+    // Створюємо унікальний ID для кнопки якщо його немає
+    if (!actionButton.id) {
+      actionButton.id = `history-delete-btn-${predictionId}-${Date.now()}`;
+    }
+    modal.dataset.actionButtonId = actionButton.id;
+    
+    modal.removeAttribute("hidden");
+    modal.hidden = false;
+    lucide.createIcons();
+  }
+}
+
+// Функція для закриття модалки видалення прогнозу з історії
+function closeDeleteHistoryModal() {
+  const modal = document.getElementById("delete-history-modal");
+  if (modal) {
+    modal.setAttribute("hidden", "");
+    modal.hidden = true;
+    delete modal.dataset.predictionId;
+    delete modal.dataset.actionButtonId;
+  }
+}
+
+// Функція для підтвердження видалення прогнозу з історії (викликається з модалки)
+async function confirmDeleteHistory() {
+  const modal = document.getElementById("delete-history-modal");
+  if (!modal) return;
+  
+  // Зберігаємо дані з dataset перед закриттям модалки
+  const predictionId = modal.dataset.predictionId;
+  const actionButtonId = modal.dataset.actionButtonId;
+  
+  if (!predictionId) return;
+  
+  const id = Number.parseInt(predictionId, 10);
+  if (!Number.isFinite(id)) return;
+  
+  closeDeleteHistoryModal();
+  
+  // Знаходимо кнопку за ID (якщо вона збережена)
+  const actionButton = actionButtonId ? document.getElementById(actionButtonId) : null;
+  
+  if (actionButton) {
+    actionButton.disabled = true;
+  }
+  
+  try {
+    await apiFetch(`/users/me/history/${id}`, { method: "DELETE" });
+    
+    authState.history = authState.history.filter((item) => item.id !== id);
+    renderHistoryTable();
+    
+    // Оновлюємо predictionStore якщо видалений прогноз був останнім для якогось target
+    populatePredictionStoreFromHistory();
+    
+    // Оновлюємо діаграми якщо вони вже ініціалізовані
+    if (insightsInitialized) {
+      renderProfileOverviewChart();
+      renderRiskComparisonChart();
+      renderInsightsFactorsChart();
+    }
+    
+    // Показуємо повідомлення про успіх
+    showNotification({
+      type: "success",
+      title: "Запис видалено",
+      message: "Запис історії успішно видалено.",
+      duration: 3000,
+    });
+  } catch (error) {
+    showNotification({
+      type: "error",
+      title: "Помилка",
+      message: error.message || "Не вдалося видалити запис історії.",
+      duration: 5000,
+    });
+  } finally {
+    if (actionButton) {
+      actionButton.disabled = false;
+    }
+  }
+}
+
+// Функція для відкриття модалки видалення аватара
+function openDeleteAvatarModal() {
+  const modal = document.getElementById("delete-avatar-modal");
+  if (modal) {
+    modal.removeAttribute("hidden");
+    modal.hidden = false;
+    lucide.createIcons();
+  }
+}
+
+// Функція для закриття модалки видалення аватара
+function closeDeleteAvatarModal() {
+  const modal = document.getElementById("delete-avatar-modal");
+  if (modal) {
+    modal.setAttribute("hidden", "");
+    modal.hidden = true;
   }
 }
 
 async function handleAvatarReset() {
   if (!authState.user) return;
   
-  const confirmReset = confirm("Ви впевнені, що хочете повернутися до стандартного аватару?");
-  if (!confirmReset) return;
+  // Відкриваємо модалку замість стандартного confirm
+  openDeleteAvatarModal();
+}
+
+// Функція для підтвердження видалення аватара (викликається з модалки)
+async function confirmDeleteAvatar() {
+  if (!authState.user) return;
   
+  closeDeleteAvatarModal();
   setProfileStatus("Скидання аватару...", "info");
   
   if (avatarResetBtn) {
     avatarResetBtn.disabled = true;
+  }
+  if (avatarDeleteBtn) {
+    avatarDeleteBtn.disabled = true;
   }
   
   try {
@@ -1555,16 +1955,31 @@ async function handleAvatarReset() {
       applyAvatarStyle(profileAvatarPreviewImage, data);
     }
     
-    // Оновлюємо видимість кольору аватару після скидання
-    if (profileEditAvatarColorGroup) {
-      profileEditAvatarColorGroup.removeAttribute("hidden");
-      profileEditAvatarColorGroup.hidden = false;
-    }
+    // Видимість кнопок оновлюється через updateAvatarButtons()
+    // Оновлюємо оригінальні значення після видалення аватару
+    saveOriginalProfileData();
+    
+    // Показуємо нотифікацію про успіх
+    showNotification({
+      type: "success",
+      title: "Фото видалено",
+      message: "Фото профілю успішно видалено. Повернуто стандартний аватар.",
+      duration: 4000,
+    });
   } catch (error) {
     setProfileStatus(error.message || "Не вдалося скинути аватар. Спробуйте пізніше.", "error");
+    showNotification({
+      type: "error",
+      title: "Помилка",
+      message: error.message || "Не вдалося видалити фото. Спробуйте пізніше.",
+      duration: 5000,
+    });
   } finally {
     if (avatarResetBtn) {
       avatarResetBtn.disabled = false;
+    }
+    if (avatarDeleteBtn) {
+      avatarDeleteBtn.disabled = false;
     }
   }
 }
@@ -1608,14 +2023,29 @@ async function handlePasswordChange(event) {
       }),
     });
     
-    setPasswordStatus(response.message || "Пароль успішно змінено.", "info");
+    const successMessage = response.message || "Пароль успішно змінено.";
+    setPasswordStatus(successMessage, "info");
+    
+    showNotification({
+      type: "success",
+      title: "Пароль змінено",
+      message: successMessage,
+      duration: 4000,
+    });
     
     // Очищаємо поля форми
     if (profileCurrentPasswordInput) profileCurrentPasswordInput.value = "";
     if (profileNewPasswordInput) profileNewPasswordInput.value = "";
     if (profileConfirmPasswordInput) profileConfirmPasswordInput.value = "";
   } catch (error) {
-    setPasswordStatus(error.message || "Не вдалося змінити пароль. Спробуйте ще раз.", "error");
+    const errorMessage = error.message || "Не вдалося змінити пароль. Спробуйте ще раз.";
+    setPasswordStatus(errorMessage, "error");
+    showNotification({
+      type: "error",
+      title: "Помилка зміни пароля",
+      message: errorMessage,
+      duration: 5000,
+    });
   } finally {
     if (submitButton) {
       submitButton.disabled = false;
@@ -1727,9 +2157,78 @@ async function handleForgotPassword(event) {
         } else {
           // Якщо не вдалося скопіювати - показуємо URL для ручного копіювання
           const escapedUrl = resetUrl.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
-          const messageHTML = `<strong>Посилання для скидання пароля (дипломна версія):</strong><br><br><a href="${escapedUrl}" onclick="navigator.clipboard?.writeText('${escapedUrl}').then(() => alert('Посилання скопійовано!')).catch(() => {}); return false;" style="color: #15803d; text-decoration: underline; cursor: pointer; font-weight: 600; word-break: break-all;">${resetUrl}</a><br><br>Натисніть на посилання вище, щоб скопіювати його.`;
+          const escapedUrlForData = resetUrl.replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+          const messageHTML = `<strong>Посилання для скидання пароля (дипломна версія):</strong><br><br><a href="${escapedUrl}" id="reset-password-link-copy" data-url="${escapedUrlForData}" style="color: #15803d; text-decoration: underline; cursor: pointer; font-weight: 600; word-break: break-all;">${resetUrl}</a><br><br>Натисніть на посилання вище, щоб скопіювати його.`;
           forgotPasswordSuccess.innerHTML = messageHTML;
           forgotPasswordSuccess.hidden = false;
+          
+          // Додаємо обробник для копіювання посилання (після вставки HTML)
+          setTimeout(() => {
+            const copyLink = document.getElementById("reset-password-link-copy");
+            if (copyLink) {
+              copyLink.addEventListener("click", async (e) => {
+                e.preventDefault();
+                const url = copyLink.dataset.url || copyLink.getAttribute("href");
+                if (!url) return;
+                
+                // Декодуємо HTML entities
+                const decodedUrl = url
+                  .replace(/&apos;/g, "'")
+                  .replace(/&quot;/g, '"')
+                  .replace(/&#39;/g, "'")
+                  .replace(/&amp;/g, "&");
+                
+                try {
+                  // Спробуємо скопіювати через Clipboard API
+                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(decodedUrl);
+                    showNotification({
+                      type: "success",
+                      title: "Посилання скопійовано",
+                      message: "Посилання для скидання пароля скопійовано в буфер обміну.",
+                      duration: 3000,
+                    });
+                  } else {
+                    // Fallback через execCommand
+                    const textArea = document.createElement("textarea");
+                    textArea.value = decodedUrl;
+                    textArea.style.position = "fixed";
+                    textArea.style.left = "-999999px";
+                    textArea.style.top = "-999999px";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    const successful = document.execCommand("copy");
+                    document.body.removeChild(textArea);
+                    
+                    if (successful) {
+                      showNotification({
+                        type: "success",
+                        title: "Посилання скопійовано",
+                        message: "Посилання для скидання пароля скопійовано в буфер обміну.",
+                        duration: 3000,
+                      });
+                    } else {
+                      showNotification({
+                        type: "error",
+                        title: "Помилка",
+                        message: "Не вдалося скопіювати посилання. Спробуйте скопіювати вручну.",
+                        duration: 5000,
+                      });
+                    }
+                  }
+                } catch (error) {
+                  console.error("Помилка копіювання:", error);
+                  showNotification({
+                    type: "error",
+                    title: "Помилка",
+                    message: "Не вдалося скопіювати посилання. Спробуйте скопіювати вручну.",
+                    duration: 5000,
+                  });
+                }
+              });
+            }
+          }, 100);
         }
         // Приховуємо помилку, якщо вона була показана
         if (forgotPasswordError) {
@@ -1747,12 +2246,28 @@ async function handleForgotPassword(event) {
       
       console.log("🔐 Токен відновлення пароля:", resetToken);
       console.log("🔗 Посилання для скидання пароля:", resetUrl);
+      
+      showNotification({
+        type: "success",
+        title: "Інструкції надіслано",
+        message: copied 
+          ? "Посилання для скидання пароля скопійовано у буфер обміну та відкрито в новій вкладці." 
+          : "Посилання для скидання пароля відкрито в новій вкладці. Натисніть на посилання вище, щоб скопіювати його.",
+        duration: 5000,
+      });
     } else {
       // Якщо reset_token відсутній - користувача не знайдено
       // (Але це не повинно статися, якщо backend правильно повертає помилку)
       const errorMessage = "Користувача з такою електронною поштою не зареєстровано.";
       console.log("❌ reset_token відсутній - користувача не знайдено");
       setForgotPasswordError(errorMessage);
+      
+      showNotification({
+        type: "error",
+        title: "Помилка відновлення пароля",
+        message: errorMessage,
+        duration: 5000,
+      });
       
       // Приховуємо успішне повідомлення
       if (forgotPasswordSuccess) {
@@ -1775,6 +2290,13 @@ async function handleForgotPassword(event) {
     const errorMessage = error.message || error.detail || "Користувача з такою електронною поштою не зареєстровано.";
     console.log("❌ Помилка відновлення пароля:", errorMessage);
     setForgotPasswordError(errorMessage);
+    
+    showNotification({
+      type: "error",
+      title: "Помилка відновлення пароля",
+      message: errorMessage,
+      duration: 5000,
+    });
     
     // Приховуємо успішне повідомлення, якщо воно було показано
     if (forgotPasswordSuccess) {
@@ -1899,13 +2421,21 @@ async function handleResetPassword(event) {
       }),
     }, { skipAuth: true });
     
-    // Показуємо повідомлення про успіх
+      // Показуємо повідомлення про успіх
     setResetPasswordError(""); // Очищаємо помилки
+    const successMessage = data.message || "Пароль успішно оновлено!";
     if (resetPasswordError) {
-      resetPasswordError.textContent = data.message || "Пароль успішно оновлено!";
+      resetPasswordError.textContent = successMessage;
       resetPasswordError.style.color = "var(--success-color, #4ade80)";
       resetPasswordError.hidden = false;
     }
+    
+    showNotification({
+      type: "success",
+      title: "Пароль оновлено",
+      message: successMessage,
+      duration: 4000,
+    });
     
     // Ховаємо форму та показуємо лоадер
     if (resetPasswordForm) {
@@ -1924,6 +2454,12 @@ async function handleResetPassword(event) {
     // Обробка помилок від backend
     const errorMessage = error.message || error.detail || "Не вдалося оновити пароль. Перевірте токен або спробуйте ще раз.";
     setResetPasswordError(errorMessage);
+    showNotification({
+      type: "error",
+      title: "Помилка оновлення пароля",
+      message: errorMessage,
+      duration: 5000,
+    });
   } finally {
     if (submitButton) {
       submitButton.disabled = false;
@@ -1976,8 +2512,20 @@ async function handleLogout() {
   
   try {
     await apiFetch("/auth/logout", { method: "POST" }, { skipAuth: false });
+    showNotification({
+      type: "info",
+      title: "Вихід виконано",
+      message: "Ви успішно вийшли з системи.",
+      duration: 3000,
+    });
   } catch (error) {
     console.warn("Помилка під час виходу:", error);
+    showNotification({
+      type: "warning",
+      title: "Помилка виходу",
+      message: "Під час виходу сталася помилка, але сесію було очищено.",
+      duration: 4000,
+    });
   } finally {
     clearAuthState();
     navigateTo("/login", { replace: true });
@@ -2103,32 +2651,8 @@ function handleHistoryTableClick(event) {
   }
 
   if (action === "delete") {
-    const confirmed = window.confirm("Ви впевнені, що хочете видалити цей прогноз з історії?");
-    if (!confirmed) return;
-    actionButton.disabled = true;
-    apiFetch(`/users/me/history/${id}`, { method: "DELETE" })
-      .then(() => {
-        authState.history = authState.history.filter((item) => item.id !== id);
-        renderHistoryTable();
-        // Показуємо повідомлення на сторінці історії або профілю
-        showNotification({
-          type: "success",
-          title: "Запис видалено",
-          message: "Запис історії успішно видалено.",
-          duration: 3000,
-        });
-      })
-      .catch((error) => {
-        showNotification({
-          type: "error",
-          title: "Помилка",
-          message: error.message || "Не вдалося видалити запис історії.",
-          duration: 5000,
-        });
-      })
-      .finally(() => {
-        actionButton.disabled = false;
-      });
+    // Відкриваємо модалку замість стандартного confirm
+    openDeleteHistoryModal(id, actionButton);
   }
 }
 
@@ -2138,6 +2662,16 @@ function handleDocumentClick(event) {
 
 function handleGlobalKeydown(event) {
   if (event.key === "Escape") {
+    // Закриваємо модальне вікно видалення прогнозу з історії, якщо воно відкрите
+    if (deleteHistoryModal && !deleteHistoryModal.hidden) {
+      closeDeleteHistoryModal();
+      return;
+    }
+    // Закриваємо модальне вікно видалення аватара, якщо воно відкрите
+    if (deleteAvatarModal && !deleteAvatarModal.hidden) {
+      closeDeleteAvatarModal();
+      return;
+    }
     // Закриваємо модальне вікно видалення облікового запису, якщо воно відкрите
     if (deleteAccountModal && !deleteAccountModal.hidden) {
       closeDeleteAccountModal();
@@ -2689,6 +3223,16 @@ function renderResult(data) {
   if (authState.user) {
     loadHistory().catch((error) => console.error("Не вдалося оновити історію після прогнозу:", error));
   }
+  
+  // Показуємо сповіщення про успішне прогнозування
+  const riskPercentage = (data.probability * 100).toFixed(2);
+  const riskLabel = riskLabels[data.risk_bucket] || data.risk_bucket;
+  showNotification({
+    type: "success",
+    title: "Прогноз розраховано",
+    message: `Ризик: ${riskPercentage}% (${riskLabel}). Результати збережено в історії.`,
+    duration: 5000,
+  });
 }
 
 function setApiStatus(isOnline) {
@@ -2935,7 +3479,7 @@ function activateSection(sectionId) {
       if (authState.token && authState.user) {
         // Якщо історія вже завантажена, просто відображаємо її
         if (authState.history && authState.history.length > 0) {
-          renderHistoryTable();
+    renderHistoryTable();
         } else {
           // Завантажуємо історію якщо її немає
           loadHistory(50).catch((error) => {
@@ -2967,19 +3511,40 @@ async function handleSubmit(event) {
   clearError();
 
   if (!metadataCache) {
-    showError("Метадані ще завантажуються, спробуйте пізніше.");
+    const errorMessage = "Метадані ще завантажуються, спробуйте пізніше.";
+    showError(errorMessage);
+    showNotification({
+      type: "warning",
+      title: "Метадані не готові",
+      message: errorMessage,
+      duration: 4000,
+    });
     return;
   }
 
   const target = targetSelect.value;
   if (!target) {
-    showError("Оберіть ціль прогнозування");
+    const errorMessage = "Оберіть ціль прогнозування";
+    showError(errorMessage);
+    showNotification({
+      type: "warning",
+      title: "Помилка форми",
+      message: errorMessage,
+      duration: 4000,
+    });
     return;
   }
 
   const { payload, missing } = collectPayload();
   if (missing.length > 0) {
-    showError(`Заповніть поля: ${missing.join(", ")}`);
+    const errorMessage = `Заповніть поля: ${missing.join(", ")}`;
+    showError(errorMessage);
+    showNotification({
+      type: "warning",
+      title: "Помилка форми",
+      message: errorMessage,
+      duration: 5000,
+    });
     return;
   }
 
@@ -2999,8 +3564,8 @@ async function handleSubmit(event) {
     const data = await apiFetch(
       `/predict?${params.toString()}`,
       {
-        method: "POST",
-        body: JSON.stringify(payload),
+      method: "POST",
+      body: JSON.stringify(payload),
       },
       { skipAuth: false }, // Передаємо токен якщо користувач автентифікований
     );
@@ -3036,14 +3601,21 @@ async function handleSubmit(event) {
             });
           refreshDashboardCharts();
         }
-      } catch (error) {
+  } catch (error) {
         console.error("⚠️ Помилка оновлення історії:", error);
       }
     } else {
       console.log("ℹ️ Користувач не автентифікований, історія не зберігається");
     }
   } catch (error) {
-    showError(error.message);
+    const errorMessage = error.message || "Не вдалося розрахувати прогноз. Спробуйте ще раз.";
+    showError(errorMessage);
+    showNotification({
+      type: "error",
+      title: "Помилка прогнозування",
+      message: errorMessage,
+      duration: 5000,
+    });
   } finally {
     submitButton.disabled = false;
     submitButton.textContent = "Розрахувати ризик";
@@ -3061,7 +3633,14 @@ function randomFloat(min, max, decimals = 1) {
 
 function fillRandomDemoData() {
   if (!metadataCache) {
-    showError("Метадані ще завантажуються, спробуйте пізніше.");
+    const errorMessage = "Метадані ще завантажуються, спробуйте пізніше.";
+    showError(errorMessage);
+    showNotification({
+      type: "warning",
+      title: "Метадані не готові",
+      message: errorMessage,
+      duration: 4000,
+    });
     return;
   }
 
@@ -3075,6 +3654,13 @@ function fillRandomDemoData() {
 
   updateAllIndicators();
   clearError();
+  
+  showNotification({
+    type: "info",
+    title: "Демо-дані заповнено",
+    message: "Форма заповнена випадковими значеннями. Можете розрахувати прогноз або змінити дані.",
+    duration: 4000,
+  });
 }
 
 async function loadHistoryStats() {
@@ -3303,7 +3889,7 @@ function renderRiskComparisonChart() {
     toggleChartVisibility(canvasId, false);
     toggleHidden(empty, false);
     if (note) {
-      note.textContent = "Щойно обидва ризики будуть розраховані, тут з’явиться порівняння.";
+      note.textContent = "Щойно обидва ризики будуть розраховані, тут з'явиться порівняння.";
     }
     if (dashboardCharts[canvasId]) {
       dashboardCharts[canvasId].destroy();
@@ -4180,6 +4766,16 @@ async function initializeInsightsPage() {
     return;
   }
 
+  // Заповнюємо predictionStore з історії перед рендерингом діаграм
+  if (authState.token && authState.user) {
+    // Переконаємося що історія завантажена
+    if (authState.history.length === 0) {
+      await loadHistory();
+    } else {
+      populatePredictionStoreFromHistory();
+    }
+  }
+
   renderProfileOverviewChart();
   renderRiskComparisonChart();
   renderInsightsFactorsChart();
@@ -4267,7 +4863,7 @@ function showHistoryChartsEmptyState() {
 function registerEventListeners() {
   // Only add listeners for prediction form if it exists (not on auth pages)
   if (form) {
-    form.addEventListener("submit", handleSubmit);
+  form.addEventListener("submit", handleSubmit);
   }
 
   if (demoButton) {
@@ -4369,7 +4965,7 @@ function registerEventListeners() {
         if (profileEditLastNameInput) profileEditLastNameInput.value = originalProfileData.last_name;
         if (profileEditDateOfBirthInput) profileEditDateOfBirthInput.value = originalProfileData.date_of_birth;
         if (profileEditGenderSelect) profileEditGenderSelect.value = originalProfileData.gender;
-        if (profileEditAvatarColorInput) profileEditAvatarColorInput.value = originalProfileData.avatar_color;
+        if (avatarColorInput) avatarColorInput.value = originalProfileData.avatar_color;
       }
       
       // Ховаємо кнопки дій
@@ -4384,7 +4980,6 @@ function registerEventListeners() {
     profileEditLastNameInput,
     profileEditDateOfBirthInput,
     profileEditGenderSelect,
-    profileEditAvatarColorInput,
   ];
   
   profileFormInputs.forEach((input) => {
@@ -4393,6 +4988,64 @@ function registerEventListeners() {
       input.addEventListener("change", checkProfileFormChanges);
     }
   });
+  
+  // Обробник для зміни кольору аватару (live preview + перевірка змін)
+  if (avatarColorInput) {
+    // Live preview - оновлюємо аватар при зміні кольору в реальному часі
+    avatarColorInput.addEventListener("input", (event) => {
+      const newColor = event.target.value;
+      const profileAvatarLarge = document.getElementById("profile-avatar-large");
+      
+      // Оновлюємо аватар тільки якщо це згенерований аватар (не завантажене фото)
+      const avatarType = authState.user?.avatar_type || "generated";
+      if (avatarType !== "uploaded" && profileAvatarLarge) {
+        profileAvatarLarge.style.background = newColor;
+        profileAvatarLarge.style.backgroundImage = "none";
+      }
+    });
+    
+    // Перевірка змін при завершенні вибору кольору
+    avatarColorInput.addEventListener("change", () => {
+      checkProfileFormChanges();
+      
+      // Показуємо нотифікацію про зміну кольору (інформативну)
+      showNotification({
+        type: "info",
+        title: "Колір аватара змінено",
+        message: "Не забудьте зберегти зміни, щоб застосувати новий колір.",
+        duration: 3000,
+      });
+    });
+  }
+  
+  // Обробник для кнопки вибору кольору аватару
+  if (avatarColorBtn) {
+    avatarColorBtn.addEventListener("click", () => {
+      if (avatarColorInput) {
+        avatarColorInput.click();
+      }
+    });
+  }
+  
+  // Обробник для кнопки видалення фото
+  if (avatarDeleteBtn) {
+    avatarDeleteBtn.addEventListener("click", () => {
+      handleAvatarReset();
+    });
+  }
+  
+  // Обробники для модалки видалення аватара
+  if (deleteAvatarModalBackdrop) {
+    deleteAvatarModalBackdrop.addEventListener("click", closeDeleteAvatarModal);
+  }
+  
+  if (deleteAvatarCancelBtn) {
+    deleteAvatarCancelBtn.addEventListener("click", closeDeleteAvatarModal);
+  }
+  
+  if (deleteAvatarConfirmBtn) {
+    deleteAvatarConfirmBtn.addEventListener("click", confirmDeleteAvatar);
+  }
   
   // Обробники inline кнопок аватару
   if (profileAvatarUploadBtnInline) {
@@ -4451,6 +5104,20 @@ function registerEventListeners() {
   if (historyTableBody) {
     historyTableBody.addEventListener("click", handleHistoryTableClick);
   }
+  
+  // Обробники для модалки видалення прогнозу з історії
+  if (deleteHistoryModalBackdrop) {
+    deleteHistoryModalBackdrop.addEventListener("click", closeDeleteHistoryModal);
+  }
+  
+  if (deleteHistoryCancelBtn) {
+    deleteHistoryCancelBtn.addEventListener("click", closeDeleteHistoryModal);
+  }
+  
+  if (deleteHistoryConfirmBtn) {
+    deleteHistoryConfirmBtn.addEventListener("click", confirmDeleteHistory);
+  }
+  
   if (deleteAccountBtn) {
     deleteAccountBtn.addEventListener("click", openDeleteAccountModal);
   }
@@ -4496,7 +5163,7 @@ function registerEventListeners() {
   
   // Обробник згортання/розгортання sidebar
   initializeSidebarToggle();
-  
+
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleGlobalKeydown);
   window.addEventListener("popstate", () => syncRouteFromLocation());

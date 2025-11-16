@@ -336,10 +336,18 @@
                   <div class="profile-avatar-large" id="profile-avatar-large">A</div>
                   <div class="profile-avatar-overlay">
                     <input type="file" id="avatar-upload-input" accept="image/*" hidden />
-                    <button type="button" class="button button--ghost button--small" id="avatar-upload-btn">
-                      <span class="icon" data-lucide="camera"></span>
-                      <span>Змінити</span>
-                    </button>
+                    <input type="color" id="avatar-color-input" class="avatar-color-input-hidden" />
+                    <div class="profile-avatar-actions">
+                      <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-upload-btn" aria-label="Завантажити фото">
+                        <span class="icon" data-lucide="upload"></span>
+                      </button>
+                      <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-delete-btn" hidden aria-label="Видалити фото">
+                        <span class="icon" data-lucide="trash-2"></span>
+                      </button>
+                      <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-color-btn" hidden aria-label="Змінити колір аватару">
+                        <span class="icon" data-lucide="palette"></span>
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div class="profile-header-info">
@@ -390,10 +398,6 @@
                           <option value="male">Чоловік</option>
                           <option value="female">Жінка</option>
                         </select>
-                      </div>
-                      <div class="profile-form__group" id="profile-edit-avatar-color-group" hidden>
-                        <label for="profile-edit-avatar-color">Колір аватару</label>
-                        <input type="color" id="profile-edit-avatar-color" name="avatar_color" value="#5A64F1" />
                       </div>
                     </div>
                     <div class="profile-form__actions" id="profile-form-actions" hidden>
@@ -722,6 +726,61 @@
 
   <!-- Контейнер для сповіщень (notifications/toasts) -->
   <div id="notifications-container" class="notifications-container" aria-live="polite" aria-label="Сповіщення"></div>
+
+  <!-- Модальне вікно підтвердження видалення прогнозу з історії -->
+  <div id="delete-history-modal" class="modal" hidden role="dialog" aria-labelledby="delete-history-modal-title" aria-modal="true">
+    <div class="modal__backdrop" id="delete-history-modal-backdrop"></div>
+    <div class="modal__container">
+      <div class="modal__content glass-card">
+        <div class="modal__header">
+          <h2 class="modal__title" id="delete-history-modal-title">
+            <span class="icon" data-lucide="trash-2"></span>
+            <span>Видалити прогноз з історії?</span>
+          </h2>
+        </div>
+        <div class="modal__body">
+          <p class="modal__message">
+            Ви впевнені, що хочете видалити цей прогноз з історії? Ця дія є незворотною, але ви завжди зможете зробити новий прогноз.
+          </p>
+        </div>
+        <div class="modal__actions">
+          <button type="button" class="button button--ghost" id="delete-history-cancel-btn">Скасувати</button>
+          <button type="button" class="button button--destructive" id="delete-history-confirm-btn">
+            <span class="icon" data-lucide="trash-2"></span>
+            <span>Видалити</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальне вікно підтвердження видалення аватара -->
+  <div id="delete-avatar-modal" class="modal" hidden role="dialog" aria-labelledby="delete-avatar-modal-title" aria-modal="true">
+    <div class="modal__backdrop" id="delete-avatar-modal-backdrop"></div>
+    <div class="modal__container">
+      <div class="modal__content glass-card">
+        <div class="modal__header">
+          <h2 class="modal__title" id="delete-avatar-modal-title">
+            <span class="icon" data-lucide="trash-2"></span>
+            <span>Видалити фото профілю?</span>
+          </h2>
+        </div>
+        <div class="modal__body">
+          <p class="modal__message">
+            Ви впевнені, що хочете видалити поточне фото профілю? Після видалення буде повернено стандартний аватар з вашим ініціалом.
+          </p>
+          <p class="modal__message modal__message--warning">Цю дію можна скасувати, завантаживши нове фото.</p>
+        </div>
+        <div class="modal__actions">
+          <button type="button" class="button button--ghost" id="delete-avatar-cancel-btn">Скасувати</button>
+          <button type="button" class="button button--destructive" id="delete-avatar-confirm-btn">
+            <span class="icon" data-lucide="trash-2"></span>
+            <span>Видалити</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Модальне вікно підтвердження видалення облікового запису -->
   <div id="delete-account-modal" class="modal" hidden role="dialog" aria-labelledby="delete-account-modal-title" aria-modal="true">
