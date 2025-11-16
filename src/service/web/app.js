@@ -37,6 +37,7 @@ const ROUTE_SECTIONS = {
   "/api-status": "page-api-status",
   "/forgot-password": "page-forgot-password",
   "/reset-password": "page-reset-password",
+  "/assistant": "page-assistant",
 };
 
 const ROUTE_ALIASES = {
@@ -54,6 +55,7 @@ const SECTION_TO_ROUTE = {
   "page-api-status": "/api-status",
   "page-forgot-password": "/forgot-password",
   "page-reset-password": "/reset-password",
+  "page-assistant": "/assistant",
 };
 
 const inputRefs = {};
@@ -278,6 +280,7 @@ const pageTitles = {
   "page-register": "Створення облікового запису",
   "page-forgot-password": "Відновлення пароля",
   "page-reset-password": "Встановлення нового пароля",
+  "page-assistant": "Чат з асистентом",
 };
 
 const riskClasses = {
@@ -516,6 +519,507 @@ function toggleChartVisibility(canvasOrId, visible) {
   }
 }
 
+// ========= Assistant Page Logic =========
+let assistantInitialized = false;
+let assistantTypingEl = null;
+let assistantTypingTimer = null;
+let assistantTypingDots = 0;
+
+// Глобальний стан стріму відповіді асистента
+const assistantStream = {
+  active: false,
+  waiting: false,
+  paused: false,
+  timer: null,
+  buffer: "",
+  index: 0,
+  msgEl: null,
+};
+
+function getAssistantMessageCount() {
+  const container = document.getElementById("assistant-messages");
+  return container ? container.children.length : 0;
+}
+
+function updateAssistantControls() {
+  const clearBtn = document.getElementById("assistant-clear-btn");
+  const quick = document.querySelector(".assistant-quick");
+  const msgCount = getAssistantMessageCount();
+  if (clearBtn) clearBtn.hidden = msgCount === 0;
+  if (quick) quick.hidden = msgCount > 0;
+}
+
+function setAssistantSendButton(mode) {
+  // mode: "send" | "stop" | "play"
+  const btn = document.getElementById("assistant-send-btn");
+  if (!btn) return;
+  const icon = btn.querySelector(".icon");
+  if (mode === "send") {
+    btn.setAttribute("aria-label", "Надіслати");
+    if (icon) icon.setAttribute("data-lucide", "send");
+  } else if (mode === "stop") {
+    btn.setAttribute("aria-label", "Зупинити");
+    if (icon) icon.setAttribute("data-lucide", "square");
+  } else if (mode === "play") {
+    btn.setAttribute("aria-label", "Продовжити");
+    if (icon) icon.setAttribute("data-lucide", "play");
+  }
+  refreshIcons();
+}
+
+function resetAssistantStream() {
+  if (assistantStream.timer) {
+    clearInterval(assistantStream.timer);
+    assistantStream.timer = null;
+  }
+  assistantStream.active = false;
+  assistantStream.waiting = false;
+  assistantStream.paused = false;
+  assistantStream.buffer = "";
+  assistantStream.index = 0;
+  assistantStream.msgEl = null;
+  setAssistantSendButton("send");
+}
+
+function stopAssistantStream() {
+  if (assistantStream.timer) {
+    clearInterval(assistantStream.timer);
+    assistantStream.timer = null;
+  }
+  assistantStream.active = false;
+  assistantStream.waiting = false;
+  assistantStream.paused = false;
+  setAssistantSendButton("send");
+}
+
+function startAssistantStream(answerText) {
+  const container = document.getElementById("assistant-messages");
+  if (!container) return;
+  assistantStream.buffer = String(answerText || "");
+  assistantStream.index = 0;
+  assistantStream.paused = false;
+  assistantStream.waiting = false;
+  assistantStream.active = true;
+  assistantStream.msgEl = document.createElement("div");
+  assistantStream.msgEl.className = "assistant-msg assistant-msg--assistant";
+  assistantStream.msgEl.textContent = "";
+  container.appendChild(assistantStream.msgEl);
+  container.scrollTop = container.scrollHeight;
+  setAssistantSendButton("stop");
+  assistantStream.timer = setInterval(() => {
+    if (assistantStream.paused) return;
+    if (assistantStream.index >= assistantStream.buffer.length) {
+      clearInterval(assistantStream.timer);
+      assistantStream.timer = null;
+      assistantStream.active = false;
+      setAssistantSendButton("send");
+      return;
+    }
+    assistantStream.msgEl.textContent += assistantStream.buffer[assistantStream.index];
+    assistantStream.index += 1;
+    container.scrollTop = container.scrollHeight;
+  }, 18);
+}
+
+function toggleAssistantStream() {
+  if (!assistantStream.active) return;
+  // Якщо ще очікуємо відповідь — просто ставимо/знімаємо паузу очікування
+  if (assistantStream.waiting) {
+    assistantStream.paused = !assistantStream.paused;
+    setAssistantSendButton(assistantStream.paused ? "play" : "stop");
+    return;
+  }
+  assistantStream.paused = !assistantStream.paused;
+  if (assistantStream.paused) {
+    if (assistantStream.timer) {
+      clearInterval(assistantStream.timer);
+      assistantStream.timer = null;
+    }
+    setAssistantSendButton("play");
+  } else {
+    // Продовжуємо друк
+    setAssistantSendButton("stop");
+    const container = document.getElementById("assistant-messages");
+    assistantStream.timer = setInterval(() => {
+      if (assistantStream.paused) return;
+      if (assistantStream.index >= assistantStream.buffer.length) {
+        clearInterval(assistantStream.timer);
+        assistantStream.timer = null;
+        assistantStream.active = false;
+        setAssistantSendButton("send");
+        return;
+      }
+      if (assistantStream.msgEl) {
+        assistantStream.msgEl.textContent += assistantStream.buffer[assistantStream.index];
+      }
+      assistantStream.index += 1;
+      if (container) container.scrollTop = container.scrollHeight;
+    }, 18);
+  }
+}
+
+async function fetchAssistantHistory(limit = 50) {
+  return apiFetch(`/assistant/history?limit=${limit}`);
+}
+
+async function fetchLatestHealthRiskSnapshot() {
+  try {
+    const data = await apiFetch(`/health-risk/latest`);
+    return data || null;
+  } catch (error) {
+    // 204 No Content або інші помилки
+    return null;
+  }
+}
+
+async function clearAssistantHistory() {
+  await apiFetch(`/assistant/history`, { method: "DELETE" });
+}
+function appendAssistantMessage(role, content, timestamp = Date.now()) {
+  const container = document.getElementById("assistant-messages");
+  if (!container) return;
+  const msg = document.createElement("div");
+  msg.className = `assistant-msg ${role === "assistant" ? "assistant-msg--assistant" : "assistant-msg--user"}`;
+  msg.innerText = content;
+  container.appendChild(msg);
+  // Автоскрол
+  container.scrollTop = container.scrollHeight;
+  // Показуємо кнопку очистки при наявності хоча б одного повідомлення
+  const clearBtn = document.getElementById("assistant-clear-btn");
+  if (clearBtn) {
+    clearBtn.hidden = container.children.length === 0;
+  }
+  // Ховаємо швидкі кнопки після старту діалогу
+  const quick = document.querySelector(".assistant-quick");
+  if (quick) {
+    quick.hidden = container.children.length > 0;
+  }
+}
+
+function setAssistantTyping(isTyping) {
+  const container = document.getElementById("assistant-messages");
+  if (!container) return;
+  if (isTyping) {
+    // Під час "думає" кнопка має бути у стані "стоп"
+    setAssistantSendButton("stop");
+    if (!assistantTypingEl) {
+      assistantTypingEl = document.createElement("div");
+      assistantTypingEl.className = "assistant-msg assistant-msg--assistant";
+      assistantTypingEl.textContent = "Асистент думає.";
+      container.appendChild(assistantTypingEl);
+      // Анімація крапок
+      if (assistantTypingTimer) clearInterval(assistantTypingTimer);
+      assistantTypingDots = 1;
+      assistantTypingTimer = setInterval(() => {
+        assistantTypingDots = (assistantTypingDots % 3) + 1;
+        if (assistantTypingEl) {
+          assistantTypingEl.textContent = `Асистент думає${".".repeat(assistantTypingDots)}`;
+        }
+      }, 500);
+    }
+  } else {
+    if (assistantTypingTimer) {
+      clearInterval(assistantTypingTimer);
+      assistantTypingTimer = null;
+    }
+    if (assistantTypingEl) {
+      assistantTypingEl.remove();
+      assistantTypingEl = null;
+    }
+    // Якщо немає активного або очікуваного стріму — повертаємо кнопку до "send"
+    if (!assistantStream.active && !assistantStream.waiting) {
+      setAssistantSendButton("send");
+    }
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+function appendAssistantReplyStreaming(text) {
+  const container = document.getElementById("assistant-messages");
+  if (!container) return;
+  const msg = document.createElement("div");
+  msg.className = "assistant-msg assistant-msg--assistant";
+  msg.textContent = "";
+  container.appendChild(msg);
+  container.scrollTop = container.scrollHeight;
+  const content = String(text || "");
+  let i = 0;
+  const stepMs = 18;
+  const timer = setInterval(() => {
+    if (i >= content.length) {
+      clearInterval(timer);
+      return;
+    }
+    msg.textContent += content[i];
+    i += 1;
+    container.scrollTop = container.scrollHeight;
+  }, stepMs);
+}
+
+function renderAssistantHistory(messages) {
+  const container = document.getElementById("assistant-messages");
+  if (!container) return;
+  container.innerHTML = "";
+  (messages || []).forEach((m) => {
+    appendAssistantMessage(m.role, m.content, m.created_at);
+  });
+  updateAssistantControls();
+}
+
+function renderAssistantStateCard(snapshot) {
+  const empty = document.getElementById("assistant-state-empty");
+  const rows = document.getElementById("assistant-state-rows");
+  if (!empty || !rows) return;
+  if (!snapshot) {
+    empty.hidden = false;
+    rows.hidden = true;
+    return;
+  }
+  empty.hidden = true;
+  rows.hidden = false;
+  const targetEl = document.getElementById("assistant-state-target");
+  const probEl = document.getElementById("assistant-state-probability");
+  const badgeEl = document.getElementById("assistant-state-badge");
+  const factorsEl = document.getElementById("assistant-state-factors");
+  const timeEl = document.getElementById("assistant-state-time");
+  if (targetEl) targetEl.textContent = formatTargetLabel(snapshot.target);
+  if (probEl) probEl.textContent = formatProbability(snapshot.probability);
+  if (badgeEl) {
+    const bucket = snapshot.risk_bucket || "";
+    badgeEl.textContent = riskLabels[bucket] || bucket || "—";
+    // Застосовуємо класи, сумісні з існуючим CSS (.badge.risk-low|medium|high)
+    const bucketClass = bucket ? `risk-${bucket}` : "";
+    badgeEl.className = `badge ${bucketClass}`.trim();
+  }
+  if (factorsEl) {
+    const factors = (snapshot.top_factors || []).map((f) => f.feature || f).slice(0, 5);
+    factorsEl.textContent = factors.length ? factors.join(", ") : "—";
+  }
+  if (timeEl) timeEl.textContent = formatDateTime(snapshot.created_at);
+}
+
+async function sendAssistantMessage(text) {
+  try {
+    // Якщо з попередньої відповіді щось залишилось — зупиняємо
+    if (assistantStream.active || assistantStream.timer || assistantStream.waiting) {
+      stopAssistantStream();
+    }
+    setAssistantTyping(true);
+    // Позначаємо активний стан і показуємо кнопку зупинки
+    assistantStream.active = true;
+    assistantStream.waiting = true;
+    assistantStream.paused = false;
+    setAssistantSendButton("stop");
+    const data = await apiFetch("/assistant/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: text }),
+    });
+    setAssistantTyping(false);
+    assistantStream.waiting = false;
+    // Якщо натиснули паузу під час очікування — стартуємо у паузі
+    if (assistantStream.paused) {
+      // створимо пуста бульбашка, а відновлення піде по кнопці
+      const container = document.getElementById("assistant-messages");
+      if (container) {
+        assistantStream.msgEl = document.createElement("div");
+        assistantStream.msgEl.className = "assistant-msg assistant-msg--assistant";
+        assistantStream.msgEl.textContent = "";
+        container.appendChild(assistantStream.msgEl);
+        container.scrollTop = container.scrollHeight;
+      }
+      assistantStream.buffer = String(data?.answer || "Відповідь відсутня.");
+      assistantStream.index = 0;
+      setAssistantSendButton("play");
+      return;
+    }
+    startAssistantStream(data?.answer || "Відповідь відсутня.");
+  } catch (error) {
+    setAssistantTyping(false);
+    assistantStream.active = false;
+    assistantStream.waiting = false;
+    assistantStream.paused = false;
+    setAssistantSendButton("send");
+    showNotification({
+      type: "error",
+      title: "Помилка надсилання",
+      message: error.message || "Не вдалося надіслати повідомлення.",
+      duration: 4000,
+    });
+  }
+}
+
+async function initializeAssistantPage() {
+  if (!authState.user) {
+    // Якщо користувач не автентифікований — перенаправляємо у логін
+    navigateTo("/login");
+    return;
+  }
+
+  // Підʼєднуємо обробники один раз
+  if (!assistantInitialized) {
+    const input = document.getElementById("assistant-input");
+    const sendBtn = document.getElementById("assistant-send-btn");
+    const quickBtns = document.querySelectorAll(".assistant-quick__btn");
+    const clearBtn = document.getElementById("assistant-clear-btn");
+    const warningDismissBtn = document.getElementById("assistant-warning-dismiss");
+    if (sendBtn && input) {
+      sendBtn.addEventListener("click", async () => {
+        // Якщо активна відповідь — кнопка керує пауза/продовження
+        if (assistantStream.active) {
+          // Якщо ще чекаємо контент — лише перемикаємо очікувану паузу
+          if (assistantStream.waiting) {
+            assistantStream.paused = !assistantStream.paused;
+            setAssistantSendButton(assistantStream.paused ? "play" : "stop");
+            return;
+          }
+          // Інакше перемикаємо реальний стрім
+          assistantStream.paused = !assistantStream.paused;
+          if (assistantStream.paused) {
+            setAssistantSendButton("play");
+          } else {
+            // Продовжуємо стрім з буфера, якщо він був створений раніше
+            if (assistantStream.msgEl && assistantStream.buffer && assistantStream.index >= 0) {
+              const container = document.getElementById("assistant-messages");
+              setAssistantSendButton("stop");
+              assistantStream.timer = setInterval(() => {
+                if (assistantStream.paused) return;
+                if (assistantStream.index >= assistantStream.buffer.length) {
+                  clearInterval(assistantStream.timer);
+                  assistantStream.timer = null;
+                  assistantStream.active = false;
+                  setAssistantSendButton("send");
+                  return;
+                }
+                assistantStream.msgEl.textContent += assistantStream.buffer[assistantStream.index];
+                assistantStream.index += 1;
+                if (container) container.scrollTop = container.scrollHeight;
+              }, 18);
+            } else {
+              setAssistantSendButton("stop");
+            }
+          }
+          return;
+        }
+        const text = (input.value || "").trim();
+        if (!text) return;
+        appendAssistantMessage("user", text);
+        input.value = "";
+        await sendAssistantMessage(text);
+      });
+      input.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          if (assistantStream.active) {
+            // Дзеркалимо кліки для Enter
+            if (assistantStream.waiting) {
+              assistantStream.paused = !assistantStream.paused;
+              setAssistantSendButton(assistantStream.paused ? "play" : "stop");
+              return;
+            }
+            assistantStream.paused = !assistantStream.paused;
+            if (assistantStream.paused) {
+              setAssistantSendButton("play");
+            } else {
+              const container = document.getElementById("assistant-messages");
+              setAssistantSendButton("stop");
+              assistantStream.timer = setInterval(() => {
+                if (assistantStream.paused) return;
+                if (assistantStream.index >= assistantStream.buffer.length) {
+                  clearInterval(assistantStream.timer);
+                  assistantStream.timer = null;
+                  assistantStream.active = false;
+                  setAssistantSendButton("send");
+                  return;
+                }
+                assistantStream.msgEl.textContent += assistantStream.buffer[assistantStream.index];
+                assistantStream.index += 1;
+                if (container) container.scrollTop = container.scrollHeight;
+              }, 18);
+            }
+            return;
+          }
+          const text = (input.value || "").trim();
+          if (!text) return;
+          appendAssistantMessage("user", text);
+          input.value = "";
+          await sendAssistantMessage(text);
+        }
+      });
+    }
+    if (quickBtns && quickBtns.length) {
+      quickBtns.forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const template = btn.getAttribute("data-template") || "";
+          const input = document.getElementById("assistant-input");
+          if (input) input.value = template;
+          if (template) {
+            appendAssistantMessage("user", template);
+            if (input) input.value = "";
+            await sendAssistantMessage(template);
+          }
+        });
+      });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener("click", async () => {
+        try {
+          // Якщо йде друк — повністю зупиняємо
+          stopAssistantStream();
+          await clearAssistantHistory();
+          renderAssistantHistory([]);
+          showNotification({
+            type: "success",
+            title: "Чат очищено",
+            message: "Вся переписка з асистентом видалена.",
+            duration: 3000,
+          });
+          const warn = document.getElementById("assistant-warning");
+          if (warn && !localStorage.getItem("assistant_warning_dismissed")) {
+            warn.hidden = false;
+          }
+          // Після очистки: ховаємо очистку, показуємо швидкі кнопки
+          clearBtn.hidden = true;
+          const quick = document.querySelector(".assistant-quick");
+          if (quick) quick.hidden = false;
+        } catch (error) {
+          showNotification({
+            type: "error",
+            title: "Помилка очищення",
+            message: error.message || "Не вдалося очистити чат.",
+            duration: 4000,
+          });
+        }
+      });
+    }
+    if (warningDismissBtn) {
+      warningDismissBtn.addEventListener("click", () => {
+        const warn = document.getElementById("assistant-warning");
+        if (warn) {
+          warn.hidden = true;
+          localStorage.setItem("assistant_warning_dismissed", "1");
+        }
+      });
+    }
+    assistantInitialized = true;
+  }
+
+  // Завантажуємо дані стану та історію
+  const [snapshot, history] = await Promise.all([
+    fetchLatestHealthRiskSnapshot(),
+    fetchAssistantHistory(50).catch(() => []),
+  ]);
+  renderAssistantStateCard(snapshot);
+  renderAssistantHistory(history || []);
+  // Показ попередження лише для нових користувачів (без історії), якщо не закривали
+  const warningEl = document.getElementById("assistant-warning");
+  if (warningEl) {
+    const hasHistory = Array.isArray(history) && history.length > 0;
+    const dismissed = localStorage.getItem("assistant_warning_dismissed") === "1";
+    warningEl.hidden = hasHistory || dismissed;
+  }
+  refreshIcons();
+}
+
 function setElementText(id, text) {
   const el = typeof id === "string" ? document.getElementById(id) : id;
   if (el) {
@@ -706,7 +1210,7 @@ function showSectionForPath(pathname) {
   // Але не перешкоджаємо активації сторінки, якщо автентифікація ще не завершена
   // (це дозволить правильно завантажити сторінку при оновленні)
   // Сторінка /api-status доступна всім без автентифікації
-  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history"];
+  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant"];
   if (protectedSections.includes(section) && !authState.user && authState.initialized) {
     // Тільки якщо автентифікація завершена і користувач не автентифікований - перенаправляємо
     pendingRouteAfterAuth = path;
@@ -865,7 +1369,7 @@ function getRiskColor(bucket) {
 
 function updateNavigationVisibility() {
   // Список захищених сторінок, які потребують автентифікації
-  const protectedSections = ["page-profile", "page-history", "page-insights", "page-form"];
+  const protectedSections = ["page-profile", "page-history", "page-insights", "page-form", "page-assistant"];
   
   // Оновлюємо всі кнопки навігації
   navItems.forEach((navItem) => {
@@ -907,6 +1411,7 @@ function updateNavigationVisibility() {
   // Знаходимо кнопки "Форма прогнозування" та "Діаграми" через data-section (безпечний селектор)
   const navForm = document.querySelector('.sidebar__nav [data-section="page-form"]');
   const navInsights = document.querySelector('.sidebar__nav [data-section="page-insights"]');
+  const navAssistant = document.querySelector('.sidebar__nav [data-section="page-assistant"]');
   
   // Ці кнопки приховуємо повністю, якщо користувач не автентифікований
   if (navProfile) {
@@ -920,6 +1425,9 @@ function updateNavigationVisibility() {
   }
   if (navInsights) {
     navInsights.hidden = !authState.user;
+  }
+  if (navAssistant) {
+    navAssistant.hidden = !authState.user;
   }
 }
 
@@ -3458,6 +3966,11 @@ function activateSection(sectionId) {
   // Then add page--active only to the target section
   const targetPage = document.getElementById(sectionId);
   if (targetPage) {
+    // Забезпечуємо, що секція не має атрибуту hidden при активації
+    if (targetPage.hasAttribute("hidden")) {
+      targetPage.removeAttribute("hidden");
+      targetPage.hidden = false;
+    }
     targetPage.classList.add("page--active");
   }
   
@@ -3467,6 +3980,17 @@ function activateSection(sectionId) {
   if (sectionId === "page-insights") {
     initializeInsightsPage().catch((error) => {
       console.error("Не вдалося ініціалізувати діаграми:", error);
+    });
+  }
+  if (sectionId === "page-assistant") {
+    initializeAssistantPage().catch((error) => {
+      console.error("Не вдалося ініціалізувати сторінку асистента:", error);
+      showNotification({
+        type: "error",
+        title: "Помилка ініціалізації",
+        message: "Не вдалося завантажити чат асистента.",
+        duration: 4000,
+      });
     });
   }
   if (sectionId === "page-profile") {
@@ -4876,7 +5400,7 @@ function registerEventListeners() {
       if (item.disabled || item.classList.contains("nav-item--disabled")) {
         // Якщо користувач не автентифікований і намагається перейти на захищену сторінку
         const sectionId = item.dataset.section;
-        const protectedSections = ["page-profile", "page-history", "page-insights", "page-form"];
+        const protectedSections = ["page-profile", "page-history", "page-insights", "page-form", "page-assistant"];
         if (protectedSections.includes(sectionId)) {
           // Перенаправляємо на сторінку входу
           pendingRouteAfterAuth = SECTION_TO_ROUTE[sectionId] || "/app";

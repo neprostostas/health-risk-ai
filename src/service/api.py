@@ -20,6 +20,7 @@ from src.service.db import get_session, init_db
 from src.service.models import User
 from src.service.routes_auth import router as auth_router
 from src.service.routes_auth import save_history_entry, users_router
+from src.service.routers.assistant import router as assistant_router
 
 from src.service.model_registry import (
     get_feature_schema,
@@ -56,6 +57,7 @@ app = FastAPI(
 
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(assistant_router)
 
 # Увімкнення CORS для локального доступу
 app.add_middleware(
@@ -133,6 +135,12 @@ async def serve_diagrams_page():
     print("🖥️ Видача сторінки /diagrams")
     return serve_frontend()
 
+
+@app.get("/assistant", response_class=HTMLResponse)
+async def serve_assistant_page():
+    """Повертає сторінку чату з асистентом."""
+    print("🖥️ Видача сторінки /assistant")
+    return serve_frontend()
 
 @app.get("/form", response_class=HTMLResponse)
 async def serve_form_page():
@@ -377,6 +385,35 @@ async def predict(
         
         if current_user:
             try:
+                # Серіалізуємо top_factors у прості словники, щоб зберегти у JSON
+                def _serialize_top_factors(items):
+                    serializable = []
+                    if not items:
+                        return serializable
+                    for it in items:
+                        try:
+                            if hasattr(it, "model_dump"):
+                                data = it.model_dump()
+                            elif hasattr(it, "dict"):
+                                data = it.dict()
+                            else:
+                                data = {
+                                    "feature": getattr(it, "feature", None),
+                                    "impact": float(getattr(it, "impact", 0.0)),
+                                }
+                            # Примусово перетворюємо impact на float для надійності
+                            if "impact" in data:
+                                data["impact"] = float(data["impact"])
+                            serializable.append(data)
+                        except Exception:
+                            # Fallback на безпечний формат
+                            serializable.append({
+                                "feature": str(getattr(it, "feature", "unknown")),
+                                "impact": float(getattr(it, "impact", 0.0)),
+                            })
+                    return serializable
+                
+                top_factors_json = _serialize_top_factors(getattr(response, "top_factors", []))
                 save_history_entry(
                     session=session,
                     user=current_user,
@@ -388,8 +425,8 @@ async def predict(
                         **input_values,
                         "target": target,
                         "model": model or "auto",
-                        # Зберігаємо top_factors для відображення в діаграмах після перезавантаження
-                        "top_factors": response.top_factors if hasattr(response, 'top_factors') else [],
+                        # Зберігаємо top_factors у серіалізованому вигляді (list[dict])
+                        "top_factors": top_factors_json,
                     },
                 )
             except Exception as history_error:  # noqa: B902
@@ -506,6 +543,44 @@ async def explain_model(target: str = Query(..., description="Цільова з�
 
 # Placeholder для майбутнього веб-інтерфейсу
 # app.mount("/app", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/health-risk/latest")
+async def get_latest_health_risk(
+    session: Session = Depends(get_session),
+    current_user: Optional[User] = Depends(get_current_user),
+):
+    """
+    Повертає останній збережений прогноз ризику для поточного користувача.
+    
+    Якщо даних немає — повертає 204 No Content.
+    """
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Необхідна автентифікація.")
+    from sqlmodel import select
+    from src.service.models import PredictionHistory
+    stmt = (
+        select(PredictionHistory)
+        .where(PredictionHistory.user_id == current_user.id)
+        .order_by(PredictionHistory.created_at.desc())
+        .limit(1)
+    )
+    last = session.exec(stmt).first()
+    if not last:
+        return JSONResponse(status_code=204, content=None)
+    # top_factors можуть бути в inputs.top_factors
+    top_factors = []
+    if isinstance(last.inputs, dict):
+        top_factors = last.inputs.get("top_factors") or []
+    return {
+        "id": last.id,
+        "target": last.target,
+        "probability": last.probability,
+        "risk_bucket": last.risk_bucket,
+        "model_name": last.model_name,
+        "top_factors": top_factors,
+        "created_at": last.created_at.isoformat(),
+    }
 
 
 if __name__ == "__main__":

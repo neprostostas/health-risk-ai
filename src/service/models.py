@@ -6,6 +6,9 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.dialects.sqlite import JSON as SQLITE_JSON
+from sqlalchemy import Column as SAColumn
+from sqlalchemy import ForeignKey
+from sqlalchemy import Text
 from sqlmodel import Column, Field, Relationship, SQLModel
 
 
@@ -78,5 +81,25 @@ class PasswordResetToken(SQLModel, table=True):
 PredictionHistory.model_rebuild()  # ensure forward refs
 User.model_rebuild()
 PasswordResetToken.model_rebuild()
+
+
+class AssistantMessage(SQLModel, table=True):
+    """Повідомлення чату асистента здоровʼя, повʼязані з користувачем.
+    
+    Зберігає роль (user/assistant), вміст повідомлення та часові мітки.
+    Опційно може посилатися на конкретний прогноз для більш точного контексту.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    role: str = Field(nullable=False, description="Роль автора: user або assistant")
+    content: str = Field(sa_column=SAColumn(Text, nullable=False), description="Текст повідомлення")
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    prediction_id: Optional[int] = Field(
+        default=None,
+        foreign_key="predictionhistory.id",
+        description="Опційний звʼязок з конкретним прогнозом"
+    )
+
+AssistantMessage.model_rebuild()
 
 

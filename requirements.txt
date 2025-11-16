@@ -18,4 +18,5 @@ passlib[bcrypt]
 python-jose[cryptography]
 python-multipart
 pillow
+requests
 

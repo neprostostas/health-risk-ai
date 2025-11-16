@@ -52,6 +52,10 @@
           <span class="icon" data-lucide="chart-bar"></span>
           <span class="nav-item__text">Діаграми</span>
         </button>
+        <button type="button" class="nav-item" data-section="page-assistant" data-tooltip="Чат з асистентом" id="nav-assistant">
+          <span class="icon" data-lucide="messages-square"></span>
+          <span class="nav-item__text">Чат з асистентом</span>
+        </button>
       </nav>
     </aside>
 
@@ -305,6 +309,82 @@
             <p class="analytics-card__note">Діаграма показує, які моделі ви використовували найчастіше.</p>
             <p class="analytics-card__empty" id="history-models-empty" hidden>Щоб побачити діаграми, спочатку виконайте хоча б один прогноз на сторінці «Форма прогнозування».</p>
           </section>
+        </div>
+      </section>
+
+      <section id="page-assistant" class="page" aria-labelledby="page-title" hidden>
+        <div class="assistant-page">
+          <section class="glass-card assistant-warning" id="assistant-warning" hidden>
+            <div class="assistant-warning__row">
+              <p class="assistant-warning__text">
+                <span class="icon" data-lucide="alert-circle"></span>
+                <span>Увага. Асистент не є лікарем і не замінює медичну консультацію. Він допомагає пояснювати результати оцінки ризиків та готуватися до розмови з лікарем.</span>
+              </p>
+              <button type="button" class="icon-button" id="assistant-warning-dismiss" aria-label="Закрити попередження">
+                <span class="icon" data-lucide="x"></span>
+              </button>
+            </div>
+          </section>
+          <div class="assistant-layout">
+            <section class="glass-card assistant-chat">
+              <div class="assistant-chat__header">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="messages-square"></span>
+                  <span>Чат з асистентом здоровʼя</span>
+                </h2>
+                <div class="assistant-chat__actions">
+                  <button type="button" class="button button--ghost button--small button--icon-only" id="assistant-clear-btn" aria-label="Очистити чат" hidden>
+                    <span class="icon" data-lucide="trash-2"></span>
+                  </button>
+                </div>
+              </div>
+              <div class="assistant-chat__messages" id="assistant-messages" aria-live="polite"></div>
+              <div class="assistant-chat__composer">
+                <div class="assistant-quick">
+                  <button type="button" class="button button--ghost button--small assistant-quick__btn" data-template="Поясни мій ризик">Поясни мій ризик</button>
+                  <button type="button" class="button button--ghost button--small assistant-quick__btn" data-template="Що це означає для мене?">Що це означає для мене</button>
+                  <button type="button" class="button button--ghost button--small assistant-quick__btn" data-template="Які питання задати лікарю?">Які питання задати лікарю</button>
+                </div>
+                <div class="assistant-composer">
+                  <input type="text" id="assistant-input" class="assistant-input" placeholder="Напишіть повідомлення..." />
+                  <button type="button" class="button assistant-send" id="assistant-send-btn" aria-label="Надіслати">
+                    <span class="icon" data-lucide="send"></span>
+                  </button>
+                </div>
+              </div>
+            </section>
+            <section class="glass-card assistant-state" id="assistant-state-card">
+              <h2 class="glass-card__title">
+                <span class="icon" data-lucide="heart-pulse"></span>
+                <span>Мій поточний ризик</span>
+              </h2>
+              <div class="assistant-state__content" id="assistant-state-content">
+                <p class="assistant-state__empty" id="assistant-state-empty">Дані про ризик недоступні. Спочатку виконайте оцінку ризику у розділі «Форма прогнозування».</p>
+                <div class="assistant-state__rows" id="assistant-state-rows" hidden>
+                  <div class="assistant-state__row">
+                    <span class="assistant-state__label">Ціль</span>
+                    <span class="assistant-state__value" id="assistant-state-target">—</span>
+                  </div>
+                  <div class="assistant-state__row">
+                    <span class="assistant-state__label">Ймовірність</span>
+                    <span class="assistant-state__value" id="assistant-state-probability">—</span>
+                  </div>
+                  <div class="assistant-state__row">
+                    <span class="assistant-state__label">Категорія ризику</span>
+                    <span class="badge" id="assistant-state-badge">—</span>
+                  </div>
+                  <div class="assistant-state__row">
+                    <span class="assistant-state__label">Ключові фактори</span>
+                    <span class="assistant-state__value" id="assistant-state-factors">—</span>
+                  </div>
+                  <div class="assistant-state__row">
+                    <span class="assistant-state__label">Час</span>
+                    <span class="assistant-state__value" id="assistant-state-time">—</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
       </section>
 
