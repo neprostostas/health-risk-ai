@@ -58,4 +58,7 @@ dev:
 	wait $$OLLAMA_PID 2>/dev/null || true; \
 	exit 0
 
-
+# Aliases
+d: dev
+i: install
+c: clean

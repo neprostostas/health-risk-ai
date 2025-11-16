@@ -63,6 +63,7 @@ body.theme-light {
   --tooltip-bg: rgba(255, 255, 255, 1);
   --tooltip-color: #1c2333;
   --icon-color: rgba(37, 46, 78, 0.75);
+  --menu-bg: #ffffff; /* opaque menu surface */
 }
 
 body.theme-dark {
@@ -92,6 +93,7 @@ body.theme-dark {
   --tooltip-bg: rgba(18, 24, 39, 1);
   --tooltip-color: #f3f6ff;
   --icon-color: rgba(218, 226, 255, 0.75);
+  --menu-bg: #0f172a; /* opaque menu surface */
 }
 
 * {
@@ -647,6 +649,14 @@ body.theme-dark {
   grid-template-columns: auto;
 }
 
+/* Коли результат видимий — показати дві колонки: форма ліворуч, результат праворуч */
+@media (min-width: 900px) {
+  .page__grid:has(#result-card:not([hidden])) {
+    grid-template-columns: 1fr minmax(360px, 460px);
+    align-items: start;
+  }
+}
+
 .glass-card {
   position: relative;
   background: var(--card-bg);
@@ -661,6 +671,13 @@ body.theme-dark {
   transition: background var(--transition-medium), border var(--transition-medium), box-shadow var(--transition-medium);
 }
 
+/* Перемикання порядку кнопок у блоці дій форми: submit ліворуч, demo праворуч */
+.form__actions--calc-left #submit-button {
+  order: 0;
+}
+.form__actions--calc-left #demo-button {
+  order: 1;
+}
 .assistant-chat__header {
   display: flex;
   justify-content: space-between;
@@ -755,6 +772,15 @@ body.theme-dark {
 .tooltip-trigger:focus-visible::after {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+/* Розширений тултіп для підказки про моделі */
+.tooltip-trigger[data-tooltip-id="model-help"]::after {
+  width: 360px;
+  max-width: min(85vw, 480px);
+  text-align: left;
+  white-space: normal;
+  left: -162px;
 }
 
 .form__actions {
@@ -3090,6 +3116,10 @@ select:focus {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.06);
 }
+.button.assistant-voice {
+  width: 44px;
+  height: 44px;
+}
 .assistant-layout {
   position: relative;
   display: grid;
@@ -3121,11 +3151,299 @@ select:focus {
 .assistant-state__value {
   font-weight: 600;
 }
+.assistant-state__selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.risk-select { position: relative; width: 100%; }
+.risk-select__button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  box-shadow: inset 0 6px 14px rgba(30, 40, 78, 0.12);
+  transition: border var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-medium);
+}
+.risk-select__button:focus {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 4px rgba(120, 136, 255, 0.18);
+  outline: none;
+}
+.risk-select__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  background: var(--menu-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(30, 40, 78, 0.18);
+  padding: 6px;
+  max-height: 260px;
+  overflow: auto;
+}
+.risk-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.risk-option:hover,
+.risk-option:focus {
+  background: var(--hover);
+  outline: none;
+}
+.risk-option__meta { display: flex; flex-direction: column; gap: 2px; }
+.risk-option__title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+.risk-option__subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+.risk-option__badge { white-space: nowrap; }
 .assistant-chat {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 180px);
   width: 100%;
+}
+.history-card .glass-card__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.history-card .glass-card__title .spacer {
+  flex: 1;
+}
+.history-card .history-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+/* Лічильник кількості прогнозів у заголовку */
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--border-glass);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Покращене оформлення таблиці історії */
+.history-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-glass);
+}
+.history-table thead th {
+  text-align: left;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-glass);
+}
+.history-table tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.history-table tbody tr {
+  height: 56px; /* стала висота рядків, щоб не змінювалась у груповому режимі */
+}
+.history-select-checkbox {
+  width: 18px;
+  height: 18px;
+}
+.history-table tbody tr:hover {
+  background: rgba(120, 136, 255, 0.06);
+}
+.history-table__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Grid View для історії */
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding: 8px;
+}
+@media (max-width: 1100px) {
+  .history-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .history-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.history-card-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.06);
+  transition: background var(--transition-fast), transform var(--transition-fast), border var(--transition-fast), box-shadow var(--transition-fast);
+}
+.history-card-item:hover {
+  background: rgba(120, 136, 255, 0.06);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(22, 32, 64, 0.18);
+}
+.history-card__row {
+  display: grid;
+  grid-template-columns: auto 105px; /* заголовок • бейдж */
+  gap: 8px;
+  align-items: center;
+}
+.history--bulk .history-card__row {
+  grid-template-columns: auto 1fr auto; /* чекбокс • заголовок • бейдж */
+}
+.history-card__title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+.history-card__meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.history-card__badge {
+  align-self: start;
+}
+.history-card__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.history--bulk .history-card__actions {
+  display: none;
+}
+.history-card__checkbox {
+  width: 18px;
+  height: 18px;
+  display: none;
+}
+.history--bulk .history-card__checkbox {
+  display: inline-flex;
+}
+/* У режимі групового вибору ховаємо колонку Дії (щоб не заважала) */
+.history--bulk .history-table thead th:last-child {
+  display: none;
+}
+.history--bulk .history-table tbody td:last-child {
+  display: none;
+}
+
+/* Іконкові кнопки для дій */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  transition: background var(--transition-fast), transform var(--transition-fast), border var(--transition-fast);
+  cursor: pointer;
+}
+.icon-button:hover,
+.icon-button:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+  outline: none;
+}
+.icon-button--ghost {
+  background: rgba(255, 255, 255, 0.08);
+}
+.icon-button--danger {
+  border-color: rgba(241, 94, 111, 0.5);
+}
+.icon-button--danger:hover {
+  background: rgba(241, 94, 111, 0.12);
+}
+
+/* Тултіпи для іконкових кнопок */
+.icon-button[data-tooltip] {
+  position: relative;
+}
+.icon-button[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-color);
+  border: 1px solid var(--border-glass);
+  box-shadow: 0 12px 24px rgba(22, 32, 64, 0.28);
+  white-space: nowrap;
+  font-size: 0.8rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  z-index: 1000;
+}
+.icon-button[data-tooltip]:hover::after,
+.icon-button[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, -110%);
+}
+
+/* Перший стовпець для чекбоксів: фіксована ширина, центрування */
+.history-table thead th:first-child,
+.history-table tbody td:first-child {
+  width: 36px;
+  text-align: center;
+  vertical-align: middle;
+}
+.history-select-spacer {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
 }
 .assistant-chat__messages {
   flex: 1;
@@ -3187,7 +3505,7 @@ select:focus {
 }
 .assistant-composer {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto; /* input | mic | send */
   gap: 8px;
 }
 .assistant-input {

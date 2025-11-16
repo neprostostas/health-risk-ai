@@ -29,19 +29,33 @@ def format_percentage(prob: float) -> str:
         return "—"
 
 
-def build_health_context(session: Session, user_id: int) -> str:
-    """Будує короткий український контекст про стан користувача за останнім прогнозом.
+def build_health_context(session: Session, user_id: int, prediction_id: Optional[int] = None) -> str:
+    """Будує короткий український контекст про стан користувача.
+    
+    Якщо prediction_id передано — використовуємо відповідний запис історії користувача.
+    Інакше — беремо останній прогноз.
     
     Включає: ціль, ймовірність, категорію ризику, ключові фактори (якщо є).
     Якщо прогнозів немає — повертає порожній рядок (вищий рівень обробить цей випадок).
     """
-    stmt = (
-        select(PredictionHistory)
-        .where(PredictionHistory.user_id == user_id)
-        .order_by(PredictionHistory.created_at.desc())
-        .limit(1)
-    )
-    last: Optional[PredictionHistory] = session.exec(stmt).first()
+    if prediction_id:
+        stmt = (
+            select(PredictionHistory)
+            .where(
+                PredictionHistory.id == prediction_id,
+                PredictionHistory.user_id == user_id,
+            )
+            .limit(1)
+        )
+        last: Optional[PredictionHistory] = session.exec(stmt).first()
+    else:
+        stmt = (
+            select(PredictionHistory)
+            .where(PredictionHistory.user_id == user_id)
+            .order_by(PredictionHistory.created_at.desc())
+            .limit(1)
+        )
+        last = session.exec(stmt).first()
     if not last:
         return ""
     target_label = {

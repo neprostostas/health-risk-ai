@@ -42,7 +42,7 @@ def get_history(
 
 @router.post("/chat")
 def chat(
-    payload: Dict[str, str],
+    payload: Dict[str, Any],
     session: Session = Depends(get_session),
     current_user: User = Depends(require_current_user),
 ) -> Dict[str, Any]:
@@ -54,11 +54,42 @@ def chat(
             detail="Повідомлення не може бути порожнім.",
         )
 
-    # 1) Зберігаємо повідомлення користувача
-    add_message(session, user_id=current_user.id, role="user", content=user_message)
+    # Опційно: id прогнозу, на основі якого варто будувати контекст
+    prediction_id: Optional[int] = None
+    try:
+        raw_id = payload.get("prediction_id")
+        if raw_id is not None:
+            prediction_id = int(raw_id)
+    except Exception:
+        prediction_id = None
 
-    # 2) Будуємо контекст зі свіжого прогнозу (якщо є)
-    context = build_health_context(session, current_user.id)
+    # Перевіримо, що prediction_id (якщо задано) належить користувачу
+    if prediction_id is not None:
+        stmt = (
+            select(PredictionHistory)
+            .where(
+                PredictionHistory.id == prediction_id,
+                PredictionHistory.user_id == current_user.id,
+            )
+            .limit(1)
+        )
+        if session.exec(stmt).first() is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Обраний прогноз недоступний.",
+            )
+
+    # 1) Зберігаємо повідомлення користувача
+    add_message(
+        session,
+        user_id=current_user.id,
+        role="user",
+        content=user_message,
+        prediction_id=prediction_id,
+    )
+
+    # 2) Будуємо контекст за вибраним (або останнім) прогнозом
+    context = build_health_context(session, current_user.id, prediction_id=prediction_id)
 
     # 3) Формуємо підказ для моделі
     prompt = build_assistant_prompt(context, user_message)
@@ -67,7 +98,13 @@ def chat(
     answer = call_ollama(prompt)
 
     # 5) Зберігаємо відповідь асистента
-    msg = add_message(session, user_id=current_user.id, role="assistant", content=answer)
+    msg = add_message(
+        session,
+        user_id=current_user.id,
+        role="assistant",
+        content=answer,
+        prediction_id=prediction_id,
+    )
 
     # 6) Повертаємо відповідь
     return {

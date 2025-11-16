@@ -213,9 +213,7 @@ def calibrate_model(
     for method in methods:
         try:
             # Створення каліброваної моделі
-            calibrated = CalibratedClassifierCV(
-                base_estimator, method=method, cv=3, n_jobs=-1
-            )
+            calibrated = CalibratedClassifierCV(base_estimator, method=method, cv=5, n_jobs=-1)
             
             # Навчання каліброваної моделі на тренувальних даних
             calibrated.fit(X_train_transformed, y_train)
@@ -237,9 +235,7 @@ def calibrate_model(
     
     # Переобучення найкращої каліброваної моделі на всіх тренувальних даних
     # Використовуємо cv=3 для переобучення на всіх даних
-    final_calibrated = CalibratedClassifierCV(
-        base_estimator, method=best_method, cv=3, n_jobs=-1
-    )
+    final_calibrated = CalibratedClassifierCV(base_estimator, method=best_method, cv=5, n_jobs=-1)
     final_calibrated.fit(X_train_transformed, y_train)
     
     # Створення нового pipeline з каліброваною моделлю

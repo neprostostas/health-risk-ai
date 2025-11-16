@@ -19,6 +19,66 @@ const dashboardCharts = {};
 let insightsInitialized = false;
 let queuedFormInputs = null;
 let pendingRouteAfterAuth = null;
+let assistantSelectedPredictionId = null;
+let assistantLatestPredictionId = null;
+
+// Bulk selection state for history
+let historyBulkMode = false;
+let historySelectedIds = new Set();
+let historyViewMode = localStorage.getItem("hr_history_view") === "grid" ? "grid" : "list";
+function getAssistantSelectionKeys() {
+  const userId = authState?.user?.id || "guest";
+  return {
+    selectedKey: `hr_assistant_selected_prediction_${userId}`,
+    latestTsKey: `hr_assistant_latest_ts_${userId}`,
+  };
+}
+
+function saveAssistantSelectedPrediction(id) {
+  const { selectedKey } = getAssistantSelectionKeys();
+  try {
+    if (id == null) {
+      localStorage.removeItem(selectedKey);
+    } else {
+      localStorage.setItem(selectedKey, String(id));
+    }
+  } catch {}
+}
+
+function loadAssistantSelectedPrediction() {
+  const { selectedKey } = getAssistantSelectionKeys();
+  try {
+    const v = localStorage.getItem(selectedKey);
+    if (!v) return null;
+    const num = Number(v);
+    return Number.isFinite(num) ? num : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveAssistantLatestTimestamp(ts) {
+  const { latestTsKey } = getAssistantSelectionKeys();
+  try {
+    if (ts == null) {
+      localStorage.removeItem(latestTsKey);
+    } else {
+      localStorage.setItem(latestTsKey, String(ts));
+    }
+  } catch {}
+}
+
+function loadAssistantLatestTimestamp() {
+  const { latestTsKey } = getAssistantSelectionKeys();
+  try {
+    const v = localStorage.getItem(latestTsKey);
+    if (!v) return null;
+    const num = Number(v);
+    return Number.isFinite(num) ? num : null;
+  } catch {
+    return null;
+  }
+}
 
 const authState = {
   token: null,
@@ -525,6 +585,266 @@ let assistantTypingEl = null;
 let assistantTypingTimer = null;
 let assistantTypingDots = 0;
 
+// Голосовий ввід (Web Speech API)
+let voiceRecognition = null;
+let voiceRecording = false;
+let voiceManualStop = false;
+let voiceRestartTimer = null;
+
+function setAssistantVoiceButton(mode) {
+  // mode: "mic" | "stop"
+  const btn = document.getElementById("assistant-voice-btn");
+  if (!btn) return;
+  const icon = btn.querySelector(".icon");
+  if (mode === "stop") {
+    btn.setAttribute("aria-label", "Зупинити запис");
+    if (icon) icon.setAttribute("data-lucide", "square");
+  } else {
+    btn.setAttribute("aria-label", "Голосовий ввід");
+    if (icon) icon.setAttribute("data-lucide", "mic");
+  }
+  refreshIcons();
+}
+
+// Відкрити модалку групового видалення
+function openBulkDeleteHistoryModal() {
+  const modal = document.getElementById("bulk-delete-history-modal");
+  const msg = document.getElementById("bulk-delete-history-message");
+  if (!modal || !msg) return;
+  // Якщо режим all — беремо всю кількість, інакше — вибрані
+  const mode = modal.dataset.mode || "selected";
+  const count = mode === "all" ? (authState.history?.length || 0) : historySelectedIds.size;
+  msg.textContent =
+    mode === "all"
+      ? `Ви впевнені, що хочете видалити всі ${count} ${declineUAPredictions(count)}?`
+      : `Ви впевнені, що хочете видалити ${count} ${declineUAPredictions(count)}?`;
+  modal.removeAttribute("hidden");
+  modal.hidden = false;
+  lucide.createIcons();
+}
+
+function closeBulkDeleteHistoryModal() {
+  const modal = document.getElementById("bulk-delete-history-modal");
+  if (!modal) return;
+  modal.setAttribute("hidden", "");
+  modal.hidden = true;
+}
+
+function declineUAPredictions(n) {
+  // просте відмінювання слова "прогноз"
+  const abs = Math.abs(n) % 100;
+  const n1 = abs % 10;
+  if (abs > 10 && abs < 20) return "прогнозів";
+  if (n1 > 1 && n1 < 5) return "прогнози";
+  if (n1 === 1) return "прогноз";
+  return "прогнозів";
+}
+
+async function deleteSelectedHistory() {
+  if (historySelectedIds.size === 0) return;
+  const ids = Array.from(historySelectedIds);
+  for (const id of ids) {
+    try {
+      await apiFetch(`/users/me/history/${id}`, { method: "DELETE" });
+      authState.history = authState.history.filter((item) => item.id !== id);
+    } catch (e) {
+      console.error("Не вдалося видалити запис:", id, e);
+    }
+  }
+  historySelectedIds.clear();
+  renderHistoryTable();
+  showNotification({
+    type: "success",
+    title: "Історію оновлено",
+    message: "Вибрані прогнози видалено.",
+    duration: 2500,
+  });
+}
+
+async function deleteAllHistory() {
+  if (!authState.history || authState.history.length === 0) return;
+  const ids = authState.history.map((x) => x.id);
+  for (const id of ids) {
+    try {
+      await apiFetch(`/users/me/history/${id}`, { method: "DELETE" });
+    } catch (e) {
+      console.error("Не вдалося видалити запис:", id, e);
+    }
+  }
+  authState.history = [];
+  historySelectedIds.clear();
+  renderHistoryTable();
+  showNotification({
+    type: "success",
+    title: "Історію очищено",
+    message: "Всі прогнози видалено.",
+    duration: 2500,
+  });
+}
+
+function initVoiceInput() {
+  try {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      const voiceBtn = document.getElementById("assistant-voice-btn");
+      if (voiceBtn) voiceBtn.hidden = true;
+      return false;
+    }
+    voiceRecognition = new SpeechRecognition();
+    voiceRecognition.lang = "uk-UA";
+    voiceRecognition.interimResults = true;
+    // Безперервний режим: не зупинятись після фрази/паузи
+    voiceRecognition.continuous = true;
+    voiceRecognition.maxAlternatives = 1;
+    const restartVoiceIfNeeded = () => {
+      if (voiceManualStop) return;
+      try {
+        if (voiceRestartTimer) {
+          clearTimeout(voiceRestartTimer);
+          voiceRestartTimer = null;
+        }
+        // Невелика затримка, щоб уникнути циклів помилок
+        voiceRestartTimer = setTimeout(() => {
+          try {
+            voiceRecognition.continuous = true; // повторно встановлюємо
+            voiceRecognition.start();
+          } catch {
+            // ігноруємо повторні помилки старту
+          }
+        }, 120);
+      } catch {}
+    };
+    voiceRecognition.onstart = () => {
+      voiceRecording = true;
+      voiceManualStop = false;
+      setAssistantVoiceButton("stop");
+      showNotification({
+        type: "info",
+        title: "Голосовий ввід",
+        message: "Говоріть... Натисніть квадрат, щоб зупинити.",
+        duration: 1500,
+      });
+    };
+    voiceRecognition.onerror = (event) => {
+      // Якщо це не ручна зупинка і помилка не NotAllowed — пробуємо перезапустити
+      if (!voiceManualStop && event?.error && event.error !== "not-allowed") {
+        restartVoiceIfNeeded();
+      } else {
+        voiceRecording = false;
+        setAssistantVoiceButton("mic");
+        showNotification({
+          type: "error",
+          title: "Помилка мікрофона",
+          message: event.error || "Не вдалося розпізнати голос.",
+          duration: 2500,
+        });
+      }
+    };
+    voiceRecognition.onend = () => {
+      // Якщо користувач не тиснув «стоп» – перезапускаємо запис (щоб не зупинятись при паузі)
+      if (!voiceManualStop) {
+        restartVoiceIfNeeded();
+        return;
+      }
+      // Завершення по користувачу
+      voiceRecording = false;
+      voiceManualStop = false;
+      setAssistantVoiceButton("mic");
+    };
+    // Деякі браузери викликають це при паузах — не завершуємо сесію
+    voiceRecognition.onspeechend = () => {
+      // ігноруємо завершення фрази, очікуємо подальший ввід
+    };
+    // Якщо аудіопотік закрився — перезапускаємо, поки користувач не натисне стоп
+    voiceRecognition.onaudioend = () => {
+      if (!voiceManualStop) {
+        restartVoiceIfNeeded();
+      }
+    };
+    voiceRecognition.onnomatch = () => {
+      // без дій, очікуємо подальше аудіо
+    };
+    document.addEventListener("visibilitychange", () => {
+      // Якщо вкладка повернулась у фокус і запис мав йти — відновлюємо
+      if (!document.hidden && voiceRecording && !voiceManualStop) {
+        restartVoiceIfNeeded();
+      }
+    });
+    voiceRecognition.onresult = (event) => {
+      const input = document.getElementById("assistant-input");
+      if (!input) return;
+      let transcript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      // Вставляємо текст у поле вводу (проміжні результати теж)
+      input.value = transcript.trim();
+    };
+    return true;
+  } catch (e) {
+    const voiceBtn = document.getElementById("assistant-voice-btn");
+    if (voiceBtn) voiceBtn.hidden = true;
+    return false;
+  }
+}
+
+function toggleVoiceRecording() {
+  const ok = !!voiceRecognition || initVoiceInput();
+  if (!ok) {
+    showNotification({
+      type: "warning",
+      title: "Немає підтримки",
+      message: "Браузер не підтримує голосовий ввід.",
+      duration: 2500,
+    });
+    return;
+  }
+  try {
+    if (voiceRecording) {
+      voiceManualStop = true;
+      voiceRecognition.stop();
+      voiceRecording = false;
+      setAssistantVoiceButton("mic");
+    } else {
+      // Запитуємо дозвіл на мікрофон (деякі браузери блокують без getUserMedia)
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then((stream) => {
+            // Відпускаємо мікрофон одразу — нам потрібен лише дозвіл
+            try {
+              stream.getTracks().forEach((t) => t.stop());
+            } catch {}
+            voiceManualStop = false;
+            voiceRecognition.start();
+          })
+          .catch((err) => {
+            setAssistantVoiceButton("mic");
+            showNotification({
+              type: "error",
+              title: "Доступ до мікрофона заборонено",
+              message: "Дозвольте доступ у налаштуваннях браузера та спробуйте знову.",
+              duration: 3500,
+            });
+          });
+      } else {
+        // Без getUserMedia — пробуємо старт відразу
+        voiceManualStop = false;
+        voiceRecognition.start();
+      }
+    }
+  } catch (e) {
+    const msg = (e && e.name === "NotAllowedError")
+      ? "Дозвольте доступ до мікрофона у налаштуваннях браузера."
+      : String(e?.message || e);
+    showNotification({
+      type: "error",
+      title: "Помилка запуску мікрофона",
+      message: msg,
+      duration: 2500,
+    });
+  }
+}
+
 // Глобальний стан стріму відповіді асистента
 const assistantStream = {
   active: false,
@@ -565,6 +885,85 @@ function setAssistantSendButton(mode) {
     if (icon) icon.setAttribute("data-lucide", "play");
   }
   refreshIcons();
+}
+
+// Ініціалізація обробників історії (кнопки в хедері, модалка)
+function initHistoryControls() {
+  const bulkModeBtn = document.getElementById("history-bulk-mode-btn");
+  const bulkDeleteBtn = document.getElementById("history-bulk-delete-btn");
+  const deleteAllBtn = document.getElementById("history-delete-all-btn");
+  const viewToggleBtn = document.getElementById("history-view-toggle-btn");
+  const bulkModal = document.getElementById("bulk-delete-history-modal");
+  const bulkCancel = document.getElementById("bulk-delete-history-cancel-btn");
+  const bulkConfirm = document.getElementById("bulk-delete-history-confirm-btn");
+  const bulkBackdrop = document.getElementById("bulk-delete-history-modal-backdrop");
+  if (bulkModeBtn) {
+    bulkModeBtn.onclick = () => {
+      historyBulkMode = !historyBulkMode;
+      historySelectedIds.clear();
+      if (bulkDeleteBtn) bulkDeleteBtn.hidden = !historyBulkMode;
+      renderHistoryTable();
+    };
+  }
+  if (viewToggleBtn) {
+    const setIcon = () => {
+      const icon = viewToggleBtn.querySelector(".icon");
+      if (icon) icon.setAttribute("data-lucide", historyViewMode === "list" ? "layout-grid" : "list");
+      viewToggleBtn.setAttribute("aria-label", historyViewMode === "list" ? "Grid View" : "List View");
+      viewToggleBtn.setAttribute("data-tooltip", historyViewMode === "list" ? "Grid View" : "List View");
+      refreshIcons();
+    };
+    setIcon();
+    viewToggleBtn.onclick = () => {
+      historyViewMode = historyViewMode === "list" ? "grid" : "list";
+      localStorage.setItem("hr_history_view", historyViewMode);
+      setIcon();
+      renderHistoryTable();
+    };
+  }
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.onclick = () => {
+      if (historySelectedIds.size === 0) {
+        showNotification({
+          type: "warning",
+          title: "Нічого не вибрано",
+          message: "Спочатку виберіть хоча б один прогноз.",
+          duration: 2000,
+        });
+        return;
+      }
+      const modal = document.getElementById("bulk-delete-history-modal");
+      if (modal) modal.dataset.mode = "selected";
+      openBulkDeleteHistoryModal();
+    };
+  }
+  if (deleteAllBtn) {
+    deleteAllBtn.onclick = async () => {
+      if (!authState.history || authState.history.length === 0) return;
+      const modal = document.getElementById("bulk-delete-history-modal");
+      if (modal) {
+        modal.dataset.mode = "all";
+      }
+      openBulkDeleteHistoryModal();
+    };
+  }
+  if (bulkCancel) bulkCancel.onclick = closeBulkDeleteHistoryModal;
+  if (bulkBackdrop) bulkBackdrop.onclick = closeBulkDeleteHistoryModal;
+  if (bulkConfirm) {
+    bulkConfirm.onclick = async () => {
+      const modal = document.getElementById("bulk-delete-history-modal");
+      const mode = modal?.dataset.mode || "selected";
+      if (mode === "all") {
+        await deleteAllHistory();
+      } else {
+        await deleteSelectedHistory();
+      }
+      closeBulkDeleteHistoryModal();
+      historyBulkMode = false;
+      const bulkDeleteBtnEl = document.getElementById("history-bulk-delete-btn");
+      if (bulkDeleteBtnEl) bulkDeleteBtnEl.hidden = true;
+    };
+  }
 }
 
 function resetAssistantStream() {
@@ -798,6 +1197,160 @@ function renderAssistantStateCard(snapshot) {
   if (timeEl) timeEl.textContent = formatDateTime(snapshot.created_at);
 }
 
+function buildSnapshotFromHistoryItem(item) {
+  if (!item) return null;
+  const topFactors = Array.isArray(item?.inputs?.top_factors) ? item.inputs.top_factors : [];
+  return {
+    target: item.target,
+    probability: item.probability,
+    risk_bucket: item.risk_bucket,
+    top_factors: topFactors,
+    created_at: item.created_at,
+  };
+}
+
+function formatHistoryOptionLabel(item) {
+  const target = formatTargetLabel(item.target);
+  const prob = formatProbability(item.probability);
+  const date = formatDateTime(item.created_at);
+  return `${target} — ${prob} — ${date}`;
+}
+
+async function populateAssistantRiskSelector() {
+  const selectorWrap = document.getElementById("assistant-state-selector");
+  const selectRoot = document.getElementById("assistant-risk-select");
+  const btn = document.getElementById("assistant-risk-btn");
+  const btnLabel = document.getElementById("assistant-risk-btn-label");
+  const menu = document.getElementById("assistant-risk-menu");
+  if (!selectorWrap || !selectRoot || !btn || !btnLabel || !menu) return;
+  if (!authState.token || !authState.user) {
+    selectorWrap.hidden = true;
+    assistantSelectedPredictionId = null;
+    assistantLatestPredictionId = null;
+    return;
+  }
+  if (!Array.isArray(authState.history) || authState.history.length === 0) {
+    try {
+      await loadHistory(50);
+    } catch {}
+  }
+  const items = Array.isArray(authState.history) ? authState.history.slice() : [];
+  if (items.length === 0) {
+    selectorWrap.hidden = true;
+    assistantSelectedPredictionId = null;
+    assistantLatestPredictionId = null;
+    return;
+  }
+  const sortedAll = items.slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const latest = sortedAll[0];
+  assistantLatestPredictionId = latest?.id ?? null;
+  // Persist latest timestamp for comparison after new predictions
+  const latestTs = latest ? new Date(latest.created_at).getTime() : null;
+  if (latestTs) saveAssistantLatestTimestamp(latestTs);
+  // Restore persisted selection if valid, otherwise default to latest
+  const storedId = loadAssistantSelectedPrediction();
+  const storedExists = storedId != null && sortedAll.some((i) => i.id === storedId);
+  assistantSelectedPredictionId =
+    (storedExists ? storedId : null) ??
+    (assistantLatestPredictionId != null ? assistantLatestPredictionId : null);
+  const titleSpan = document.getElementById("assistant-state-title-text");
+  if (titleSpan) {
+    if (assistantSelectedPredictionId && assistantSelectedPredictionId !== assistantLatestPredictionId) {
+      titleSpan.textContent = "Обраний ризик";
+    } else {
+      titleSpan.textContent = "Мій поточний ризик";
+    }
+  }
+  // Build custom menu
+  menu.innerHTML = "";
+  const sorted = sortedAll;
+  sorted.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "risk-option";
+    row.setAttribute("role", "option");
+    row.setAttribute("tabindex", "0");
+    row.dataset.id = String(item.id);
+    const meta = document.createElement("div");
+    meta.className = "risk-option__meta";
+    const t = document.createElement("p");
+    t.className = "risk-option__title";
+    t.textContent = `${formatTargetLabel(item.target)} • ${formatProbability(item.probability)}`;
+    const s = document.createElement("p");
+    s.className = "risk-option__subtitle";
+    s.textContent = formatDateTime(item.created_at);
+    meta.appendChild(t);
+    meta.appendChild(s);
+    const badge = document.createElement("span");
+    const bucket = item.risk_bucket || "";
+    badge.className = `badge risk-option__badge ${bucket ? `risk-${bucket}` : ""}`.trim();
+    badge.textContent = riskLabels[bucket] || bucket || "—";
+    row.appendChild(meta);
+    row.appendChild(badge);
+    const applySelect = () => {
+      assistantSelectedPredictionId = Number(item.id);
+      saveAssistantSelectedPrediction(assistantSelectedPredictionId);
+      // Update label (compact)
+      if (btnLabel) btnLabel.textContent = `${formatTargetLabel(item.target)} • ${formatProbability(item.probability)}`;
+      // Update title
+      if (titleSpan) {
+        if (assistantSelectedPredictionId && assistantSelectedPredictionId !== assistantLatestPredictionId) {
+          titleSpan.textContent = "Обраний ризик";
+        } else {
+          titleSpan.textContent = "Мій поточний ризик";
+        }
+      }
+      // Update card content
+      renderAssistantStateCard(buildSnapshotFromHistoryItem(item));
+      // Close
+      menu.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+    };
+    row.addEventListener("click", applySelect);
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        applySelect();
+      }
+    });
+    menu.appendChild(row);
+  });
+  // Initialize button label with current selection
+  const currentItem = sorted.find((i) => i.id === assistantSelectedPredictionId) || sorted[0];
+  if (currentItem && btnLabel) {
+    btnLabel.textContent = `${formatTargetLabel(currentItem.target)} • ${formatProbability(currentItem.probability)}`;
+  }
+  // Toggle handler
+  const closeMenu = (e) => {
+    if (!selectRoot.contains(e.target)) {
+      menu.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", escClose);
+    }
+  };
+  const escClose = (e) => {
+    if (e.key === "Escape") {
+      menu.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", escClose);
+    }
+  };
+  btn.onclick = () => {
+    const willOpen = menu.hidden;
+    menu.hidden = !willOpen;
+    btn.setAttribute("aria-expanded", String(willOpen));
+    if (willOpen) {
+      document.addEventListener("mousedown", closeMenu);
+      document.addEventListener("keydown", escClose);
+    } else {
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", escClose);
+    }
+  };
+  selectorWrap.hidden = false;
+}
+
 async function sendAssistantMessage(text) {
   try {
     // Якщо з попередньої відповіді щось залишилось — зупиняємо
@@ -810,9 +1363,19 @@ async function sendAssistantMessage(text) {
     assistantStream.waiting = true;
     assistantStream.paused = false;
     setAssistantSendButton("stop");
+    // Інформуємо користувача, що відповідь генерується
+    showNotification({
+      type: "info",
+      title: "Генерація відповіді",
+      message: "Асистент формує відповідь. Ви можете натиснути «Стоп», щоб поставити на паузу.",
+      duration: 2500,
+    });
     const data = await apiFetch("/assistant/chat", {
       method: "POST",
-      body: JSON.stringify({ message: text }),
+    body: JSON.stringify({
+      message: text,
+      prediction_id: assistantSelectedPredictionId || undefined,
+    }),
     });
     setAssistantTyping(false);
     assistantStream.waiting = false;
@@ -830,9 +1393,21 @@ async function sendAssistantMessage(text) {
       assistantStream.buffer = String(data?.answer || "Відповідь відсутня.");
       assistantStream.index = 0;
       setAssistantSendButton("play");
+      showNotification({
+        type: "info",
+        title: "Поставлено на паузу",
+        message: "Натисніть «Продовжити», щоб відновити відповідь.",
+        duration: 2000,
+      });
       return;
     }
     startAssistantStream(data?.answer || "Відповідь відсутня.");
+    showNotification({
+      type: "success",
+      title: "Відповідь отримано",
+      message: "Асистент друкує повідомлення.",
+      duration: 1800,
+    });
   } catch (error) {
     setAssistantTyping(false);
     assistantStream.active = false;
@@ -861,6 +1436,7 @@ async function initializeAssistantPage() {
     const sendBtn = document.getElementById("assistant-send-btn");
     const quickBtns = document.querySelectorAll(".assistant-quick__btn");
     const clearBtn = document.getElementById("assistant-clear-btn");
+    const voiceBtn = document.getElementById("assistant-voice-btn");
     const warningDismissBtn = document.getElementById("assistant-warning-dismiss");
     if (sendBtn && input) {
       sendBtn.addEventListener("click", async () => {
@@ -870,12 +1446,24 @@ async function initializeAssistantPage() {
           if (assistantStream.waiting) {
             assistantStream.paused = !assistantStream.paused;
             setAssistantSendButton(assistantStream.paused ? "play" : "stop");
+            showNotification({
+              type: "info",
+              title: assistantStream.paused ? "Поставлено на паузу" : "Продовжено",
+              message: assistantStream.paused ? "Відповідь призупинено." : "Продовжуємо друк відповіді.",
+              duration: 1500,
+            });
             return;
           }
           // Інакше перемикаємо реальний стрім
           assistantStream.paused = !assistantStream.paused;
           if (assistantStream.paused) {
             setAssistantSendButton("play");
+            showNotification({
+              type: "info",
+              title: "Поставлено на паузу",
+              message: "Відповідь зупинено на поточному місці.",
+              duration: 1500,
+            });
           } else {
             // Продовжуємо стрім з буфера, якщо він був створений раніше
             if (assistantStream.msgEl && assistantStream.buffer && assistantStream.index >= 0) {
@@ -894,6 +1482,12 @@ async function initializeAssistantPage() {
                 assistantStream.index += 1;
                 if (container) container.scrollTop = container.scrollHeight;
               }, 18);
+              showNotification({
+                type: "info",
+                title: "Продовжено",
+                message: "Відповідь продовжено.",
+                duration: 1200,
+              });
             } else {
               setAssistantSendButton("stop");
             }
@@ -960,6 +1554,22 @@ async function initializeAssistantPage() {
         });
       });
     }
+    if (voiceBtn) {
+      // Приховуємо, якщо немає підтримки
+      const supported = initVoiceInput();
+      if (!supported) {
+        voiceBtn.hidden = true;
+      } else {
+        voiceBtn.addEventListener("click", () => {
+          // Якщо асистент зараз друкує/думає — керуємо паузою друку, а не мікрофоном
+          if (assistantStream.active || assistantStream.waiting) {
+            toggleAssistantStream();
+            return;
+          }
+          toggleVoiceRecording();
+        });
+      }
+    }
     if (clearBtn) {
       clearBtn.addEventListener("click", async () => {
         try {
@@ -1008,7 +1618,17 @@ async function initializeAssistantPage() {
     fetchLatestHealthRiskSnapshot(),
     fetchAssistantHistory(50).catch(() => []),
   ]);
-  renderAssistantStateCard(snapshot);
+  await populateAssistantRiskSelector();
+  if (assistantSelectedPredictionId) {
+    const selectedItem = (authState.history || []).find((i) => i.id === assistantSelectedPredictionId);
+    if (selectedItem) {
+      renderAssistantStateCard(buildSnapshotFromHistoryItem(selectedItem));
+    } else {
+      renderAssistantStateCard(snapshot);
+    }
+  } else {
+    renderAssistantStateCard(snapshot);
+  }
   renderAssistantHistory(history || []);
   // Показ попередження лише для нових користувачів (без історії), якщо не закривали
   const warningEl = document.getElementById("assistant-warning");
@@ -1745,9 +2365,27 @@ function renderHistoryTable() {
     if (historyTableWrapper) {
       historyTableWrapper.hidden = true;
     }
+    const historyCountEl = document.getElementById("history-count");
+    if (historyCountEl) {
+      historyCountEl.hidden = true;
+      historyCountEl.textContent = "";
+    }
     return;
   }
 
+  // Оновлюємо лічильник у заголовку
+  (function updateHistoryCount() {
+    const historyCountEl = document.getElementById("history-count");
+    if (!historyCountEl) return;
+    const count = authState.history.length;
+    if (count > 0) {
+      historyCountEl.textContent = String(count);
+      historyCountEl.hidden = false;
+    } else {
+      historyCountEl.hidden = true;
+      historyCountEl.textContent = "";
+    }
+  })();
   const rows = authState.history
     .map((entry) => {
       const dateLabel = formatDateTimeLong(entry.created_at);
@@ -1756,32 +2394,170 @@ function renderHistoryTable() {
       const probabilityLabel = formatProbability(entry.probability);
       const riskLabel = riskLabels[entry.risk_bucket] || entry.risk_bucket;
       const color = getRiskColor(entry.risk_bucket);
+      const checkboxCell = historyBulkMode
+        ? `<td><input type="checkbox" class="history-select-checkbox" data-id="${entry.id}" ${historySelectedIds.has(entry.id) ? "checked" : ""} aria-label="Вибрати"></td>`
+        : `<td><span class="history-select-spacer" aria-hidden="true"></span></td>`;
       return `
         <tr data-id="${entry.id}">
+          ${checkboxCell}
           <td>${dateLabel}</td>
           <td>${targetLabel}</td>
           <td>${modelLabel}</td>
           <td>${probabilityLabel}</td>
           <td><span class="history-actions__pill" style="background:${color};color:#fff;">${riskLabel}</span></td>
           <td class="history-table__actions">
-            <div class="history-actions">
-              <button type="button" class="history-actions__button" data-action="replay" data-id="${entry.id}">Повторити</button>
-              <button type="button" class="history-actions__button history-actions__button--danger" data-action="delete" data-id="${entry.id}">Видалити</button>
-            </div>
+            <button type="button" class="icon-button" data-action="replay" data-id="${entry.id}" title="Повторити" aria-label="Повторити" ${historyBulkMode ? "hidden" : ""}>
+              <span class="icon" data-lucide="rotate-ccw"></span>
+            </button>
+            <button type="button" class="icon-button icon-button--danger" data-action="delete" data-id="${entry.id}" title="Видалити" aria-label="Видалити" ${historyBulkMode ? "hidden" : ""}>
+              <span class="icon" data-lucide="trash-2"></span>
+            </button>
           </td>
         </tr>
       `;
     })
     .join("");
 
-  historyTableBody.innerHTML = rows;
-  if (historyEmpty) {
-  historyEmpty.hidden = true;
+  const grid = document.getElementById("history-grid");
+  const tableEl = historyTableWrapper ? historyTableWrapper.querySelector(".history-table") : null;
+  if (historyViewMode === "list") {
+    if (grid) grid.hidden = true;
+    if (tableEl) tableEl.hidden = false;
+    historyTableBody.innerHTML = rows;
+    if (historyEmpty) {
+      historyEmpty.hidden = true;
+    }
+    if (historyTableWrapper) {
+      historyTableWrapper.hidden = false;
+      // Позначаємо режим групового вибору для керування відображенням колонки "Дії"
+      historyTableWrapper.classList.toggle("history--bulk", !!historyBulkMode);
+    }
+    refreshIcons();
+    // Bind checkboxes in bulk mode
+    if (historyBulkMode) {
+      document.querySelectorAll(".history-select-checkbox").forEach((cb) => {
+        cb.addEventListener("change", () => {
+          const id = Number(cb.dataset.id);
+          if (cb.checked) historySelectedIds.add(id);
+          else historySelectedIds.delete(id);
+        });
+      });
+    }
+    // Row click toggles selection in bulk mode (клік по всьому рядку)
+    document.querySelectorAll("#history-table-body tr").forEach((row) => {
+      row.addEventListener("click", (e) => {
+        if (!historyBulkMode) return;
+        if (e.target.closest(".history-table__actions")) return;
+        if (e.target.closest(".history-select-checkbox")) return;
+        const id = Number(row.dataset.id);
+        const cb = row.querySelector(".history-select-checkbox");
+        if (!cb) return;
+        const nowChecked = !cb.checked;
+        cb.checked = nowChecked;
+        if (nowChecked) historySelectedIds.add(id);
+        else historySelectedIds.delete(id);
+      });
+    });
+  } else {
+    // Grid view
+    if (historyEmpty) historyEmpty.hidden = true;
+    if (historyTableWrapper) {
+      historyTableWrapper.hidden = false;
+      historyTableWrapper.classList.toggle("history--bulk", !!historyBulkMode);
+    }
+    if (grid) {
+      grid.hidden = false;
+      if (tableEl) tableEl.hidden = true;
+      const cards = authState.history
+        .map((entry) => {
+          const dateLabel = formatDateTimeLong(entry.created_at);
+          const targetLabel = formatTargetLabel(entry.target);
+          const modelLabel = entry.model_name || "Автоматично";
+          const probabilityLabel = formatProbability(entry.probability);
+          const riskLabel = riskLabels[entry.risk_bucket] || entry.risk_bucket;
+          const color = getRiskColor(entry.risk_bucket);
+          const checked = historySelectedIds.has(entry.id) ? "checked" : "";
+          return `
+            <div class="history-card-item" data-id="${entry.id}">
+              <div class="history-card__row">
+                <input type="checkbox" class="history-card__checkbox history-select-checkbox" data-id="${entry.id}" ${checked} aria-label="Вибрати">
+                <h3 class="history-card__title">${targetLabel}</h3>
+                <span class="badge history-card__badge" style="background:${color};color:#fff;">${riskLabel}</span>
+              </div>
+              <p class="history-card__meta">${dateLabel}</p>
+              <p class="history-card__meta">Модель: ${modelLabel}</p>
+              <p class="history-card__meta">Ймовірність: ${probabilityLabel}</p>
+              <div class="history-card__actions">
+                <button type="button" class="icon-button" data-action="replay" data-id="${entry.id}" title="Повторити" aria-label="Повторити">
+                  <span class="icon" data-lucide="rotate-ccw"></span>
+                </button>
+                <button type="button" class="icon-button icon-button--danger" data-action="delete" data-id="${entry.id}" title="Видалити" aria-label="Видалити">
+                  <span class="icon" data-lucide="trash-2"></span>
+                </button>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+      grid.innerHTML = cards;
+      refreshIcons();
+      if (historyBulkMode) {
+        grid.querySelectorAll(".history-select-checkbox").forEach((cb) => {
+          cb.addEventListener("change", () => {
+            const id = Number(cb.dataset.id);
+            if (cb.checked) historySelectedIds.add(id);
+            else historySelectedIds.delete(id);
+          });
+        });
+      }
+      grid.querySelectorAll(".history-card-item").forEach((card) => {
+        card.addEventListener("click", (e) => {
+          if (!historyBulkMode) return;
+          if (e.target.closest(".history-card__actions")) return;
+          if (e.target.closest(".history-select-checkbox")) return;
+          const id = Number(card.dataset.id);
+          const cb = card.querySelector(".history-select-checkbox");
+          if (!cb) return;
+          const nowChecked = !cb.checked;
+          cb.checked = nowChecked;
+          if (nowChecked) historySelectedIds.add(id);
+          else historySelectedIds.delete(id);
+        });
+      });
+      // Делегування дій для кнопок "Повторити" та "Видалити" у GridView
+      if (!grid.dataset.actionsBound) {
+        grid.addEventListener("click", async (e) => {
+          const btn = e.target.closest(".icon-button");
+          if (!btn) return;
+          const action = btn.getAttribute("data-action");
+          const idAttr = btn.getAttribute("data-id");
+          const id = idAttr ? Number(idAttr) : NaN;
+          if (!action || !Number.isFinite(id)) return;
+          if (historyBulkMode) return; // в bulk-режимі кнопки дій не активні
+          const entry = authState.history.find((h) => h.id === id);
+          if (!entry) return;
+          if (action === "replay") {
+            if (entry.inputs) {
+              loadPredictionFromHistory(entry.inputs);
+            } else {
+              showNotification({
+                type: "warning",
+                title: "Дані недоступні",
+                message: "Для цього запису відсутні вхідні дані.",
+                duration: 2500,
+              });
+            }
+          } else if (action === "delete") {
+            // Використовуємо існуючу кастомну модалку підтвердження видалення
+            openDeleteHistoryModal(id, btn);
+          }
+        });
+        grid.dataset.actionsBound = "1";
+      }
+    }
+    // Очистимо табличний вміст, щоб не дублювався
+    historyTableBody.innerHTML = "";
   }
-  if (historyTableWrapper) {
-    historyTableWrapper.hidden = false;
-  }
-  refreshIcons();
 }
 
 async function loadHistory(limit = 50) {
@@ -1801,6 +2577,20 @@ async function loadHistory(limit = 50) {
     }
     // Заповнюємо predictionStore з історії для відображення в діаграмах
     populatePredictionStoreFromHistory();
+    // Оновлюємо збережену вибірку, якщо з'явився новий прогноз (після форми)
+    const sorted = authState.history.slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const latest = sorted[0];
+    if (latest) {
+      const latestTs = new Date(latest.created_at).getTime();
+      const storedTs = loadAssistantLatestTimestamp();
+      if (!storedTs || latestTs > storedTs) {
+        // Зʼявився новий прогноз — фіксуємо його як обраний
+        saveAssistantLatestTimestamp(latestTs);
+        saveAssistantSelectedPrediction(latest.id);
+        assistantSelectedPredictionId = latest.id;
+        assistantLatestPredictionId = latest.id;
+      }
+    }
   } catch (error) {
     console.error("❌ Не вдалося отримати історію прогнозів:", error);
     authState.history = [];
@@ -3982,6 +4772,9 @@ function activateSection(sectionId) {
       console.error("Не вдалося ініціалізувати діаграми:", error);
     });
   }
+  if (sectionId === "page-history") {
+    initHistoryControls();
+  }
   if (sectionId === "page-assistant") {
     initializeAssistantPage().catch((error) => {
       console.error("Не вдалося ініціалізувати сторінку асистента:", error);
@@ -4098,6 +4891,21 @@ async function handleSubmit(event) {
       payload: { ...payload },
     };
     renderResult(data);
+    // Після відображення результату — фіксуємо snapshot і ховаємо кнопку до змін
+    try {
+      lastSubmittedHash = hashPredictionInput(
+        payload,
+        target,
+        String(modelSelect?.value || "auto")
+      );
+    } catch {
+      lastSubmittedHash = null;
+    }
+    if (submitButton) {
+      submitButton.hidden = true;
+      submitButton.disabled = true;
+    }
+    updateSubmitAvailability();
     
     // Оновлюємо історію після успішного прогнозування (для автентифікованих користувачів)
     if (authState.token && authState.user) {
@@ -4155,6 +4963,70 @@ function randomFloat(min, max, decimals = 1) {
   return Number.parseFloat(value.toFixed(decimals));
 }
 
+// Прапорець: чи користувач натискав "Заповнити випадкові дані"
+let demoUsed = false;
+let lastSubmittedHash = null;
+
+function isPredictionFormComplete() {
+  if (!targetSelect || !featuresContainer) return false;
+  const targetOk = !!targetSelect.value;
+  if (!targetOk) return false;
+  // Перевіряємо, що всі інпути у контейнері заповнені (не порожні)
+  const inputs = Array.from(featuresContainer.querySelectorAll("input, select, textarea"));
+  if (inputs.length === 0) return false;
+  for (const el of inputs) {
+    if (el.disabled || el.hidden) continue;
+    const val = (el.value ?? "").toString().trim();
+    if (val === "") return false;
+  }
+  return true;
+}
+
+function updateSubmitAvailability() {
+  if (!submitButton) return;
+  const complete = isPredictionFormComplete();
+  let shouldShow = complete;
+  if (complete) {
+    try {
+      const { payload } = collectPayload();
+      const currentHash = hashPredictionInput(
+        payload,
+        String(targetSelect?.value || ""),
+        String(modelSelect?.value || "auto")
+      );
+      if (lastSubmittedHash && currentHash === lastSubmittedHash) {
+        shouldShow = false;
+      }
+    } catch {}
+  }
+  submitButton.hidden = !shouldShow;
+  submitButton.disabled = !shouldShow;
+  // Оновлюємо текст на кнопці демо-заповнення залежно від стану
+  if (demoButton) {
+    if (complete && demoUsed) {
+      demoButton.textContent = "Перезаповнити ще раз";
+    } else {
+      demoButton.textContent = "Заповнити випадкові дані";
+    }
+  }
+}
+
+function hashPredictionInput(payload, target, model) {
+  const normalize = (obj) => {
+    const out = {};
+    Object.keys(obj || {})
+      .sort()
+      .forEach((k) => {
+        const v = obj[k];
+        const num = typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v)) ? Number(v) : v;
+        out[k] = num;
+      });
+    return out;
+  };
+  const normalized = normalize(payload);
+  return JSON.stringify({ t: target || "", m: model || "auto", p: normalized });
+}
+
 function fillRandomDemoData() {
   if (!metadataCache) {
     const errorMessage = "Метадані ще завантажуються, спробуйте пізніше.";
@@ -4176,8 +5048,25 @@ function fillRandomDemoData() {
   if (inputRefs["LBXGLU"]) inputRefs["LBXGLU"].value = randomInt(80, 180);
   if (inputRefs["LBXTC"]) inputRefs["LBXTC"].value = randomInt(140, 260);
 
+  // Рандомно обираємо ціль прогнозування
+  if (targetSelect) {
+    const targets = ["diabetes_present", "obesity_present"];
+    targetSelect.value = targets[Math.floor(Math.random() * targets.length)];
+  }
+
   updateAllIndicators();
   clearError();
+  updateSubmitAvailability();
+  demoUsed = true;
+  // Оновлюємо підпис кнопки, якщо все заповнено
+  if (demoButton && isPredictionFormComplete()) {
+    demoButton.textContent = "Перезаповнити ще раз";
+  }
+  // Після рандомного заповнення: розміщення кнопок — зліва submit, справа demo
+  const actions = document.querySelector(".form__actions");
+  if (actions) {
+    actions.classList.add("form__actions--calc-left");
+  }
   
   showNotification({
     type: "info",
@@ -5388,6 +6277,19 @@ function registerEventListeners() {
   // Only add listeners for prediction form if it exists (not on auth pages)
   if (form) {
   form.addEventListener("submit", handleSubmit);
+    // Відстежуємо заповнення для керування кнопкою відправки
+    if (targetSelect) {
+      targetSelect.addEventListener("change", updateSubmitAvailability);
+    }
+    if (modelSelect) {
+      modelSelect.addEventListener("change", updateSubmitAvailability);
+    }
+    if (featuresContainer) {
+      featuresContainer.addEventListener("input", updateSubmitAvailability);
+      featuresContainer.addEventListener("change", updateSubmitAvailability);
+    }
+    // Початковий стан
+    updateSubmitAvailability();
   }
 
   if (demoButton) {
