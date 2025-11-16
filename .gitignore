@@ -44,6 +44,17 @@ artifacts/
 *.joblib
 *.model
 
+# Certificates and keys
+certs/
+*.key
+*.crt
+*.pem
+
+# Local data
+data/app.db
+data/*.db
+data/avatars/*
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
