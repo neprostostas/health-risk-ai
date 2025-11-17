@@ -2013,7 +2013,7 @@ function handleUnauthorized() {
   }
 }
 
-function handleAuthSuccess(payload, options = {}) {
+async function handleAuthSuccess(payload, options = {}) {
   if (!payload?.access_token || !payload?.user) return;
   persistToken(payload.access_token);
   authState.user = payload.user;
@@ -2027,6 +2027,20 @@ function handleAuthSuccess(payload, options = {}) {
   // Завантажуємо дані для чатів (тільки якщо користувач автентифікований)
   if (authState.user && typeof loadUnreadCount === "function") {
     loadUnreadCount();
+    
+    // Завантажуємо список чатів для перевірки непрочитаних повідомлень
+    if (typeof loadChatsList === "function") {
+      try {
+        await loadChatsList();
+        // Показуємо сповіщення про нові повідомлення
+        showUnreadMessagesNotification();
+      } catch (e) {
+        // Ігноруємо помилки завантаження чатів для сповіщень
+        if (!e.isAuthError && !e.silent) {
+          console.error("Не вдалося завантажити список чатів для сповіщень:", e);
+        }
+      }
+    }
   }
   
   // After registration or login, always redirect to profile
@@ -6927,6 +6941,59 @@ function updateChatsBadge() {
     badge.hidden = true;
     console.log("✅ [updateChatsBadge] Badge hidden (no unread messages)");
   }
+}
+
+function showUnreadMessagesNotification() {
+  // Перевіряємо, чи є чати з непрочитаними повідомленнями
+  if (!Array.isArray(chatsList) || chatsList.length === 0) {
+    return;
+  }
+  
+  // Знаходимо чати з непрочитаними повідомленнями
+  const unreadChats = chatsList.filter(chat => chat.unread_count > 0);
+  
+  if (unreadChats.length === 0) {
+    return; // Немає непрочитаних повідомлень
+  }
+  
+  // Обчислюємо загальну кількість непрочитаних повідомлень
+  const totalUnread = unreadChats.reduce((sum, chat) => sum + chat.unread_count, 0);
+  
+  // Формуємо повідомлення
+  let message = "";
+  if (unreadChats.length === 1) {
+    // Один чат з непрочитаними повідомленнями
+    const chat = unreadChats[0];
+    const senderName = chat.other_user?.display_name || chat.other_user?.email || "Користувач";
+    const lastMsg = chat.last_message?.content || "";
+    const preview = lastMsg.length > 50 ? lastMsg.substring(0, 50) + "..." : lastMsg;
+    message = `${senderName}: ${preview || "Нове повідомлення"}`;
+  } else {
+    // Кілька чатів з непрочитаними повідомленнями
+    // Показуємо перші 2-3 чати
+    const topChats = unreadChats.slice(0, 3);
+    const chatPreviews = topChats.map(chat => {
+      const senderName = chat.other_user?.display_name || chat.other_user?.email || "Користувач";
+      const lastMsg = chat.last_message?.content || "";
+      const preview = lastMsg.length > 30 ? lastMsg.substring(0, 30) + "..." : lastMsg;
+      return `${senderName}: ${preview || "нове повідомлення"}`;
+    }).join("\n");
+    
+    const remaining = unreadChats.length - 3;
+    if (remaining > 0) {
+      message = `${chatPreviews}\n... та ще ${remaining} ${remaining === 1 ? 'чат' : 'чатів'}`;
+    } else {
+      message = chatPreviews;
+    }
+  }
+  
+  // Показуємо сповіщення
+  showNotification({
+    type: "info",
+    title: `У вас ${totalUnread} ${totalUnread === 1 ? 'нове повідомлення' : totalUnread < 5 ? 'нові повідомлення' : 'нових повідомлень'}`,
+    message: message,
+    duration: 6000,
+  });
 }
 
 async function loadChatsList() {
