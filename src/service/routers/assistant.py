@@ -77,7 +77,7 @@ def chat(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Обраний прогноз недоступний.",
-            )
+        )
 
     # 1) Зберігаємо повідомлення користувача
     add_message(

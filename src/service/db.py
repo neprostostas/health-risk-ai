@@ -57,7 +57,14 @@ def migrate_add_missing_columns() -> None:
 def init_db() -> None:
     """Створює всі таблиці, якщо вони ще не існують."""
     # Імпортуємо моделі, щоб вони були зареєстровані в метаданих
-    from .models import PasswordResetToken, PredictionHistory, User  # noqa: F401
+    from .models import (  # noqa: F401
+        AssistantMessage,
+        Chat,
+        ChatMessage,
+        PasswordResetToken,
+        PredictionHistory,
+        User,
+    )
     
     # Створюємо нові таблиці
     SQLModel.metadata.create_all(bind=engine)

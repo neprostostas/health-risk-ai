@@ -62,3 +62,4 @@ dev:
 d: dev
 i: install
 c: clean
+r: run

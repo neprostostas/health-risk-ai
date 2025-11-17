@@ -98,6 +98,7 @@ const ROUTE_SECTIONS = {
   "/forgot-password": "page-forgot-password",
   "/reset-password": "page-reset-password",
   "/assistant": "page-assistant",
+  "/chats": "page-chats",
 };
 
 const ROUTE_ALIASES = {
@@ -116,6 +117,7 @@ const SECTION_TO_ROUTE = {
   "page-forgot-password": "/forgot-password",
   "page-reset-password": "/reset-password",
   "page-assistant": "/assistant",
+  "page-chats": "/chats",
 };
 
 const inputRefs = {};
@@ -341,6 +343,7 @@ const pageTitles = {
   "page-forgot-password": "Відновлення пароля",
   "page-reset-password": "Встановлення нового пароля",
   "page-assistant": "Чат з асистентом",
+  "page-chats": "Чати",
 };
 
 const riskClasses = {
@@ -1780,7 +1783,27 @@ async function apiFetch(
 
   if (!response.ok) {
     if (response.status === 401 && !skipAuth) {
+      // Перенаправляємо на login перед киданням помилки
       handleUnauthorized();
+      // Після перенаправлення кидаємо помилку, яка буде оброблена в catch блоках
+      // Але не показуємо її користувачу, бо вже перенаправлено
+      const authError = new Error("Потрібно увійти до системи.");
+      authError.isAuthError = true; // Позначаємо, що це помилка автентифікації
+      authError.silent = true; // Позначаємо, що помилку не потрібно показувати
+      throw authError;
+    }
+    // Для 404 помилок на захищених роутах перенаправляємо на логін
+    if (response.status === 404 && !skipAuth) {
+      const currentPath = window.location.pathname;
+      const protectedPaths = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant"];
+      const isProtectedPath = protectedPaths.some(path => currentPath.startsWith(path));
+      if (isProtectedPath) {
+        handleUnauthorized();
+        const notFoundError = new Error("Сторінку не знайдено.");
+        notFoundError.isAuthError = true;
+        notFoundError.silent = true;
+        throw notFoundError;
+      }
     }
     const message = data?.detail || data?.message || "Сталася помилка під час запиту.";
     throw new Error(message);
@@ -1805,11 +1828,22 @@ function normalizePath(pathname) {
   if (normalized.length > 1 && normalized.endsWith("/")) {
     normalized = normalized.slice(0, -1);
   }
+  // Обробка маршруту /c/:chatId
+  if (normalized.startsWith("/c/")) {
+    return normalized; // Зберігаємо повний шлях для чатів
+  }
   normalized = normalized.toLowerCase();
   if (ROUTE_ALIASES[normalized]) {
     normalized = ROUTE_ALIASES[normalized];
   }
-  if (!ROUTE_SECTIONS[normalized]) {
+  // Якщо роут не існує, перенаправляємо на /app (або /login якщо не автентифікований)
+  if (!ROUTE_SECTIONS[normalized] && !normalized.startsWith("/c/")) {
+    // Перевіряємо, чи це захищений роут (якщо так, перенаправляємо на логін)
+    const protectedPaths = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant"];
+    const isProtectedPath = protectedPaths.some(path => pathname.toLowerCase().startsWith(path));
+    if (isProtectedPath && authState.initialized && !authState.user) {
+      return "/login";
+    }
     return "/app";
   }
   return normalized;
@@ -1817,6 +1851,13 @@ function normalizePath(pathname) {
 
 function getSectionByPath(pathname) {
   const normalized = normalizePath(pathname);
+  // Обробка маршруту /c/:chatId
+  if (normalized.startsWith("/c/")) {
+    return {
+      path: normalized,
+      section: "page-chats",
+    };
+  }
   return {
     path: normalized,
     section: ROUTE_SECTIONS[normalized] || ROUTE_SECTIONS["/app"],
@@ -1827,18 +1868,24 @@ function showSectionForPath(pathname) {
   const { path, section } = getSectionByPath(pathname);
   
   // Auth gating: require authentication for main app pages
-  // Але не перешкоджаємо активації сторінки, якщо автентифікація ще не завершена
-  // (це дозволить правильно завантажити сторінку при оновленні)
-  // Сторінка /api-status доступна всім без автентифікації
-  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant"];
-  if (protectedSections.includes(section) && !authState.user && authState.initialized) {
-    // Тільки якщо автентифікація завершена і користувач не автентифікований - перенаправляємо
-    pendingRouteAfterAuth = path;
-    return showSectionForPath("/login");
+  // Перевіряємо автентифікацію тільки після того, як authState.initialized === true
+  // Це дозволяє правильно завантажити сторінку при оновленні (якщо є токен)
+  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant", "page-chats"];
+  
+  // Для захищених сторінок, якщо автентифікація ще не ініціалізована, не активуємо сторінку
+  // Чекаємо, поки автентифікація ініціалізується
+  if (protectedSections.includes(section) && !authState.initialized) {
+    // Не активуємо сторінку, поки автентифікація не ініціалізується
+    // syncRouteFromLocation викличе showSectionForPath знову після ініціалізації
+    return path;
   }
   
-  // Якщо автентифікація ще не завершена, все одно активуємо сторінку
-  // activateSection обробить випадок, коли користувач не автентифікований
+  // Для всіх захищених сторінок (включаючи чати) перевіряємо тільки якщо authState.initialized === true
+  if (protectedSections.includes(section) && !authState.user && authState.initialized) {
+    // Використовуємо примусовий редірект через handleUnauthorized
+    handleUnauthorized();
+    return "/login";
+  }
   
   // Redirect authenticated users away from login/register pages (but not forgot/reset password)
   if ((section === "page-login" || section === "page-register") && authState.user && authState.initialized) {
@@ -1857,26 +1904,76 @@ function showSectionForPath(pathname) {
     }
   }
   
+  // Для захищених сторінок перевіряємо автентифікацію перед активацією
+  // Якщо користувач не автентифікований і автентифікація вже ініціалізована, не активуємо сторінку
+  if (protectedSections.includes(section) && !authState.user && authState.initialized) {
+    // Вже перенаправлено в перевірці вище через handleUnauthorized
+    return "/login";
+  }
+  
+  // Для захищених сторінок, якщо автентифікація ще не ініціалізована, не активуємо сторінку
+  // Чекаємо, поки автентифікація ініціалізується (syncRouteFromLocation викличе showSectionForPath знову)
+  if (protectedSections.includes(section) && !authState.initialized) {
+    // Не активуємо сторінку, поки автентифікація не ініціалізується
+    return path;
+  }
+  
+  // Якщо роут не існує і це не захищений роут, перенаправляємо на /app
+  // Якщо це захищений роут і користувач не автентифікований, перенаправляємо на /login
+  // Для /c/{uuid} не перевіряємо ROUTE_SECTIONS, бо це динамічний роут
+  if (!path.startsWith("/c/") && !ROUTE_SECTIONS[path] && path !== "/login" && path !== "/register" && path !== "/forgot-password" && !path.startsWith("/reset-password")) {
+    const protectedPaths = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant"];
+    const isProtectedPath = protectedPaths.some(protectedPath => pathname.toLowerCase().startsWith(protectedPath));
+    if (isProtectedPath && authState.initialized && !authState.user) {
+      handleUnauthorized();
+      return "/login";
+    }
+    // Для неіснуючих роутів перенаправляємо на /app
+    const appPath = showSectionForPath("/app");
+    if (window.location.pathname !== appPath) {
+      history.replaceState({}, "", appPath);
+    }
+    return appPath;
+  }
+  
+  // АКТИВУЄМО СТОРІНКУ ТІЛЬКИ ЯКЩО КОРИСТУВАЧ АВТЕНТИФІКОВАНИЙ АБО ЦЕ НЕ ЗАХИЩЕНА СТОРІНКА
+  if (protectedSections.includes(section) && (!authState.user || !authState.initialized)) {
+    // Не активуємо захищені сторінки для неавтентифікованих користувачів
+    return path;
+  }
+  
+  // Для /c/{uuid} зберігаємо оригінальний шлях
+  const finalPath = path.startsWith("/c/") ? pathname : path;
   activateSection(section);
-  return path;
+  return finalPath;
 }
 
 function navigateTo(pathname, { replace = false } = {}) {
-  const targetPath = showSectionForPath(pathname);
   const currentPath = window.location.pathname;
+  // Нормалізуємо шлях через getSectionByPath, але зберігаємо оригінальний для /c/{uuid}
+  const { path: normalizedPath } = getSectionByPath(pathname);
+  const finalPath = pathname.startsWith("/c/") ? pathname : normalizedPath;
+  
+  // Спочатку оновлюємо URL, щоб activateSection міг правильно прочитати шлях
   if (replace) {
-    if (currentPath !== targetPath) {
-      history.replaceState({}, "", targetPath);
+    if (currentPath !== finalPath) {
+      history.replaceState({}, "", finalPath);
     }
-  } else if (currentPath !== targetPath) {
-    history.pushState({}, "", targetPath);
+  } else if (currentPath !== finalPath) {
+    history.pushState({}, "", finalPath);
   }
+  
+  // Після оновлення URL викликаємо showSectionForPath
+  showSectionForPath(finalPath);
 }
 
 function syncRouteFromLocation() {
-  const actualPath = showSectionForPath(window.location.pathname);
-  if (window.location.pathname !== actualPath) {
-    history.replaceState({}, "", actualPath);
+  const pathname = window.location.pathname;
+  const actualPath = showSectionForPath(pathname);
+  // Для /c/{uuid} зберігаємо оригінальний шлях
+  const finalPath = pathname.startsWith("/c/") ? pathname : actualPath;
+  if (window.location.pathname !== finalPath) {
+    history.replaceState({}, "", finalPath);
   }
 }
 
@@ -1903,7 +2000,13 @@ function clearAuthState() {
 
 function handleUnauthorized() {
   clearAuthState();
-  navigateTo("/login", { replace: true });
+  // Використовуємо примусовий редірект через window.location для гарантованого перенаправлення
+  const currentPath = window.location.pathname;
+  if (currentPath !== "/login" && currentPath !== "/register" && currentPath !== "/forgot-password" && !currentPath.startsWith("/reset-password")) {
+    pendingRouteAfterAuth = currentPath;
+    // Використовуємо window.location для примусового редіректу
+    window.location.href = "/login";
+  }
 }
 
 function handleAuthSuccess(payload, options = {}) {
@@ -1916,6 +2019,11 @@ function handleAuthSuccess(payload, options = {}) {
   loadHistory().catch((error) => console.error("Не вдалося оновити історію:", error));
   updateNavigationVisibility();
   refreshIcons();
+  
+  // Завантажуємо дані для чатів (тільки якщо користувач автентифікований)
+  if (authState.user && typeof loadUnreadCount === "function") {
+    loadUnreadCount();
+  }
   
   // After registration or login, always redirect to profile
   const targetRoute = options.navigateToRoute || "/profile";
@@ -1950,10 +2058,11 @@ function applyAvatarStyle(element, user) {
     element.textContent = ""; // Приховуємо ініціали
   } else {
     // Показуємо згенерований аватар з ініціалами
-  const color = user?.avatar_color || DEFAULT_AVATAR_COLOR;
-  element.style.background = color;
+    const color = user?.avatar_color || DEFAULT_AVATAR_COLOR;
+    element.style.background = color;
     element.style.backgroundImage = "none";
-  element.textContent = getInitials(user?.display_name || user?.email || "");
+    // Використовуємо getUserInitial для консистентності з іншими місцями
+    element.textContent = getUserInitial(user);
   }
 }
 
@@ -2027,6 +2136,7 @@ function updateNavigationVisibility() {
   // Спеціальна обробка для кнопок, які повинні бути повністю приховані
   const navProfile = document.getElementById("nav-profile");
   const navHistory = document.getElementById("nav-history");
+  const navChats = document.getElementById("nav-chats");
   
   // Знаходимо кнопки "Форма прогнозування" та "Діаграми" через data-section (безпечний селектор)
   const navForm = document.querySelector('.sidebar__nav [data-section="page-form"]');
@@ -2048,6 +2158,9 @@ function updateNavigationVisibility() {
   }
   if (navAssistant) {
     navAssistant.hidden = !authState.user;
+  }
+  if (navChats) {
+    navChats.hidden = !authState.user;
   }
 }
 
@@ -2568,13 +2681,8 @@ async function loadHistory(limit = 50) {
     return;
   }
   try {
-    console.log("📥 Завантаження історії прогнозів...");
     const data = await apiFetch(`/users/me/history?limit=${limit}`);
     authState.history = Array.isArray(data?.items) ? data.items : [];
-    console.log("✅ Історія завантажена:", authState.history.length, "записів");
-    if (authState.history.length > 0) {
-      console.log("Перший запис:", authState.history[0]);
-    }
     // Заповнюємо predictionStore з історії для відображення в діаграмах
     populatePredictionStoreFromHistory();
     // Оновлюємо збережену вибірку, якщо з'явився новий прогноз (після форми)
@@ -4742,6 +4850,15 @@ function initializeTheme() {
 }
 
 function activateSection(sectionId) {
+  // Для захищених сторінок перевіряємо автентифікацію перед активацією
+  // Але тільки якщо authState.initialized === true (як для діаграм)
+  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant", "page-chats"];
+  if (protectedSections.includes(sectionId) && !authState.user && authState.initialized) {
+    // Якщо користувач не автентифікований і автентифікація вже ініціалізована, не активуємо сторінку
+    // Вже перенаправлено в showSectionForPath, просто виходимо
+    return;
+  }
+  
   // Оновлюємо заголовок сторінки в хедері
   if (pageTitle && pageTitles[sectionId]) {
     pageTitle.textContent = pageTitles[sectionId];
@@ -4771,6 +4888,60 @@ function activateSection(sectionId) {
     initializeInsightsPage().catch((error) => {
       console.error("Не вдалося ініціалізувати діаграми:", error);
     });
+  }
+  if (sectionId === "page-chats") {
+    // Перевіряємо автентифікацію перед виконанням API запитів
+    // Якщо автентифікація ще не ініціалізована, чекаємо
+    if (!authState.initialized) {
+      // Чекаємо, поки автентифікація ініціалізується
+      return;
+    }
+    // Якщо користувач не автентифікований після ініціалізації, перенаправляємо
+    if (!authState.user) {
+      // Використовуємо handleUnauthorized для примусового редіректу
+      handleUnauthorized();
+      return;
+    }
+    
+    // Використовуємо актуальний шлях з URL
+    const path = window.location.pathname;
+    if (path && path.startsWith("/c/")) {
+      const uuid = path.substring(3);
+      if (!uuid) {
+        console.error("Chat UUID is empty");
+        return;
+      }
+      if (typeof loadChat === "function") {
+        loadChat(uuid).catch((e) => {
+          // Якщо помилка автентифікації, просто ігноруємо - handleUnauthorized вже викликано
+          if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+            return; // Не показуємо помилку, не логуємо, не перенаправляємо (вже зроблено)
+          }
+          console.error("Не вдалося завантажити чат:", e);
+        });
+      }
+    } else {
+      // На сторінці /chats (без конкретного чату) показуємо список активних чатів
+      showChatsListFull();
+      if (typeof loadChatsList === "function") {
+        loadChatsList().catch((e) => {
+          // Якщо помилка автентифікації, просто ігноруємо - handleUnauthorized вже викликано
+          if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+            return; // Не показуємо помилку, не логуємо, не перенаправляємо (вже зроблено)
+          }
+          console.error("Не вдалося завантажити список чатів:", e);
+        });
+      }
+    }
+    if (authState.user && typeof loadUnreadCount === "function") {
+      loadUnreadCount().catch((e) => {
+        // Ігноруємо помилки для unread count, це не критично
+        if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+          return; // Не показуємо помилку, не логуємо
+        }
+        console.error("Не вдалося завантажити кількість непрочитаних:", e);
+      });
+    }
   }
   if (sectionId === "page-history") {
     initHistoryControls();
@@ -6666,4 +6837,501 @@ function initializeSidebarToggle() {
   initializeApiStatus();
   registerEventListeners();
   fetchMetadata();
+  initializeChats();
 })();
+
+// ========== Chats functionality ==========
+let currentChatUuid = null;
+let chatsList = [];
+let usersList = [];
+let unreadCount = 0;
+
+async function loadUnreadCount() {
+  // Перевіряємо автентифікацію перед виконанням запиту
+  if (!authState.initialized) {
+    // Чекаємо, поки автентифікація ініціалізується
+    return;
+  }
+  if (!authState.user) {
+    // Якщо користувач не автентифікований, не робимо запит (це не критично)
+    return;
+  }
+  try {
+    const res = await apiFetch("/chats/unread-count");
+    unreadCount = res.count || 0;
+    updateChatsBadge();
+  } catch (e) {
+    // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch
+    // Для unread count це не критично, просто ігноруємо помилку
+    if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+      return; // Просто виходимо, не показуємо помилку, не логуємо
+    }
+    console.error("Не вдалося завантажити кількість непрочитаних:", e);
+  }
+}
+
+function updateChatsBadge() {
+  const badge = document.getElementById("nav-chats-badge");
+  if (!badge) return;
+  if (unreadCount > 0) {
+    badge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+    badge.hidden = false;
+  } else {
+    badge.hidden = true;
+  }
+}
+
+async function loadChatsList() {
+  // Перевіряємо автентифікацію перед виконанням запиту
+  if (!authState.initialized) {
+    // Чекаємо, поки автентифікація ініціалізується
+    return;
+  }
+  if (!authState.user) {
+    // Якщо користувач не автентифікований, перенаправляємо на логін
+    handleUnauthorized();
+    return;
+  }
+  try {
+    const result = await apiFetch("/chats");
+    // Перевіряємо, чи результат є масивом
+    chatsList = Array.isArray(result) ? result : [];
+    renderChatsList();
+  } catch (e) {
+    // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch
+    // Не показуємо помилку користувачу, бо вже перенаправлено на login
+    if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+      return; // Просто виходимо, не показуємо помилку
+    }
+    console.error("Не вдалося завантажити список чатів:", e);
+    // Встановлюємо порожній масив на випадок помилки
+    chatsList = [];
+    renderChatsList();
+  }
+}
+
+async function loadUsersList() {
+  // Перевіряємо автентифікацію перед виконанням запиту
+  if (!authState.initialized) {
+    // Чекаємо, поки автентифікація ініціалізується
+    return;
+  }
+  if (!authState.user) {
+    // Якщо користувач не автентифікований, перенаправляємо на логін
+    handleUnauthorized();
+    return;
+  }
+  try {
+    usersList = await apiFetch("/chats/users");
+    renderUsersList();
+  } catch (e) {
+    // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch
+    // Не показуємо помилку користувачу, бо вже перенаправлено на login
+    if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+      return; // Просто виходимо, не показуємо помилку, не логуємо
+    }
+    console.error("Не вдалося завантажити список користувачів:", e);
+  }
+}
+
+function renderChatsList() {
+  const container = document.getElementById("chats-list");
+  const empty = document.getElementById("chats-empty");
+  if (!container) return;
+  
+  // Перевіряємо, чи chatsList є масивом
+  if (!Array.isArray(chatsList)) {
+    chatsList = [];
+  }
+  
+  if (chatsList.length === 0) {
+    container.innerHTML = "";
+    if (empty) empty.hidden = false;
+    return;
+  }
+  
+  if (empty) empty.hidden = true;
+  
+  container.innerHTML = chatsList.map(chat => {
+    const lastMsg = chat.last_message ? (chat.last_message.content.length > 50 ? chat.last_message.content.substring(0, 50) + "..." : chat.last_message.content) : "Немає повідомлень";
+    const unreadBadge = chat.unread_count > 0 ? `<span class="chats-item__badge">${chat.unread_count > 99 ? "99+" : chat.unread_count}</span>` : "";
+    return `
+      <div class="chats-item" data-chat-uuid="${chat.uuid}">
+        <div class="chats-item__avatar" data-user-id="${chat.other_user.id}">${getUserInitial(chat.other_user)}</div>
+        <div class="chats-item__content">
+          <div class="chats-item__header">
+            <span class="chats-item__name">${chat.other_user.display_name}</span>
+            ${unreadBadge}
+          </div>
+          <p class="chats-item__preview">${lastMsg}</p>
+        </div>
+      </div>
+    `;
+  }).join("");
+  
+  refreshIcons();
+  
+  // Застосовуємо стилі аватарок (фото або кольоровий фон)
+  container.querySelectorAll(".chats-item__avatar").forEach(avatarEl => {
+    const userId = Number(avatarEl.dataset.userId);
+    const chat = chatsList.find(c => c.other_user.id === userId);
+    if (chat && chat.other_user) {
+      applyAvatarStyle(avatarEl, chat.other_user);
+    }
+  });
+  
+  // Додаємо обробники кліків
+  container.querySelectorAll(".chats-item").forEach(item => {
+    item.addEventListener("click", async () => {
+      const uuid = item.dataset.chatUuid;
+      if (!uuid) {
+        console.error("Chat UUID not found");
+        return;
+      }
+      navigateTo(`/c/${uuid}`);
+    });
+  });
+}
+
+function renderUsersList() {
+  const container = document.getElementById("chats-users-list");
+  const empty = document.getElementById("chats-users-empty");
+  if (!container) return;
+  
+  if (usersList.length === 0) {
+    container.innerHTML = "";
+    if (empty) {
+      empty.textContent = "Немає доступних користувачів";
+      empty.hidden = false;
+    }
+    return;
+  }
+  
+  if (empty) empty.hidden = true;
+  
+  container.innerHTML = usersList.map(user => `
+    <div class="chats-item chats-item--user" data-user-id="${user.id}">
+      <div class="chats-item__avatar" data-user-id="${user.id}">${getUserInitial(user)}</div>
+      <div class="chats-item__content">
+        <div class="chats-item__header">
+          <span class="chats-item__name">${user.display_name}</span>
+        </div>
+        <p class="chats-item__preview">${user.email}</p>
+      </div>
+    </div>
+  `).join("");
+  
+  // Застосовуємо стилі аватарок (фото або кольоровий фон)
+  container.querySelectorAll(".chats-item__avatar").forEach(avatarEl => {
+    const userId = Number(avatarEl.dataset.userId);
+    const user = usersList.find(u => u.id === userId);
+    if (user) {
+      applyAvatarStyle(avatarEl, user);
+    }
+  });
+  
+  // Додаємо обробники кліків
+  container.querySelectorAll(".chats-item--user").forEach(item => {
+    item.addEventListener("click", async () => {
+      if (!authState.user) {
+        pendingRouteAfterAuth = window.location.pathname;
+        navigateTo("/login", { replace: true });
+        return;
+      }
+      const userId = Number(item.dataset.userId);
+      try {
+        // Створюємо або отримуємо чат з користувачем
+        const chat = await apiFetch("/chats", {
+          method: "POST",
+          body: JSON.stringify({ user_id: userId }),
+        });
+        // Оновлюємо список чатів перед переходом
+        await loadChatsList();
+        // Переходимо до чату
+        navigateTo(`/c/${chat.uuid}`);
+      } catch (e) {
+        if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+          return;
+        }
+        console.error("Не вдалося створити чат:", e);
+        showNotification({
+          type: "error",
+          title: "Помилка",
+          message: "Не вдалося створити чат",
+          duration: 3000,
+        });
+      }
+    });
+  });
+}
+
+async function loadChat(uuid) {
+  // Перевіряємо автентифікацію перед виконанням запиту
+  if (!authState.initialized) {
+    // Чекаємо, поки автентифікація ініціалізується
+    return;
+  }
+  if (!authState.user) {
+    // Якщо користувач не автентифікований, перенаправляємо на логін
+    handleUnauthorized();
+    return;
+  }
+  try {
+    const chat = await apiFetch(`/chats/${uuid}`);
+    if (!chat || !chat.uuid) {
+      console.error("Invalid chat data received");
+      showNotification({
+        type: "error",
+        title: "Помилка",
+        message: "Не вдалося завантажити чат",
+        duration: 3000,
+      });
+      return;
+    }
+    currentChatUuid = uuid;
+    renderChat(chat);
+  } catch (e) {
+    // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch
+    // Не показуємо помилку користувачу, бо вже перенаправлено на login
+    if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+      return; // Просто виходимо, не показуємо помилку, не логуємо
+    }
+    console.error("Не вдалося завантажити чат:", e);
+    showNotification({
+      type: "error",
+      title: "Помилка",
+      message: "Не вдалося завантажити чат",
+      duration: 3000,
+    });
+  }
+}
+
+function renderChat(chat) {
+  // Показуємо layout з чатом та sidebar
+  showChatLayout();
+  
+  const empty = document.getElementById("chats-main-empty");
+  const content = document.getElementById("chats-main-content");
+  const messages = document.getElementById("chats-main-messages");
+  const avatar = document.getElementById("chats-main-avatar");
+  const name = document.getElementById("chats-main-name");
+  
+  if (!empty || !content || !messages || !avatar || !name) return;
+  
+  empty.hidden = true;
+  content.hidden = false;
+  
+  // Застосовуємо стилі аватарок (фото або кольоровий фон)
+  applyAvatarStyle(avatar, chat.other_user);
+  name.textContent = chat.other_user.display_name;
+  
+  messages.innerHTML = chat.messages.map(msg => {
+    const isOwn = msg.sender_id === authState.user.id;
+    return `
+      <div class="chats-message ${isOwn ? "chats-message--own" : ""}">
+        <div class="chats-message__content">${escapeHtml(msg.content)}</div>
+        <div class="chats-message__time">${formatDateTime(new Date(msg.created_at))}</div>
+      </div>
+    `;
+  }).join("");
+  
+  messages.scrollTop = messages.scrollHeight;
+  
+  // Оновлюємо sidebar з чатами та виділяємо поточний
+  if (authState.user) {
+    // Спочатку оновлюємо список чатів, щоб він містив поточний чат
+    loadChatsList().then(() => {
+      renderChatsSidebarList(chat);
+      loadUnreadCount();
+    }).catch(e => {
+      // Якщо не вдалося завантажити список, все одно показуємо чат
+      renderChatsSidebarList(chat);
+      loadUnreadCount();
+    });
+  }
+}
+
+function getUserInitial(user) {
+  if (user.first_name && user.last_name) {
+    return (user.first_name[0] + user.last_name[0]).toUpperCase();
+  }
+  return user.display_name ? user.display_name[0].toUpperCase() : "?";
+}
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Функції для перемикання між станами
+function showChatsListFull() {
+  const listFull = document.getElementById("chats-list-full");
+  const usersFull = document.getElementById("chats-users-full");
+  const layout = document.getElementById("chats-layout");
+  if (listFull) listFull.hidden = false;
+  if (usersFull) usersFull.hidden = true;
+  if (layout) layout.hidden = true;
+}
+
+function showUsersListFull() {
+  const listFull = document.getElementById("chats-list-full");
+  const usersFull = document.getElementById("chats-users-full");
+  const layout = document.getElementById("chats-layout");
+  if (listFull) listFull.hidden = true;
+  if (usersFull) usersFull.hidden = false;
+  if (layout) layout.hidden = true;
+}
+
+function showChatLayout() {
+  const listFull = document.getElementById("chats-list-full");
+  const usersFull = document.getElementById("chats-users-full");
+  const layout = document.getElementById("chats-layout");
+  if (listFull) listFull.hidden = true;
+  if (usersFull) usersFull.hidden = true;
+  if (layout) layout.hidden = false;
+}
+
+function renderChatsSidebarList(activeChat) {
+  const container = document.getElementById("chats-sidebar-list");
+  const empty = document.getElementById("chats-sidebar-empty");
+  if (!container) return;
+  
+  if (!Array.isArray(chatsList)) {
+    chatsList = [];
+  }
+  
+  if (chatsList.length === 0) {
+    container.innerHTML = "";
+    if (empty) empty.hidden = false;
+    return;
+  }
+  
+  if (empty) empty.hidden = true;
+  
+  container.innerHTML = chatsList.map(chat => {
+    const isActive = activeChat && chat.uuid === activeChat.uuid;
+    const lastMsg = chat.last_message ? (chat.last_message.content.length > 50 ? chat.last_message.content.substring(0, 50) + "..." : chat.last_message.content) : "Немає повідомлень";
+    const unreadBadge = chat.unread_count > 0 ? `<span class="chats-item__badge">${chat.unread_count > 99 ? "99+" : chat.unread_count}</span>` : "";
+    return `
+      <div class="chats-item ${isActive ? "chats-item--active" : ""}" data-chat-uuid="${chat.uuid}">
+        <div class="chats-item__avatar" data-user-id="${chat.other_user.id}">${getUserInitial(chat.other_user)}</div>
+        <div class="chats-item__content">
+          <div class="chats-item__header">
+            <span class="chats-item__name">${chat.other_user.display_name}</span>
+            ${unreadBadge}
+          </div>
+          <p class="chats-item__preview">${lastMsg}</p>
+        </div>
+      </div>
+    `;
+  }).join("");
+  
+  refreshIcons();
+  
+  // Застосовуємо стилі аватарок
+  container.querySelectorAll(".chats-item__avatar").forEach(avatarEl => {
+    const userId = Number(avatarEl.dataset.userId);
+    const chat = chatsList.find(c => c.other_user.id === userId);
+    if (chat && chat.other_user) {
+      applyAvatarStyle(avatarEl, chat.other_user);
+    }
+  });
+  
+  // Додаємо обробники кліків
+  container.querySelectorAll(".chats-item").forEach(item => {
+    item.addEventListener("click", async () => {
+      const uuid = item.dataset.chatUuid;
+      if (!uuid) {
+        console.error("Chat UUID not found");
+        return;
+      }
+      navigateTo(`/c/${uuid}`);
+    });
+  });
+}
+
+function initializeChats() {
+  const newChatBtn = document.getElementById("chats-new-chat-btn");
+  const backToListBtn = document.getElementById("chats-back-to-list-btn");
+  const backFromChatBtn = document.getElementById("chats-back-to-list-from-chat-btn");
+  const sendBtn = document.getElementById("chats-main-send-btn");
+  const input = document.getElementById("chats-main-input");
+  
+  // Кнопка "Новий чат" - показує список користувачів
+  if (newChatBtn) {
+    newChatBtn.addEventListener("click", () => {
+      if (!authState.user) {
+        pendingRouteAfterAuth = window.location.pathname;
+        navigateTo("/login", { replace: true });
+        return;
+      }
+      showUsersListFull();
+      loadUsersList();
+    });
+  }
+  
+  // Кнопка "Назад" зі списку користувачів - повертає до списку чатів
+  if (backToListBtn) {
+    backToListBtn.addEventListener("click", () => {
+      showChatsListFull();
+      loadChatsList();
+    });
+  }
+  
+  // Кнопка "Назад" з чату - повертає до списку чатів
+  if (backFromChatBtn) {
+    backFromChatBtn.addEventListener("click", () => {
+      navigateTo("/chats");
+    });
+  }
+  
+  if (sendBtn && input) {
+    const sendMessage = async () => {
+      if (!authState.user) {
+        pendingRouteAfterAuth = window.location.pathname;
+        navigateTo("/login", { replace: true });
+        return;
+      }
+      const text = input.value.trim();
+      if (!text || !currentChatUuid) return;
+      
+      try {
+        await apiFetch(`/chats/${currentChatUuid}/messages`, {
+          method: "POST",
+          body: JSON.stringify({ content: text }),
+        });
+        input.value = "";
+        // Оновлюємо поточний чат
+        loadChat(currentChatUuid);
+        // Оновлюємо список чатів, щоб новий чат з'явився в списку
+        loadChatsList();
+      } catch (e) {
+        // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch
+        // Не показуємо помилку користувачу, бо вже перенаправлено на login
+        if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+          return; // Просто виходимо, не показуємо помилку, не логуємо
+        }
+        console.error("Не вдалося відправити повідомлення:", e);
+        showNotification({
+          type: "error",
+          title: "Помилка",
+          message: "Не вдалося відправити повідомлення",
+          duration: 3000,
+        });
+      }
+    };
+    
+    sendBtn.addEventListener("click", sendMessage);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  }
+  
+  // НЕ викликаємо loadChatsList() тут, щоб уникнути API запитів для неавтентифікованих користувачів
+  // Ці функції будуть викликатися тільки в activateSection, коли сторінка активується
+}
+

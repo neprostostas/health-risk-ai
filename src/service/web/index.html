@@ -6,8 +6,34 @@
   <title>Health Risk AI</title>
   <link rel="shortcut icon" href="/app/static/images/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="/app/static/app.css" />
+  <!-- Automatic URL fragment removal -->
+  <script>
+    (function() {
+      // Function to remove URL fragment (hash) without reloading the page
+      function removeHash() {
+        if (window.location.hash && window.location.hash.length > 0) {
+          // Build clean URL without hash
+          const cleanUrl = window.location.pathname + window.location.search;
+          // Replace current URL without reloading the page
+          window.history.replaceState(null, '', cleanUrl);
+        }
+      }
+      
+      // Remove hash immediately on page load
+      // This prevents fragments from appearing in the URL bar
+      // Fragments are not sent to the server, so cleanup must happen client-side
+      removeHash();
+      
+      // Also remove hash if it appears during SPA navigation (hashchange event)
+      // This ensures hash is removed even if it's added programmatically
+      window.addEventListener('hashchange', function() {
+        removeHash();
+      });
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/navigo@8.11.1/lib/navigo.min.js" crossorigin="anonymous"></script>
 </head>
 <body class="theme-light preload">
   <div class="layout">
@@ -55,6 +81,11 @@
         <button type="button" class="nav-item" data-section="page-assistant" data-tooltip="Чат з асистентом" id="nav-assistant">
           <span class="icon" data-lucide="messages-square"></span>
           <span class="nav-item__text">AI Асистент</span>
+        </button>
+        <button type="button" class="nav-item" data-section="page-chats" data-tooltip="Чати" id="nav-chats" hidden>
+          <span class="icon" data-lucide="message-circle"></span>
+          <span class="nav-item__text">Чати</span>
+          <span class="nav-item__badge" id="nav-chats-badge" hidden>0</span>
         </button>
       </nav>
     </aside>
@@ -839,6 +870,87 @@
             <button type="submit" class="button auth-form__submit">Зареєструватися</button>
             <p class="auth-form__footer">Вже маєте обліковий запис? <button type="button" class="auth-form__link" id="to-login">Увійти</button></p>
           </form>
+        </div>
+      </section>
+
+      <section id="page-chats" class="page" aria-labelledby="page-title" hidden>
+        <div class="chats-page">
+          <!-- Стан 1: Список активних чатів на всю ширину -->
+          <div class="chats-list-full" id="chats-list-full">
+            <div class="chats-list-full__header">
+              <h2 class="chats-list-full__title">Чати</h2>
+              <button type="button" class="button button--ghost button--small button--icon-only" id="chats-new-chat-btn" aria-label="Новий чат" data-tooltip="Новий чат">
+                <span class="icon" data-lucide="plus"></span>
+              </button>
+            </div>
+            <div class="chats-list-full__content">
+              <div class="chats-list" id="chats-list">
+                <p class="chats-empty" id="chats-empty">Немає чатів. Створіть новий чат, щоб почати спілкування.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Стан 2: Список користувачів на всю ширину -->
+          <div class="chats-users-full" id="chats-users-full" hidden>
+            <div class="chats-users-full__header">
+              <button type="button" class="button button--ghost button--small" id="chats-back-to-list-btn" aria-label="Назад">
+                <span class="icon" data-lucide="arrow-left"></span>
+                <span>Назад</span>
+              </button>
+              <h2 class="chats-users-full__title">Виберіть користувача</h2>
+            </div>
+            <div class="chats-users-full__content">
+              <div class="chats-users-list" id="chats-users-list">
+                <p class="chats-empty" id="chats-users-empty">Завантаження користувачів...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Стан 3: Чат з sidebar -->
+          <div class="chats-layout" id="chats-layout" hidden>
+            <!-- Вузький sidebar з активними чатами -->
+            <aside class="chats-sidebar">
+              <div class="chats-sidebar__header">
+                <button type="button" class="button button--ghost button--small" id="chats-back-to-list-from-chat-btn" aria-label="Назад до списку">
+                  <span class="icon" data-lucide="arrow-left"></span>
+                </button>
+                <h2 class="chats-sidebar__title">Чати</h2>
+              </div>
+              <div class="chats-sidebar__content">
+                <div class="chats-list" id="chats-sidebar-list">
+                  <p class="chats-empty" id="chats-sidebar-empty">Немає чатів</p>
+                </div>
+              </div>
+            </aside>
+            <!-- Область чату -->
+            <main class="chats-main">
+              <div class="chats-main__empty" id="chats-main-empty">
+                <div class="chats-main__empty-icon">
+                  <span class="icon" data-lucide="message-circle"></span>
+                </div>
+                <h3>Оберіть чат</h3>
+                <p>Виберіть існуючий чат або створіть новий, щоб почати спілкування.</p>
+              </div>
+              <div class="chats-main__content" id="chats-main-content" hidden>
+                <div class="chats-main__header">
+                  <div class="chats-main__header-info">
+                    <div class="chats-main__avatar" id="chats-main-avatar">?</div>
+                    <div>
+                      <h3 class="chats-main__header-name" id="chats-main-name">Користувач</h3>
+                      <p class="chats-main__header-status" id="chats-main-status">Онлайн</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="chats-main__messages" id="chats-main-messages"></div>
+                <div class="chats-main__composer">
+                  <input type="text" id="chats-main-input" class="chats-main__input" placeholder="Напишіть повідомлення..." />
+                  <button type="button" class="button chats-main__send" id="chats-main-send-btn" aria-label="Надіслати">
+                    <span class="icon" data-lucide="send"></span>
+                  </button>
+                </div>
+              </div>
+            </main>
+          </div>
         </div>
       </section>
     </main>

@@ -219,3 +219,65 @@ class PredictionHistoryStats(BaseModel):
     by_target_and_risk: dict = Field(..., description="Кількість прогнозів по комбінації ціль-ризик")
     time_series: List[dict] = Field(..., description="Часова серія прогнозів з датами та ймовірностями")
 
+
+# ========== Chat schemas ==========
+
+class UserListItem(BaseModel):
+    """Користувач у списку для вибору чату."""
+    
+    id: int
+    email: str
+    display_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    avatar_type: str = "generated"
+    avatar_color: Optional[str] = None
+
+
+class ChatListItem(BaseModel):
+    """Чат у списку чатів користувача."""
+    
+    id: int
+    uuid: str
+    other_user: UserListItem
+    last_message: Optional["ChatMessageItem"] = None
+    unread_count: int = 0
+    updated_at: datetime
+
+
+class ChatMessageItem(BaseModel):
+    """Повідомлення в чаті."""
+    
+    id: int
+    sender_id: int
+    content: str
+    created_at: datetime
+    read_at: Optional[datetime] = None
+
+
+class ChatDetailResponse(BaseModel):
+    """Детальна інформація про чат з повідомленнями."""
+    
+    id: int
+    uuid: str
+    other_user: UserListItem
+    messages: List[ChatMessageItem]
+    unread_count: int = 0
+
+
+class SendMessageRequest(BaseModel):
+    """Запит на відправку повідомлення."""
+    
+    content: str = Field(..., min_length=1, max_length=5000, description="Текст повідомлення")
+
+
+class CreateChatRequest(BaseModel):
+    """Запит на створення чату з користувачем."""
+    
+    user_id: int = Field(..., description="ID користувача, з яким створити чат")
+
+
+ChatListItem.model_rebuild()
+ChatDetailResponse.model_rebuild()
+

@@ -7,9 +7,12 @@ from pathlib import Path
 from typing import AsyncGenerator, Optional
 
 import pandas as pd
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
+from starlette.requests import Request as StarletteRequest
 from fastapi.staticfiles import StaticFiles
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import train_test_split
@@ -21,6 +24,7 @@ from src.service.models import User
 from src.service.routes_auth import router as auth_router
 from src.service.routes_auth import save_history_entry, users_router
 from src.service.routers.assistant import router as assistant_router
+from src.service.routers.chats import router as chats_router
 
 from src.service.model_registry import (
     get_feature_schema,
@@ -55,9 +59,158 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# HTML routes must be defined BEFORE API routers to take precedence
+# This ensures /chats serves HTML page, not API endpoint
+@app.get("/chats")
+async def serve_chats_page(request: Request, current_user: Optional[User] = Depends(get_current_user)):
+    """
+    Обробляє запити до /chats.
+    Якщо це API-запит (має Authorization заголовок), дозволяємо API-роуту обробити.
+    Якщо це HTML-запит і користувач не автентифікований, перенаправляє на /login.
+    """
+    # Перевіряємо, чи це API-запит (має Authorization заголовок)
+    auth_header = request.headers.get("authorization", "")
+    
+    if auth_header:
+        # Це API-запит, дозволяємо API-роуту обробити
+        # Використовуємо require_current_user через dependency injection
+        from src.service.routers.chats import list_chats
+        from src.service.auth_utils import require_current_user
+        from src.service.db import get_session
+        
+        # Отримуємо токен з заголовка
+        token = auth_header.replace("Bearer ", "").strip() if auth_header.startswith("Bearer ") else auth_header
+        
+        # Використовуємо логіку з get_current_user для отримання користувача
+        from src.service.auth_utils import decode_token
+        from src.service.models import User
+        from sqlmodel import select
+        
+        try:
+            token_data = decode_token(token)
+            session_gen = get_session()
+            session = next(session_gen)
+            try:
+                statement = select(User).where(User.email == token_data.sub, User.is_active.is_(True))
+                authenticated_user = session.exec(statement).first()
+                if not authenticated_user:
+                    raise HTTPException(status_code=401, detail="Потрібно увійти до системи.")
+                
+                result = await list_chats(current_user=authenticated_user, session=session)
+                return result
+            finally:
+                session.close()
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"❌ [serve_chats_page] Error processing API request: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=401, detail="Потрібно увійти до системи.") from e
+    
+    # Це HTML-запит
+    # Перевіряємо автентифікацію для HTML-запитів
+    if not current_user:
+        print(f"🔄 Перенаправлення неавтентифікованого користувача з /chats на /login")
+        return RedirectResponse(url="/login", status_code=302)
+    
+    print("🖥️ Видача сторінки /chats")
+    return serve_frontend()
+
+# Route for /c/:uuid chat URLs (SPA handles routing client-side)
+@app.get("/c/{chat_uuid:path}", response_class=HTMLResponse)
+async def serve_chat_page(
+    chat_uuid: str,
+    current_user: Optional[User] = Depends(get_current_user),
+):
+    """
+    Повертає сторінку конкретного чату (SPA обробить роутинг та автентифікацію).
+    Для неавтентифікованих користувачів перенаправляє на /login.
+    """
+    # Якщо користувач не автентифікований, перенаправляємо на /login
+    if not current_user:
+        print(f"🔄 Перенаправлення неавтентифікованого користувача з /c/{chat_uuid} на /login")
+        return RedirectResponse(url="/login", status_code=302)
+    
+    print(f"🖥️ Видача сторінки /c/{chat_uuid}")
+    return serve_frontend()
+
+# Now include API routers (these will handle /chats API endpoints with proper prefixes)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(assistant_router)
+app.include_router(chats_router)
+
+# Allowlist of valid routes that should NOT be redirected to /login
+# This list is built from actual routes defined in this project
+ALLOWLISTED_ROUTES = {
+    "/",  # Root - handled separately with auth check
+    "/app",
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+    "/profile",
+    "/history",
+    "/api-status",
+    "/diagrams",
+    "/assistant",
+    "/form",
+    "/chats",
+}
+
+# Routes that start with these prefixes are also allowlisted
+ALLOWLISTED_PREFIXES = (
+    "/c/",  # Chat UUID routes - handled separately with auth check
+    "/auth/",
+    "/users/",
+    "/chats/",  # API endpoints
+    "/assistant/",  # API endpoints
+    "/static/",
+    "/app/static/",
+)
+
+# Middleware для нормалізації URL (видалення подвійних слешів) та редіректу
+class PathNormalizationMiddleware(BaseHTTPMiddleware):
+    """
+    Нормалізує URL шляхи, видаляючи подвійні та множинні слеші.
+    Якщо нормалізований path відрізняється від оригінального, редіректить на нормалізований URL.
+    """
+    
+    async def dispatch(self, request: StarletteRequest, call_next: ASGIApp):
+        # Отримуємо оригінальний path
+        original_path = request.url.path
+        original_query = request.url.query
+        
+        # Нормалізуємо path: видаляємо подвійні та множинні слеші
+        import re
+        normalized_path = re.sub(r"/+", "/", original_path)
+        
+        # Видаляємо trailing slash, якщо це не просто "/"
+        if normalized_path != "/" and normalized_path.endswith("/"):
+            normalized_path = normalized_path.rstrip("/")
+        
+        # Якщо path не починається з "/", додаємо
+        if not normalized_path.startswith("/"):
+            normalized_path = f"/{normalized_path}"
+        
+        # Якщо path змінився, редіректимо на нормалізований URL
+        if normalized_path != original_path:
+            # Будуємо новий URL з нормалізованим path та оригінальним query string
+            new_url = normalized_path
+            if original_query:
+                new_url = f"{normalized_path}?{original_query}"
+            
+            print(f"🔄 [Middleware] Redirecting: '{original_path}' → '{normalized_path}'")
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=new_url, status_code=301)  # 301 Permanent Redirect
+        
+        # Якщо path не змінився, продовжуємо обробку
+        response = await call_next(request)
+        return response
+
+# Додаємо middleware для нормалізації path (перед CORS)
+app.add_middleware(PathNormalizationMiddleware)
 
 # Увімкнення CORS для локального доступу
 app.add_middleware(
@@ -93,7 +246,23 @@ async def serve_app():
 
 
 @app.get("/", response_class=HTMLResponse)
-async def serve_root():
+async def serve_root(
+    current_user: Optional[User] = Depends(get_current_user),
+):
+    """
+    Обробляє кореневий шлях "/".
+    Для неавтентифікованих користувачів перенаправляє на /login.
+    Для автентифікованих повертає головну сторінку.
+    
+    Примітка: URL з фрагментами (наприклад, http://127.0.0.1:8000//#$^^:::,kdd./login)
+    не відправляють фрагмент на сервер, тому браузер відправить тільки "/" або "//" (після нормалізації "/").
+    Це правильно обробляється як кореневий шлях.
+    """
+    # Якщо користувач не автентифікований, перенаправляємо на /login
+    if not current_user:
+        print("🔄 Перенаправлення неавтентифікованого користувача з / на /login")
+        return RedirectResponse(url="/login", status_code=302)
+    
     print("🖥️ Видача веб-інтерфейсу /")
     return serve_frontend()
 
@@ -583,6 +752,87 @@ async def get_latest_health_risk(
         "top_factors": top_factors,
         "created_at": last.created_at.isoformat(),
     }
+
+
+# Helper function to check if a path is in the allowlist
+def is_path_allowlisted(path: str) -> bool:
+    """
+    Перевіряє, чи path знаходиться в allowlist.
+    Повертає True, якщо path дозволений, False - якщо потрібно редіректити на /login.
+    """
+    # Перевіряємо точний збіг
+    if path in ALLOWLISTED_ROUTES:
+        return True
+    
+    # Перевіряємо префікси
+    for prefix in ALLOWLISTED_PREFIXES:
+        if path.startswith(prefix):
+            return True
+    
+    # Перевіряємо статичні файли за розширенням
+    static_extensions = (".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".eot")
+    if path.lower().endswith(static_extensions):
+        return True
+    
+    return False
+
+@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def catch_all_route(
+    path: str,
+    request: Request,
+    current_user: Optional[User] = Depends(get_current_user),
+):
+    """
+    Глобальний catch-all route для всіх невідомих маршрутів та всіх HTTP методів.
+    
+    Обробляє:
+    - Невідомі шляхи (наприклад, /abc, /random/path)
+    - Шляхи, які після нормалізації стають невідомими
+    - URL з фрагментами (браузер не відправляє фрагмент на сервер)
+    
+    Логіка:
+    1. Path вже нормалізований middleware (подвійні слеші видалені)
+    2. Перевіряємо allowlist
+    3. Якщо НЕ в allowlist → редірект на /login для неавтентифікованих
+    4. Якщо в allowlist → це помилка (роут мав би бути оброблений раніше)
+    """
+    # Отримуємо нормалізований path з request (після middleware)
+    normalized_path = request.url.path
+    
+    # Додаткова нормалізація на випадок, якщо middleware не спрацював
+    import re
+    normalized_path = re.sub(r"/+", "/", normalized_path)
+    # Видаляємо trailing slash, якщо це не просто "/"
+    if normalized_path != "/" and normalized_path.endswith("/"):
+        normalized_path = normalized_path.rstrip("/")
+    
+    # Якщо path не починається з "/", додаємо
+    if not normalized_path.startswith("/"):
+        normalized_path = f"/{normalized_path}"
+    
+    # Логуємо для діагностики
+    print(f"🔍 [Catch-all] Path: '{normalized_path}' | Method: {request.method} | Authenticated: {current_user is not None}")
+    
+    # Перевіряємо allowlist
+    if is_path_allowlisted(normalized_path):
+        # Якщо path в allowlist, але дійшов до catch-all - це помилка
+        # (роут мав би бути оброблений раніше)
+        print(f"⚠️ [Catch-all] Path '{normalized_path}' is in allowlist but reached catch-all - returning 404")
+        raise HTTPException(status_code=404, detail="Маршрут не знайдено")
+    
+    # Path НЕ в allowlist - редіректимо на /login для неавтентифікованих
+    # Для автентифікованих (GET) повертаємо HTML (SPA обробить)
+    if request.method == "GET":
+        if not current_user:
+            print(f"🔄 [Catch-all] Redirecting unauthenticated user from '{normalized_path}' to /login")
+            return RedirectResponse(url="/login", status_code=302)
+        
+        # Для автентифікованих користувачів повертаємо HTML (SPA обробить роутинг)
+        print(f"🖥️ [Catch-all] Serving HTML for authenticated user at '{normalized_path}'")
+        return serve_frontend()
+    
+    # Для не-GET методів повертаємо 404
+    raise HTTPException(status_code=404, detail="Маршрут не знайдено")
 
 
 if __name__ == "__main__":

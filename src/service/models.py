@@ -2,6 +2,7 @@
 ORM моделі для користувачів та історії прогнозів.
 """
 
+import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -101,5 +102,49 @@ class AssistantMessage(SQLModel, table=True):
     )
 
 AssistantMessage.model_rebuild()
+
+
+class Chat(SQLModel, table=True):
+    """Чат між двома користувачами."""
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    uuid: str = Field(
+        unique=True,
+        index=True,
+        nullable=False,
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Унікальний ідентифікатор чату для URL"
+    )
+    user1_id: int = Field(foreign_key="user.id", index=True, nullable=False, description="ID першого учасника")
+    user2_id: int = Field(foreign_key="user.id", index=True, nullable=False, description="ID другого учасника")
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    
+    # Relationships для user1 та user2 не визначені тут, оскільки SQLModel не підтримує
+    # foreign_keys в Relationship() для кількох foreign keys до однієї таблиці.
+    # Завантаження користувачів виконується через selectinload в репозиторіях.
+    messages: list["ChatMessage"] = Relationship(back_populates="chat")
+    
+    def touch(self) -> None:
+        """Оновлює поле updated_at."""
+        self.updated_at = datetime.utcnow()
+
+
+class ChatMessage(SQLModel, table=True):
+    """Повідомлення в чаті між користувачами."""
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="chat.id", index=True, nullable=False)
+    sender_id: int = Field(foreign_key="user.id", index=True, nullable=False, description="ID відправника")
+    content: str = Field(sa_column=SAColumn(Text, nullable=False), description="Текст повідомлення")
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    read_at: Optional[datetime] = Field(default=None, description="Час прочитання повідомлення")
+    
+    chat: Optional[Chat] = Relationship(back_populates="messages")
+    sender: Optional["User"] = Relationship()
+
+
+Chat.model_rebuild()
+ChatMessage.model_rebuild()
 
 
