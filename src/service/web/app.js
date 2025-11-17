@@ -2000,6 +2000,9 @@ function clearAuthState() {
   updateProfileSection();
   renderHistoryTable();
   updateNavigationVisibility();
+  // Очищаємо збережений останній відкритий чат при вилогіненні
+  lastOpenedChatUuid = null;
+  currentChatUuid = null;
 }
 
 function handleUnauthorized() {
@@ -4971,16 +4974,23 @@ function activateSection(sectionId) {
         });
       }
     } else {
-      // На сторінці /chats (без конкретного чату) показуємо список активних чатів
-      showChatsListFull();
-      if (typeof loadChatsList === "function") {
-        loadChatsList().catch((e) => {
-          // Якщо помилка автентифікації, просто ігноруємо - handleUnauthorized вже викликано
-          if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
-            return; // Не показуємо помилку, не логуємо, не перенаправляємо (вже зроблено)
-          }
-          console.error("Не вдалося завантажити список чатів:", e);
-        });
+      // На сторінці /chats (без конкретного чату)
+      // Перевіряємо, чи є збережений останній відкритий чат
+      if (lastOpenedChatUuid && typeof loadChat === "function") {
+        // Відкриваємо останній відкритий чат
+        navigateTo(`/c/${lastOpenedChatUuid}`, { replace: true });
+      } else {
+        // Показуємо список активних чатів
+        showChatsListFull();
+        if (typeof loadChatsList === "function") {
+          loadChatsList().catch((e) => {
+            // Якщо помилка автентифікації, просто ігноруємо - handleUnauthorized вже викликано
+            if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+              return; // Не показуємо помилку, не логуємо, не перенаправляємо (вже зроблено)
+            }
+            console.error("Не вдалося завантажити список чатів:", e);
+          });
+        }
       }
     }
     if (authState.user && typeof loadUnreadCount === "function") {
@@ -6892,6 +6902,7 @@ function initializeSidebarToggle() {
 
 // ========== Chats functionality ==========
 let currentChatUuid = null;
+let lastOpenedChatUuid = null; // Зберігаємо останній відкритий чат до вилогінення
 let chatsList = [];
 let usersList = [];
 let unreadCount = 0;
@@ -7204,6 +7215,8 @@ async function loadChat(uuid) {
       return;
     }
     currentChatUuid = uuid;
+    // Зберігаємо останній відкритий чат
+    lastOpenedChatUuid = uuid;
     renderChat(chat);
   } catch (e) {
     // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch
@@ -7397,7 +7410,10 @@ function initializeChats() {
   // Кнопка "Назад" з чату - повертає до списку чатів
   if (backFromChatBtn) {
     backFromChatBtn.addEventListener("click", () => {
-      navigateTo("/chats");
+      // Очищаємо збережений останній відкритий чат, щоб при наступному кліку на "Чати" показувався список
+      lastOpenedChatUuid = null;
+      // Переходимо на /chats і показуємо список активних чатів
+      navigateTo("/chats", { replace: true });
     });
   }
   
