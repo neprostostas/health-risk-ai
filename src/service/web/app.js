@@ -2761,6 +2761,23 @@ async function initializeAuth() {
   updateNavigationVisibility();
   renderHistoryTable();
   
+  // Завантажуємо кількість непрочитаних повідомлень після ініціалізації автентифікації
+  // Це забезпечує відображення бейджа навіть після перезавантаження сторінки
+  // Викликаємо після authState.initialized = true, щоб loadUnreadCount() не вийшов рано
+  // Також викликаємо після updateNavigationVisibility(), щоб кнопка nav-chats була видима
+  if (authState.user && typeof loadUnreadCount === "function") {
+    // Невелика затримка, щоб переконатися, що DOM готовий і updateNavigationVisibility() вже виконався
+    setTimeout(() => {
+      loadUnreadCount().catch((e) => {
+        // Ігноруємо помилки для unread count, це не критично
+        if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+          return; // Не показуємо помилку, не логуємо
+        }
+        console.error("Не вдалося завантажити кількість непрочитаних:", e);
+      });
+    }, 100);
+  }
+  
   // Синхронізуємо маршрут після завершення автентифікації
   // IMPORTANT: If user is authenticated and on a valid protected route (like /chats),
   // we should stay on that route, not redirect to /app
@@ -6869,15 +6886,19 @@ async function loadUnreadCount() {
   // Перевіряємо автентифікацію перед виконанням запиту
   if (!authState.initialized) {
     // Чекаємо, поки автентифікація ініціалізується
+    console.log("⏳ [loadUnreadCount] Auth not initialized yet, waiting...");
     return;
   }
   if (!authState.user) {
     // Якщо користувач не автентифікований, не робимо запит (це не критично)
+    console.log("⏭️ [loadUnreadCount] User not authenticated, skipping");
     return;
   }
   try {
+    console.log("📥 [loadUnreadCount] Loading unread count...");
     const res = await apiFetch("/api/chats/unread-count");
     unreadCount = res.count || 0;
+    console.log(`✅ [loadUnreadCount] Loaded unread count: ${unreadCount}`);
     updateChatsBadge();
   } catch (e) {
     // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch
@@ -6885,18 +6906,26 @@ async function loadUnreadCount() {
     if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
       return; // Просто виходимо, не показуємо помилку, не логуємо
     }
-    console.error("Не вдалося завантажити кількість непрочитаних:", e);
+    console.error("❌ [loadUnreadCount] Failed to load unread count:", e);
   }
 }
 
 function updateChatsBadge() {
   const badge = document.getElementById("nav-chats-badge");
-  if (!badge) return;
+  if (!badge) {
+    // Якщо елемент ще не завантажений, спробуємо через невелику затримку
+    console.log("⏳ [updateChatsBadge] Badge element not found, retrying in 100ms...");
+    setTimeout(() => updateChatsBadge(), 100);
+    return;
+  }
+  console.log(`🔄 [updateChatsBadge] Updating badge with count: ${unreadCount}`);
   if (unreadCount > 0) {
     badge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
     badge.hidden = false;
+    console.log(`✅ [updateChatsBadge] Badge shown with count: ${badge.textContent}`);
   } else {
     badge.hidden = true;
+    console.log("✅ [updateChatsBadge] Badge hidden (no unread messages)");
   }
 }
 

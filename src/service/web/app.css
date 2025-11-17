@@ -3748,7 +3748,7 @@ select:focus {
 
 .chats-item__header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
@@ -3781,6 +3781,7 @@ select:focus {
 }
 
 .chats-main {
+  height: calc(100vh - 180px);
   background: var(--card-bg);
   border-radius: 16px;
   padding: 20px;
@@ -3950,7 +3951,12 @@ select:focus {
 }
 
 .chats-main__send {
+  box-shadow: none;
   padding: 12px 20px;
+}
+
+.chats-main__send:hover {
+  box-shadow: none;
 }
 
 @media (max-width: 768px) {
