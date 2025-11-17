@@ -81,20 +81,20 @@ async def serve_chats_page():
 
 # Route for /c/:uuid chat URLs (SPA handles routing client-side)
 @app.get("/c/{chat_uuid:path}", response_class=HTMLResponse)
-async def serve_chat_page(
-    chat_uuid: str,
-    current_user: Optional[User] = Depends(get_current_user),
-):
+async def serve_chat_page(chat_uuid: str):
     """
-    Повертає сторінку конкретного чату (SPA обробить роутинг та автентифікацію).
-    Для неавтентифікованих користувачів перенаправляє на /login.
-    """
-    # Якщо користувач не автентифікований, перенаправляємо на /login
-    if not current_user:
-        print(f"🔄 Перенаправлення неавтентифікованого користувача з /c/{chat_uuid} на /login")
-        return RedirectResponse(url="/login", status_code=302)
+    HTML route for /c/{chat_uuid} - serves SPA page for specific chat.
     
-    print(f"🖥️ Видача сторінки /c/{chat_uuid}")
+    IMPORTANT: This route does NOT enforce authentication on the backend.
+    - HTML requests don't include Authorization header (token is in localStorage)
+    - Frontend will handle auth checks and redirects via initializeAuth/showSectionForPath
+    - Backend auth is enforced only on /api/chats* endpoints which require Authorization header
+    
+    This allows authenticated users to reload /c/{uuid} and stay on that chat,
+    while unauthenticated users will be redirected to /login by the frontend.
+    """
+    # Always return SPA HTML - let frontend handle authentication and routing
+    print(f"🖥️ Видача сторінки /c/{chat_uuid} (HTML SPA)")
     return serve_frontend()
 
 # Now include API routers (these will handle /chats API endpoints with proper prefixes)
