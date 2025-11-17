@@ -1928,12 +1928,16 @@ function showSectionForPath(pathname) {
       handleUnauthorized();
       return "/login";
     }
-    // Для неіснуючих роутів перенаправляємо на /app
-    const appPath = showSectionForPath("/app");
-    if (window.location.pathname !== appPath) {
-      history.replaceState({}, "", appPath);
+    // Для неіснуючих роутів перенаправляємо на /app (only if user is authenticated)
+    // If user is not authenticated, they should already be redirected to /login above
+    if (authState.user && authState.initialized) {
+      const appPath = showSectionForPath("/app");
+      if (window.location.pathname !== appPath) {
+        history.replaceState({}, "", appPath);
+      }
+      return appPath;
     }
-    return appPath;
+    return path; // Don't redirect if auth not initialized yet
   }
   
   // АКТИВУЄМО СТОРІНКУ ТІЛЬКИ ЯКЩО КОРИСТУВАЧ АВТЕНТИФІКОВАНИЙ АБО ЦЕ НЕ ЗАХИЩЕНА СТОРІНКА
@@ -2758,8 +2762,23 @@ async function initializeAuth() {
   renderHistoryTable();
   
   // Синхронізуємо маршрут після завершення автентифікації
-  // Це гарантує, що сторінка правильно завантажиться при оновленні
-  syncRouteFromLocation();
+  // IMPORTANT: If user is authenticated and on a valid protected route (like /chats),
+  // we should stay on that route, not redirect to /app
+  // Only redirect to /app if we're on /login, /register, or root /
+  const currentPath = window.location.pathname;
+  const validProtectedRoutes = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant"];
+  const isOnValidProtectedRoute = validProtectedRoutes.some(route => currentPath.startsWith(route));
+  
+  if (authState.user && isOnValidProtectedRoute) {
+    // User is authenticated and on a valid protected route - stay there
+    syncRouteFromLocation();
+  } else if (authState.user && (currentPath === "/login" || currentPath === "/register" || currentPath === "/")) {
+    // User is authenticated but on login/register/root - redirect to /app
+    navigateTo("/app", { replace: true });
+  } else {
+    // Default: sync route (handles unauthenticated users and other cases)
+    syncRouteFromLocation();
+  }
 }
 
 // Функція toggleUserMenu видалена - більше не потрібна
@@ -6857,7 +6876,7 @@ async function loadUnreadCount() {
     return;
   }
   try {
-    const res = await apiFetch("/chats/unread-count");
+    const res = await apiFetch("/api/chats/unread-count");
     unreadCount = res.count || 0;
     updateChatsBadge();
   } catch (e) {
@@ -6893,7 +6912,7 @@ async function loadChatsList() {
     return;
   }
   try {
-    const result = await apiFetch("/chats");
+    const result = await apiFetch("/api/chats");
     // Перевіряємо, чи результат є масивом
     chatsList = Array.isArray(result) ? result : [];
     renderChatsList();
@@ -6922,7 +6941,7 @@ async function loadUsersList() {
     return;
   }
   try {
-    usersList = await apiFetch("/chats/users");
+    usersList = await apiFetch("/api/chats/users");
     renderUsersList();
   } catch (e) {
     // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch
@@ -7041,7 +7060,7 @@ function renderUsersList() {
       const userId = Number(item.dataset.userId);
       try {
         // Створюємо або отримуємо чат з користувачем
-        const chat = await apiFetch("/chats", {
+        const chat = await apiFetch("/api/chats", {
           method: "POST",
           body: JSON.stringify({ user_id: userId }),
         });
@@ -7077,7 +7096,7 @@ async function loadChat(uuid) {
     return;
   }
   try {
-    const chat = await apiFetch(`/chats/${uuid}`);
+    const chat = await apiFetch(`/api/chats/${uuid}`);
     if (!chat || !chat.uuid) {
       console.error("Invalid chat data received");
       showNotification({
@@ -7297,7 +7316,7 @@ function initializeChats() {
       if (!text || !currentChatUuid) return;
       
       try {
-        await apiFetch(`/chats/${currentChatUuid}/messages`, {
+        await apiFetch(`/api/chats/${currentChatUuid}/messages`, {
           method: "POST",
           body: JSON.stringify({ content: text }),
         });

@@ -31,6 +31,8 @@ from ..schemas import (
     UserListItem,
 )
 
+# Chat API router - will be mounted at /api/chats in main app
+# Routes defined here will be accessible at /api/chats/* (e.g., /api/chats, /api/chats/unread-count)
 router = APIRouter(prefix="/chats", tags=["chats"])
 
 

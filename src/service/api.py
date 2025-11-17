@@ -61,60 +61,22 @@ app = FastAPI(
 
 # HTML routes must be defined BEFORE API routers to take precedence
 # This ensures /chats serves HTML page, not API endpoint
-@app.get("/chats")
-async def serve_chats_page(request: Request, current_user: Optional[User] = Depends(get_current_user)):
+@app.get("/chats", response_class=HTMLResponse)
+async def serve_chats_page():
     """
-    Обробляє запити до /chats.
-    Якщо це API-запит (має Authorization заголовок), дозволяємо API-роуту обробити.
-    Якщо це HTML-запит і користувач не автентифікований, перенаправляє на /login.
+    HTML route for /chats - serves SPA page only.
+    Does NOT handle JSON/API requests - those are under /api/chats.
+    
+    IMPORTANT: This route does NOT enforce authentication on the backend.
+    - HTML requests don't include Authorization header (token is in localStorage)
+    - Frontend will handle auth checks and redirects via initializeAuth/showSectionForPath
+    - Backend auth is enforced only on /api/chats* endpoints which require Authorization header
+    
+    This allows authenticated users to reload /chats and stay on /chats,
+    while unauthenticated users will be redirected to /login by the frontend.
     """
-    # Перевіряємо, чи це API-запит (має Authorization заголовок)
-    auth_header = request.headers.get("authorization", "")
-    
-    if auth_header:
-        # Це API-запит, дозволяємо API-роуту обробити
-        # Використовуємо require_current_user через dependency injection
-        from src.service.routers.chats import list_chats
-        from src.service.auth_utils import require_current_user
-        from src.service.db import get_session
-        
-        # Отримуємо токен з заголовка
-        token = auth_header.replace("Bearer ", "").strip() if auth_header.startswith("Bearer ") else auth_header
-        
-        # Використовуємо логіку з get_current_user для отримання користувача
-        from src.service.auth_utils import decode_token
-        from src.service.models import User
-        from sqlmodel import select
-        
-        try:
-            token_data = decode_token(token)
-            session_gen = get_session()
-            session = next(session_gen)
-            try:
-                statement = select(User).where(User.email == token_data.sub, User.is_active.is_(True))
-                authenticated_user = session.exec(statement).first()
-                if not authenticated_user:
-                    raise HTTPException(status_code=401, detail="Потрібно увійти до системи.")
-                
-                result = await list_chats(current_user=authenticated_user, session=session)
-                return result
-            finally:
-                session.close()
-        except HTTPException:
-            raise
-        except Exception as e:
-            print(f"❌ [serve_chats_page] Error processing API request: {e}")
-            import traceback
-            traceback.print_exc()
-            raise HTTPException(status_code=401, detail="Потрібно увійти до системи.") from e
-    
-    # Це HTML-запит
-    # Перевіряємо автентифікацію для HTML-запитів
-    if not current_user:
-        print(f"🔄 Перенаправлення неавтентифікованого користувача з /chats на /login")
-        return RedirectResponse(url="/login", status_code=302)
-    
-    print("🖥️ Видача сторінки /chats")
+    # Always return SPA HTML - let frontend handle authentication and routing
+    print("🖥️ Видача сторінки /chats (HTML SPA)")
     return serve_frontend()
 
 # Route for /c/:uuid chat URLs (SPA handles routing client-side)
@@ -139,7 +101,9 @@ async def serve_chat_page(
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(assistant_router)
-app.include_router(chats_router)
+# Mount chats API router under /api prefix
+# This ensures clean separation: /chats = HTML, /api/chats = JSON API
+app.include_router(chats_router, prefix="/api")
 
 # Allowlist of valid routes that should NOT be redirected to /login
 # This list is built from actual routes defined in this project
