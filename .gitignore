@@ -19,12 +19,14 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual Environment
 venv/
 env/
 ENV/
 .venv
+.venv*/
 
 # IDE
 .vscode/
@@ -32,17 +34,36 @@ ENV/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
 
 # macOS
 .DS_Store
 .AppleDouble
 .LSOverride
+._*
 
-# Artifacts
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Artifacts (моделі та результати навчання)
 artifacts/
 *.pkl
 *.joblib
 *.model
+*.h5
+*.ckpt
+
+# Datasets (великі файли даних)
+datasets/raw/
+datasets/processed/
+# Великі CSV файли (але дозволяємо невеликі конфігураційні)
+*.csv
+!**/small_*.csv
+!**/config_*.csv
 
 # Certificates and keys
 certs/
@@ -54,14 +75,47 @@ certs/
 data/app.db
 data/*.db
 data/avatars/*
+!data/avatars/.gitkeep
 
 # Jupyter Notebook
 .ipynb_checkpoints
+*.ipynb
 
 # Environment variables
 .env
 .env.local
+.env.*.local
 
 # Logs
 *.log
+logs/
 
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# pytest
+.pytest_cache/
+.tox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Node modules (якщо використовується)
+node_modules/
+package-lock.json
+yarn.lock

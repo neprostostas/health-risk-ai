@@ -54,7 +54,6 @@ def load_champion(target: str, prefer_calibrated: bool = True) -> Tuple[Pipeline
     # Перевірка кешу
     cache_key = f"{target}_{prefer_calibrated}"
     if cache_key in _MODEL_CACHE:
-        print(f"✅ Використано кешовану модель для {target}")
         return _MODEL_CACHE[cache_key]
     
     # Завантаження метаданих
@@ -80,12 +79,10 @@ def load_champion(target: str, prefer_calibrated: bool = True) -> Tuple[Pipeline
     if prefer_calibrated:
         calibrated_path = MODELS_DIR / target / "champion_calibrated.joblib"
         if calibrated_path.exists():
-            print(f"🔄 Завантаження каліброваної моделі для {target}...")
             pipeline = joblib.load(calibrated_path)
             metadata["is_calibrated"] = True
             metadata["model_path"] = str(calibrated_path)
             _MODEL_CACHE[cache_key] = (pipeline, metadata)
-            print(f"✅ Калібрована модель завантажена для {target}")
             return pipeline, metadata
     
     # Fallback до звичайної моделі
@@ -93,12 +90,10 @@ def load_champion(target: str, prefer_calibrated: bool = True) -> Tuple[Pipeline
     if not model_path.exists():
         raise FileNotFoundError(f"Модель чемпіона не знайдено: {model_path}")
     
-    print(f"🔄 Завантаження моделі для {target}...")
     pipeline = joblib.load(model_path)
     metadata["is_calibrated"] = False
     metadata["model_path"] = str(model_path)
     _MODEL_CACHE[cache_key] = (pipeline, metadata)
-    print(f"✅ Модель завантажена для {target}")
     
     return pipeline, metadata
 
@@ -130,7 +125,6 @@ def load_model(target: str, model_key: str) -> Tuple[Pipeline, Dict]:
     cache_key = f"{target}_{model_folder}"
 
     if cache_key in _SPECIFIC_MODEL_CACHE:
-        print(f"✅ Використано кешовану модель {model_folder} для {target}")
         return _SPECIFIC_MODEL_CACHE[cache_key]
 
     model_dir = MODELS_DIR / target / model_folder
@@ -139,7 +133,6 @@ def load_model(target: str, model_key: str) -> Tuple[Pipeline, Dict]:
     if not model_path.exists():
         raise FileNotFoundError(f"Модель {model_folder} не знайдено за шляхом: {model_path}")
 
-    print(f"🔄 Завантаження моделі {model_folder} для {target}...")
     pipeline = joblib.load(model_path)
 
     metadata = {
@@ -152,7 +145,6 @@ def load_model(target: str, model_key: str) -> Tuple[Pipeline, Dict]:
     }
 
     _SPECIFIC_MODEL_CACHE[cache_key] = (pipeline, metadata)
-    print(f"✅ Модель {model_folder} завантажена для {target}")
 
     return pipeline, metadata
 

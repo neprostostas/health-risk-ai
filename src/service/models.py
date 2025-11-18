@@ -119,6 +119,8 @@ class Chat(SQLModel, table=True):
     user2_id: int = Field(foreign_key="user.id", index=True, nullable=False, description="ID другого учасника")
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    is_pinned: bool = Field(default=False, nullable=False, description="Чи закріплений чат")
+    order: int = Field(default=0, nullable=False, description="Порядок відображення чату (для drag and drop)")
     
     # Relationships для user1 та user2 не визначені тут, оскільки SQLModel не підтримує
     # foreign_keys в Relationship() для кількох foreign keys до однієї таблиці.
@@ -146,5 +148,27 @@ class ChatMessage(SQLModel, table=True):
 
 Chat.model_rebuild()
 ChatMessage.model_rebuild()
+
+
+class UserBlock(SQLModel, table=True):
+    """Зв'язок блокування між користувачами.
+    
+    Якщо user_id заблокував blocked_user_id, то вони не можуть:
+    - Створювати нові чати
+    - Відправляти повідомлення один одному
+    - Бачити один одного в активних чатах
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True, nullable=False, description="ID користувача, який заблокував")
+    blocked_user_id: int = Field(foreign_key="user.id", index=True, nullable=False, description="ID заблокованого користувача")
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False, description="Дата блокування")
+    
+    # Унікальний індекс для пари (user_id, blocked_user_id)
+    __table_args__ = (
+        {"sqlite_autoincrement": True},
+    )
+
+
+UserBlock.model_rebuild()
 
 

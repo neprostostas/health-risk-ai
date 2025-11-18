@@ -62,27 +62,27 @@
         </div>
       </div>
       <nav class="sidebar__nav" aria-label="Основна навігація">
-        <button type="button" class="nav-item" data-section="page-profile" data-tooltip="Профіль" id="nav-profile" hidden>
+        <button type="button" class="nav-item" data-section="page-profile" id="nav-profile" hidden>
           <span class="icon" data-lucide="user"></span>
           <span class="nav-item__text">Профіль</span>
         </button>
-        <button type="button" class="nav-item nav-item--active" data-section="page-form" data-tooltip="Форма прогнозування">
+        <button type="button" class="nav-item nav-item--active" data-section="page-form">
           <span class="icon" data-lucide="clipboard-list"></span>
           <span class="nav-item__text">Форма прогнозування</span>
         </button>
-        <button type="button" class="nav-item" data-section="page-history" data-tooltip="Історія прогнозів" id="nav-history" hidden>
+        <button type="button" class="nav-item" data-section="page-history" id="nav-history" hidden>
           <span class="icon" data-lucide="history"></span>
           <span class="nav-item__text">Історія прогнозів</span>
         </button>
-        <button type="button" class="nav-item" data-section="page-insights" data-tooltip="Діаграми">
+        <button type="button" class="nav-item" data-section="page-insights">
           <span class="icon" data-lucide="chart-bar"></span>
           <span class="nav-item__text">Діаграми</span>
         </button>
-        <button type="button" class="nav-item" data-section="page-assistant" data-tooltip="Чат з асистентом" id="nav-assistant">
+        <button type="button" class="nav-item" data-section="page-assistant" id="nav-assistant">
           <span class="icon" data-lucide="messages-square"></span>
           <span class="nav-item__text">AI Асистент</span>
         </button>
-        <button type="button" class="nav-item" data-section="page-chats" data-tooltip="Чати" id="nav-chats" hidden>
+        <button type="button" class="nav-item" data-section="page-chats" id="nav-chats" hidden>
           <span class="icon" data-lucide="message-circle"></span>
           <span class="nav-item__text">Чати</span>
           <span class="nav-item__badge" id="nav-chats-badge" hidden>0</span>
@@ -351,7 +351,7 @@
                 <span class="icon" data-lucide="alert-circle"></span>
                 <span>Увага. Асистент не є лікарем і не замінює медичну консультацію. Він допомагає пояснювати результати оцінки ризиків та готуватися до розмови з лікарем.</span>
               </p>
-              <button type="button" class="icon-button" id="assistant-warning-dismiss" aria-label="Закрити попередження">
+              <button type="button" class="icon-button" id="assistant-warning-dismiss" aria-label="Закрити попередження" data-tooltip="Закрити попередження">
                 <span class="icon" data-lucide="x"></span>
               </button>
             </div>
@@ -364,7 +364,7 @@
                   <span>Чат з асистентом здоровʼя</span>
                 </h2>
                 <div class="assistant-chat__actions">
-                  <button type="button" class="button button--ghost button--small button--icon-only" id="assistant-clear-btn" aria-label="Очистити чат" hidden>
+                  <button type="button" class="button button--ghost button--small button--icon-only" id="assistant-clear-btn" aria-label="Очистити чат" data-tooltip="Очистити чат" hidden>
                     <span class="icon" data-lucide="trash-2"></span>
                   </button>
                 </div>
@@ -378,10 +378,10 @@
                 </div>
                 <div class="assistant-composer">
                   <input type="text" id="assistant-input" class="assistant-input" placeholder="Напишіть повідомлення..." />
-                <button type="button" class="button assistant-send assistant-voice button--icon-only" id="assistant-voice-btn" aria-label="Голосовий ввід">
+                <button type="button" class="button assistant-send assistant-voice button--icon-only" id="assistant-voice-btn" aria-label="Голосовий ввід" data-tooltip="Голосовий ввід">
                   <span class="icon" data-lucide="mic"></span>
                 </button>
-                  <button type="button" class="button assistant-send" id="assistant-send-btn" aria-label="Надіслати">
+                  <button type="button" class="button assistant-send button--icon-only" id="assistant-send-btn" aria-label="Надіслати">
                     <span class="icon" data-lucide="send"></span>
                   </button>
                 </div>
@@ -467,7 +467,7 @@
                       <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-delete-btn" hidden aria-label="Видалити фото">
                         <span class="icon" data-lucide="trash-2"></span>
                       </button>
-                      <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-color-btn" hidden aria-label="Змінити колір аватару">
+                      <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-color-btn" hidden aria-label="Змінити колір аватару" data-tooltip="Змінити колір аватару">
                         <span class="icon" data-lucide="palette"></span>
                       </button>
                     </div>
@@ -879,9 +879,14 @@
           <div class="chats-list-full" id="chats-list-full">
             <div class="chats-list-full__header">
               <h2 class="chats-list-full__title">Список чатів</h2>
-              <button type="button" class="button button--ghost button--small button--icon-only" id="chats-new-chat-btn" aria-label="Новий чат" data-tooltip="Новий чат">
-                <span class="icon" data-lucide="plus"></span>
-              </button>
+              <div class="chats-list-full__header-actions">
+                <button type="button" class="button button--ghost button--small button--icon-only" id="chats-edit-mode-btn" aria-label="Редагувати порядок" data-tooltip="Редагувати порядок">
+                  <span class="icon" data-lucide="grip-vertical"></span>
+                </button>
+                <button type="button" class="button button--ghost button--small button--icon-only" id="chats-new-chat-btn" aria-label="Новий чат" data-tooltip="Новий чат">
+                  <span class="icon" data-lucide="plus"></span>
+                </button>
+              </div>
             </div>
             <div class="chats-list-full__content">
               <div class="chats-list" id="chats-list">
@@ -908,20 +913,6 @@
 
           <!-- Стан 3: Чат з sidebar -->
           <div class="chats-layout" id="chats-layout" hidden>
-            <!-- Вузький sidebar з активними чатами -->
-            <aside class="chats-sidebar">
-              <div class="chats-sidebar__header">
-                <button type="button" class="button button--ghost button--small" id="chats-back-to-list-from-chat-btn" aria-label="Назад до списку">
-                  <span class="icon" data-lucide="arrow-left"></span>
-                </button>
-                <h2 class="chats-sidebar__title">Список чатів</h2>
-              </div>
-              <div class="chats-sidebar__content">
-                <div class="chats-list" id="chats-sidebar-list">
-                  <p class="chats-empty" id="chats-sidebar-empty">Немає чатів</p>
-                </div>
-              </div>
-            </aside>
             <!-- Область чату -->
             <main class="chats-main">
               <div class="chats-main__empty" id="chats-main-empty">
@@ -933,6 +924,10 @@
               </div>
               <div class="chats-main__content" id="chats-main-content" hidden>
                 <div class="chats-main__header">
+                  <button type="button" class="button button--ghost button--small btn-back-chats" id="chats-back-to-list-from-chat-btn" aria-label="Назад до списку">
+                    <span class="icon" data-lucide="arrow-left"></span>
+                    <span>Назад</span>
+                  </button>
                   <div class="chats-main__header-info">
                     <div class="chats-main__avatar" id="chats-main-avatar">?</div>
                     <div>
@@ -940,11 +935,16 @@
                       <p class="chats-main__header-status" id="chats-main-status">Онлайн</p>
                     </div>
                   </div>
+                  <div class="chats-main__header-actions">
+                    <button type="button" class="button button--ghost button--small button--icon-only btn-block-user" id="chats-main-block-btn" aria-label="Заблокувати користувача" hidden>
+                      <span class="icon" data-lucide="user-x"></span>
+                    </button>
+                  </div>
                 </div>
                 <div class="chats-main__messages" id="chats-main-messages"></div>
                 <div class="chats-main__composer">
                   <input type="text" id="chats-main-input" class="chats-main__input" placeholder="Напишіть повідомлення..." />
-                  <button type="button" class="button chats-main__send" id="chats-main-send-btn" aria-label="Надіслати">
+                  <button type="button" class="button chats-main__send button--icon-only" id="chats-main-send-btn" aria-label="Надіслати">
                     <span class="icon" data-lucide="send"></span>
                   </button>
                 </div>
@@ -1061,6 +1061,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Універсальний контейнер для динамічних модалок (confirm, alert) -->
+  <div id="custom-modal-container"></div>
 
   <script src="/app/static/app.js" defer></script>
 </body>

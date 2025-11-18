@@ -1,5 +1,5 @@
 ## Common project commands
-.PHONY: run install clean db-shell help ollama ollama-pull dev
+.PHONY: run install clean db-shell help ollama ollama-pull dev reset
 
 help:
 	@echo "Available targets:"
@@ -10,6 +10,7 @@ help:
 	@echo "  ollama      - Start Ollama local server (ollama serve)"
 	@echo "  ollama-pull - Pull default LLM model (llama3)"
 	@echo "  dev         - Start Ollama and API together (foreground)"
+	@echo "  reset       - Clean, install, clean, install, then start dev"
 
 # Start API + Web (serves HTTPS if configured inside the app)
 run:
@@ -57,6 +58,17 @@ dev:
 	kill $$OLLAMA_PID >/dev/null 2>&1 || true; \
 	wait $$OLLAMA_PID 2>/dev/null || true; \
 	exit 0
+
+# All: clean, install, clean, install, then start dev
+a:
+	@echo "────────────────────────────────────────────────────────"
+	@echo "🔄 Resetting project: clean → install → clean → install → dev"
+	@echo "────────────────────────────────────────────────────────"
+	$(MAKE) clean
+	$(MAKE) install
+	$(MAKE) clean
+	$(MAKE) install
+	$(MAKE) dev
 
 # Aliases
 d: dev

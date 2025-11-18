@@ -76,7 +76,6 @@ async def serve_chats_page():
     while unauthenticated users will be redirected to /login by the frontend.
     """
     # Always return SPA HTML - let frontend handle authentication and routing
-    print("🖥️ Видача сторінки /chats (HTML SPA)")
     return serve_frontend()
 
 # Route for /c/:uuid chat URLs (SPA handles routing client-side)
@@ -94,7 +93,6 @@ async def serve_chat_page(chat_uuid: str):
     while unauthenticated users will be redirected to /login by the frontend.
     """
     # Always return SPA HTML - let frontend handle authentication and routing
-    print(f"🖥️ Видача сторінки /c/{chat_uuid} (HTML SPA)")
     return serve_frontend()
 
 # Now include API routers (these will handle /chats API endpoints with proper prefixes)
@@ -165,7 +163,6 @@ class PathNormalizationMiddleware(BaseHTTPMiddleware):
             if original_query:
                 new_url = f"{normalized_path}?{original_query}"
             
-            print(f"🔄 [Middleware] Redirecting: '{original_path}' → '{normalized_path}'")
             from fastapi.responses import RedirectResponse
             return RedirectResponse(url=new_url, status_code=301)  # 301 Permanent Redirect
         
@@ -205,7 +202,6 @@ def serve_frontend() -> FileResponse:
 @app.get("/app", response_class=HTMLResponse)
 async def serve_app():
     """Повертає головну сторінку веб-інтерфейсу."""
-    print("🖥️ Видача веб-інтерфейсу /app")
     return serve_frontend()
 
 
@@ -224,74 +220,62 @@ async def serve_root(
     """
     # Якщо користувач не автентифікований, перенаправляємо на /login
     if not current_user:
-        print("🔄 Перенаправлення неавтентифікованого користувача з / на /login")
         return RedirectResponse(url="/login", status_code=302)
     
-    print("🖥️ Видача веб-інтерфейсу /")
     return serve_frontend()
 
 
 @app.get("/login", response_class=HTMLResponse)
 async def serve_login_page():
-    print("🖥️ Видача сторінки /login")
     return serve_frontend()
 
 
 @app.get("/register", response_class=HTMLResponse)
 async def serve_register_page():
-    print("🖥️ Видача сторінки /register")
     return serve_frontend()
 
 
 @app.get("/profile", response_class=HTMLResponse)
 async def serve_profile_page():
-    print("🖥️ Видача сторінки /profile")
     return serve_frontend()
 
 
 @app.get("/history", response_class=HTMLResponse)
 async def serve_history_page():
     """Повертає сторінку історії прогнозів."""
-    print("🖥️ Видача сторінки /history")
     return serve_frontend()
 
 
 @app.get("/api-status", response_class=HTMLResponse)
 async def serve_api_status_page():
     """Повертає сторінку статусу API."""
-    print("🖥️ Видача сторінки /api-status")
     return serve_frontend()
 
 
 @app.get("/diagrams", response_class=HTMLResponse)
 async def serve_diagrams_page():
-    print("🖥️ Видача сторінки /diagrams")
     return serve_frontend()
 
 
 @app.get("/assistant", response_class=HTMLResponse)
 async def serve_assistant_page():
     """Повертає сторінку чату з асистентом."""
-    print("🖥️ Видача сторінки /assistant")
     return serve_frontend()
 
 @app.get("/form", response_class=HTMLResponse)
 async def serve_form_page():
-    print("🖥️ Видача сторінки /form")
     return serve_frontend()
 
 
 @app.get("/forgot-password", response_class=HTMLResponse)
 async def serve_forgot_password_page():
     """Повертає сторінку відновлення пароля."""
-    print("🖥️ Видача сторінки /forgot-password")
     return serve_frontend()
 
 
 @app.get("/reset-password", response_class=HTMLResponse)
 async def serve_reset_password_page():
     """Повертає сторінку встановлення нового пароля."""
-    print("🖥️ Видача сторінки /reset-password")
     return serve_frontend()
 
 
@@ -378,7 +362,6 @@ def calculate_top_factors_simple(
     
     except Exception as e:
         # У разі помилки повертаємо порожній список
-        print(f"⚠️ Помилка при обчисленні топ факторів: {str(e)}")
         return []
 
 
@@ -390,7 +373,6 @@ async def health_check():
     Returns:
         Стан сервісу з додатковою інформацією
     """
-    print("✅ Перевірка стану сервісу")
     from datetime import datetime
     
     # Отримуємо список маршрутів
@@ -422,7 +404,6 @@ async def get_metadata():
     Returns:
         Метадані API
     """
-    print("📊 Запит метаданих")
     
     feature_schema = get_feature_schema()
     model_versions = get_model_versions()
@@ -467,7 +448,6 @@ async def predict(
             detail=f"Відсутні обов'язкові поля: {', '.join(missing_fields)}",
         )
     
-    print(f"🔮 Прогнозування для {target}")
     
     try:
         # Завантаження моделі
@@ -565,10 +545,8 @@ async def predict(
                     },
                 )
             except Exception as history_error:  # noqa: B902
-                # Не перериваємо повернення відповіді, але логеруємо у консоль.
-                print(f"⚠️ Не вдалося зберегти історію прогнозу: {history_error}")
-        
-        print(f"✅ Прогнозування завершено: probability={y_proba:.4f}, risk={risk_bucket}")
+                # Не перериваємо повернення відповіді
+                pass
         
         return response
     
@@ -597,7 +575,6 @@ async def explain_model(target: str = Query(..., description="Цільова з�
             detail=f"Невідомий target: {target}. Доступні: {AVAILABLE_TARGETS}",
         )
     
-    print(f"🔍 Пояснення моделі для {target}")
     
     try:
         # Завантаження моделі
@@ -666,7 +643,6 @@ async def explain_model(target: str = Query(..., description="Цільова з�
             method="permutation_importance",
         )
         
-        print(f"✅ Пояснення моделі завершено для {target}")
         
         return response
     
@@ -775,24 +751,20 @@ async def catch_all_route(
         normalized_path = f"/{normalized_path}"
     
     # Логуємо для діагностики
-    print(f"🔍 [Catch-all] Path: '{normalized_path}' | Method: {request.method} | Authenticated: {current_user is not None}")
     
     # Перевіряємо allowlist
     if is_path_allowlisted(normalized_path):
         # Якщо path в allowlist, але дійшов до catch-all - це помилка
         # (роут мав би бути оброблений раніше)
-        print(f"⚠️ [Catch-all] Path '{normalized_path}' is in allowlist but reached catch-all - returning 404")
         raise HTTPException(status_code=404, detail="Маршрут не знайдено")
     
     # Path НЕ в allowlist - редіректимо на /login для неавтентифікованих
     # Для автентифікованих (GET) повертаємо HTML (SPA обробить)
     if request.method == "GET":
         if not current_user:
-            print(f"🔄 [Catch-all] Redirecting unauthenticated user from '{normalized_path}' to /login")
             return RedirectResponse(url="/login", status_code=302)
         
         # Для автентифікованих користувачів повертаємо HTML (SPA обробить роутинг)
-        print(f"🖥️ [Catch-all] Serving HTML for authenticated user at '{normalized_path}'")
         return serve_frontend()
     
     # Для не-GET методів повертаємо 404
@@ -802,7 +774,6 @@ async def catch_all_route(
 if __name__ == "__main__":
     import uvicorn
     
-    print("🚀 Запуск FastAPI сервісу...")
     # Запускаємо на localhost, щоб браузер вважав походження безпечним (для мікрофона)
     uvicorn.run(app, host="127.0.0.1", port=8000)
 

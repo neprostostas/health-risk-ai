@@ -24,10 +24,13 @@ from .db import get_session
 from .models import PasswordResetToken, PredictionHistory, User
 from .repositories import (
     add_prediction_history,
+    block_user,
     delete_prediction,
     get_all_prediction_history,
     get_user_by_email,
+    is_user_blocked,
     list_prediction_history,
+    unblock_user,
     update_user_profile,
 )
 from .schemas import (
@@ -240,7 +243,6 @@ def register_user(
     except Exception as e:
         # Загальна обробка неочікуваних помилок
         session.rollback()
-        print(f"❌ Неочікувана помилка при реєстрації: {type(e).__name__}: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(
@@ -418,7 +420,6 @@ async def change_password(
         ) from e
     except Exception as e:
         session.rollback()
-        print(f"❌ Помилка при зміні пароля: {type(e).__name__}: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(
@@ -461,12 +462,6 @@ async def forgot_password(
             
             # Для розробки виводимо токен в консоль та включаємо в відповідь
             reset_link = f"/reset-password?token={token}"
-            print(f"\n{'='*60}")
-            print(f"🔐 ТОКЕН ВІДНОВЛЕННЯ ПАРОЛЯ (для розробки)")
-            print(f"Email: {email}")
-            print(f"Token: {token}")
-            print(f"Reset Link: {reset_link}")
-            print(f"{'='*60}\n")
             
             # У реальному додатку тут була б відправка email
             # Для розробки повертаємо токен
@@ -482,7 +477,6 @@ async def forgot_password(
             
     except Exception as e:
         session.rollback()
-        print(f"❌ Помилка при запиті на відновлення пароля: {type(e).__name__}: {str(e)}")
         import traceback
         traceback.print_exc()
         # Повертаємо generic повідомлення навіть при помилці
@@ -616,7 +610,6 @@ async def reset_password(
         ) from e
     except Exception as e:
         session.rollback()
-        print(f"❌ Помилка при відновленні пароля: {type(e).__name__}: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(
@@ -747,7 +740,6 @@ async def upload_avatar(
         raise
     except Exception as e:
         session.rollback()
-        print(f"❌ Помилка при завантаженні аватару: {type(e).__name__}: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(
@@ -781,7 +773,6 @@ async def delete_user_avatar(
         
     except Exception as e:
         session.rollback()
-        print(f"❌ Помилка при видаленні аватару: {type(e).__name__}: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(
@@ -860,6 +851,85 @@ async def patch_profile(
         updated = current_user
     
     return _build_profile_response(updated)
+
+
+@users_router.patch("/{user_id}/block", response_model=dict)
+async def block_user_endpoint(
+    user_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_current_user),
+) -> dict:
+    """
+    Блокує користувача.
+    Користувач може блокувати інших користувачів.
+    """
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Не можна заблокувати самого себе.",
+        )
+    
+    target_user = session.get(User, user_id)
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Користувач не знайдено.",
+        )
+    
+    # Перевіряємо, чи вже заблоковано
+    if is_user_blocked(session, current_user.id, user_id):
+        return {
+            "user_id": user_id,
+            "is_blocked": True,
+            "message": "Користувач вже заблокований.",
+        }
+    
+    # Блокуємо користувача
+    block_user(session, current_user.id, user_id)
+    
+    return {
+        "user_id": user_id,
+        "is_blocked": True,
+        "message": "Користувача заблоковано.",
+    }
+
+
+@users_router.patch("/{user_id}/unblock", response_model=dict)
+async def unblock_user_endpoint(
+    user_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_current_user),
+) -> dict:
+    """
+    Розблоковує користувача.
+    """
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Не можна розблокувати самого себе.",
+        )
+    
+    target_user = session.get(User, user_id)
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Користувач не знайдено.",
+        )
+    
+    # Розблоковуємо користувача
+    unblocked = unblock_user(session, current_user.id, user_id)
+    
+    if not unblocked:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Користувач не був заблокований.",
+        )
+    
+    return {
+        "user_id": user_id,
+        "is_blocked": False,
+        "message": "Користувача розблоковано.",
+    }
 
 
 @users_router.get("/me/history", response_model=PredictionHistoryResponse)
@@ -972,7 +1042,7 @@ async def delete_account(
                 delete_avatar(user_id)
             except Exception as e:
                 # Логуємо помилку, але не блокуємо видалення облікового запису
-                print(f"⚠️ Помилка під час видалення аватару (ігнорується): {e}")
+                pass
         
         # Видаляємо користувача
         session.delete(current_user)
@@ -982,7 +1052,6 @@ async def delete_account(
         
     except Exception as e:
         session.rollback()
-        print(f"❌ Помилка під час видалення облікового запису: {type(e).__name__}: {str(e)}")
         import traceback
         traceback.print_exc()
         # Не розкриваємо деталі помилки для безпеки

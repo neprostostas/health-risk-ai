@@ -233,6 +233,9 @@ class UserListItem(BaseModel):
     avatar_url: Optional[str] = None
     avatar_type: str = "generated"
     avatar_color: Optional[str] = None
+    is_active: bool = True
+    is_blocked: bool = False  # Чи заблокований цей користувач поточним користувачем
+    blocked_at: Optional[datetime] = None  # Час блокування (якщо заблокований)
 
 
 class ChatListItem(BaseModel):
@@ -244,6 +247,8 @@ class ChatListItem(BaseModel):
     last_message: Optional["ChatMessageItem"] = None
     unread_count: int = 0
     updated_at: datetime
+    is_pinned: bool = False
+    order: int = 0
 
 
 class ChatMessageItem(BaseModel):
@@ -276,6 +281,19 @@ class CreateChatRequest(BaseModel):
     """Запит на створення чату з користувачем."""
     
     user_id: int = Field(..., description="ID користувача, з яким створити чат")
+
+
+class ChatOrderItem(BaseModel):
+    """Елемент для зміни порядку чату."""
+    
+    uuid: str = Field(..., description="UUID чату")
+    order: int = Field(..., description="Новий порядок чату")
+
+
+class ReorderChatsRequest(BaseModel):
+    """Запит на зміну порядку чатів."""
+    
+    chats: List[ChatOrderItem] = Field(..., description="Список чатів з uuid та order")
 
 
 ChatListItem.model_rebuild()

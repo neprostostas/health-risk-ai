@@ -32,11 +32,9 @@ def migrate_add_missing_columns() -> None:
             
             # Додаємо avatar_type якщо відсутня
             if "avatar_type" not in columns:
-                print("🔧 Додавання колонки avatar_type до таблиці user...")
                 conn.execute(text("ALTER TABLE user ADD COLUMN avatar_type VARCHAR"))
                 conn.execute(text("UPDATE user SET avatar_type = 'generated' WHERE avatar_type IS NULL"))
                 conn.commit()
-                print("✅ Колонка avatar_type додана до таблиці user")
             
             # Додаємо нові поля для профілю
             new_fields = {
@@ -48,10 +46,39 @@ def migrate_add_missing_columns() -> None:
             
             for field_name, field_type in new_fields.items():
                 if field_name not in columns:
-                    print(f"🔧 Додавання колонки {field_name} до таблиці user...")
                     conn.execute(text(f"ALTER TABLE user ADD COLUMN {field_name} {field_type}"))
                     conn.commit()
-                    print(f"✅ Колонка {field_name} додана до таблиці user")
+
+        # Перевіряємо та додаємо відсутні колонки до таблиці chat
+        if "chat" in inspector.get_table_names():
+            columns = [col["name"] for col in inspector.get_columns("chat")]
+            
+            # Додаємо is_pinned якщо відсутня
+            if "is_pinned" not in columns:
+                conn.execute(text("ALTER TABLE chat ADD COLUMN is_pinned BOOLEAN DEFAULT 0"))
+                conn.commit()
+            
+            # Додаємо order якщо відсутня
+            if "order" not in columns:
+                conn.execute(text("ALTER TABLE chat ADD COLUMN \"order\" INTEGER DEFAULT 0"))
+                conn.commit()
+        
+        # Створюємо таблицю userblock якщо відсутня
+        if "userblock" not in inspector.get_table_names():
+            conn.execute(text("""
+                CREATE TABLE userblock (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    blocked_user_id INTEGER NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES user(id),
+                    FOREIGN KEY (blocked_user_id) REFERENCES user(id)
+                )
+            """))
+            conn.execute(text("CREATE INDEX ix_userblock_user_id ON userblock(user_id)"))
+            conn.execute(text("CREATE INDEX ix_userblock_blocked_user_id ON userblock(blocked_user_id)"))
+            conn.execute(text("CREATE UNIQUE INDEX ix_userblock_unique ON userblock(user_id, blocked_user_id)"))
+            conn.commit()
 
 
 def init_db() -> None:
@@ -64,6 +91,7 @@ def init_db() -> None:
         PasswordResetToken,
         PredictionHistory,
         User,
+        UserBlock,
     )
     
     # Створюємо нові таблиці

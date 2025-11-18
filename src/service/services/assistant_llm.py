@@ -155,7 +155,6 @@ def call_ollama(prompt: str) -> str:
                 return joined
             return "Сталася помилка під час обробки відповіді мовної моделі."
     except requests.RequestException as e:
-        print(f"❌ Помилка запиту до Ollama: {e}")
         return "Сталася помилка під час звернення до мовної моделі. Спробуйте ще раз пізніше."
 
 

@@ -2,12 +2,13 @@
 CRUD допоміжні функції для роботи з базою даних.
 """
 
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
-from .models import AssistantMessage, Chat, ChatMessage, PredictionHistory, User
+from .models import AssistantMessage, Chat, ChatMessage, PredictionHistory, User, UserBlock
 from collections import defaultdict
 
 
@@ -152,8 +153,93 @@ def list_all_users(session: Session, exclude_user_id: Optional[int] = None) -> L
     return list(session.exec(statement))
 
 
+# ========== User Blocking functions ==========
+
+def is_user_blocked(session: Session, user_id: int, blocked_user_id: int) -> bool:
+    """Перевіряє, чи заблокував user_id користувача blocked_user_id."""
+    statement = select(UserBlock).where(
+        UserBlock.user_id == user_id,
+        UserBlock.blocked_user_id == blocked_user_id
+    )
+    return session.exec(statement).first() is not None
+
+
+def block_user(session: Session, user_id: int, blocked_user_id: int) -> UserBlock:
+    """Блокує користувача blocked_user_id для користувача user_id."""
+    # Перевіряємо, чи вже заблоковано
+    existing = session.exec(
+        select(UserBlock).where(
+            UserBlock.user_id == user_id,
+            UserBlock.blocked_user_id == blocked_user_id
+        )
+    ).first()
+    
+    if existing:
+        return existing
+    
+    # Створюємо новий запис блокування
+    user_block = UserBlock(user_id=user_id, blocked_user_id=blocked_user_id)
+    session.add(user_block)
+    session.commit()
+    session.refresh(user_block)
+    return user_block
+
+
+def unblock_user(session: Session, user_id: int, blocked_user_id: int) -> bool:
+    """Розблоковує користувача blocked_user_id для користувача user_id.
+    
+    Повертає True, якщо блокування було видалено, False якщо не знайдено.
+    """
+    statement = select(UserBlock).where(
+        UserBlock.user_id == user_id,
+        UserBlock.blocked_user_id == blocked_user_id
+    )
+    user_block = session.exec(statement).first()
+    
+    if user_block:
+        session.delete(user_block)
+        session.commit()
+        return True
+    
+    return False
+
+
+def get_blocked_user_ids(session: Session, user_id: int) -> set[int]:
+    """Повертає множину ID користувачів, заблокованих користувачем user_id."""
+    statement = select(UserBlock.blocked_user_id).where(UserBlock.user_id == user_id)
+    return set(session.exec(statement).all())
+
+
+def get_blocked_at(session: Session, user_id: int, blocked_user_id: int) -> Optional[datetime]:
+    """Повертає час блокування користувача blocked_user_id користувачем user_id."""
+    statement = select(UserBlock).where(
+        UserBlock.user_id == user_id,
+        UserBlock.blocked_user_id == blocked_user_id
+    )
+    user_block = session.exec(statement).first()
+    return user_block.created_at if user_block else None
+
+
+def get_blocked_users_with_timestamps(session: Session, user_id: int) -> dict[int, datetime]:
+    """Повертає словник {blocked_user_id: blocked_at} для всіх заблокованих користувачів."""
+    statement = select(UserBlock).where(UserBlock.user_id == user_id)
+    blocks = session.exec(statement).all()
+    return {block.blocked_user_id: block.created_at for block in blocks}
+
+
 def get_or_create_chat(session: Session, user1_id: int, user2_id: int) -> Chat:
-    """Отримує існуючий чат між двома користувачами або створює новий."""
+    """Отримує існуючий чат між двома користувачами або створює новий.
+    
+    Перевіряє, чи не заблоковані користувачі один одним.
+    """
+    # Перевіряємо блокування в обидва боки
+    if is_user_blocked(session, user1_id, user2_id) or is_user_blocked(session, user2_id, user1_id):
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Не можна створити чат з заблокованим користувачем."
+        )
+    
     # Перевіряємо обидва варіанти (user1-user2 та user2-user1)
     statement = select(Chat).where(
         ((Chat.user1_id == user1_id) & (Chat.user2_id == user2_id)) |
@@ -186,8 +272,13 @@ def get_chat_by_uuid(session: Session, chat_uuid: str, user_id: int) -> Optional
 def get_user_chats(session: Session, user_id: int) -> List[Chat]:
     """
     Повертає всі чати користувача, які мають хоча б одне повідомлення,
-    відсортовані за останнім повідомленням.
+    відсортовані: спочатку закріплені (за order), потім незакріплені (за updated_at).
+    
+    Виключає чати з заблокованими користувачами.
     """
+    # Отримуємо список заблокованих користувачів
+    blocked_user_ids = get_blocked_user_ids(session, user_id)
+    
     # Знаходимо всі чати користувача, які мають хоча б одне повідомлення
     # Використовуємо JOIN з distinct для надійної фільтрації
     statement = (
@@ -195,8 +286,15 @@ def get_user_chats(session: Session, user_id: int) -> List[Chat]:
         .join(ChatMessage, Chat.id == ChatMessage.chat_id)
         .where((Chat.user1_id == user_id) | (Chat.user2_id == user_id))
         .distinct()
-        .order_by(Chat.updated_at.desc())
     )
+    
+    # Фільтруємо чати з заблокованими користувачами
+    if blocked_user_ids:
+        statement = statement.where(
+            ~((Chat.user1_id.in_(blocked_user_ids)) | (Chat.user2_id.in_(blocked_user_ids)))
+        )
+    
+    statement = statement.order_by(Chat.is_pinned.desc(), Chat.order.asc(), Chat.updated_at.desc())
     return list(session.exec(statement))
 
 
@@ -289,4 +387,76 @@ def get_unread_count_for_chat(session: Session, chat_id: int, user_id: int) -> i
         ChatMessage.read_at.is_(None)
     )
     return len(list(session.exec(statement)))
+
+
+def delete_chat(session: Session, chat_uuid: str, user_id: int) -> bool:
+    """Видаляє чат (тільки для користувача, який є учасником)."""
+    chat = get_chat_by_uuid(session, chat_uuid, user_id)
+    if not chat:
+        return False
+    
+    # Видаляємо всі повідомлення чату
+    messages = session.exec(select(ChatMessage).where(ChatMessage.chat_id == chat.id)).all()
+    for msg in messages:
+        session.delete(msg)
+    
+    # Видаляємо сам чат
+    session.delete(chat)
+    session.commit()
+    return True
+
+
+def toggle_chat_pin(session: Session, chat_uuid: str, user_id: int) -> Optional[Chat]:
+    """Закріплює або відкріплює чат."""
+    chat = get_chat_by_uuid(session, chat_uuid, user_id)
+    if not chat:
+        return None
+    
+    chat.is_pinned = not chat.is_pinned
+    if chat.is_pinned:
+        # Якщо закріплюємо, встановлюємо order на максимальне значення + 1
+        max_order_stmt = (
+            select(Chat.order)
+            .where((Chat.user1_id == user_id) | (Chat.user2_id == user_id))
+            .where(Chat.is_pinned == True)
+            .order_by(Chat.order.desc())
+            .limit(1)
+        )
+        max_order = session.exec(max_order_stmt).first()
+        chat.order = (max_order or 0) + 1
+    else:
+        # Якщо відкріплюємо, скидаємо order
+        chat.order = 0
+    
+    chat.touch()
+    session.add(chat)
+    session.commit()
+    session.refresh(chat)
+    return chat
+
+
+def reorder_chats(session: Session, user_id: int, chat_orders: List[dict]) -> bool:
+    """
+    Оновлює порядок чатів.
+    chat_orders: список словників з ключами 'uuid' та 'order'
+    """
+    try:
+        for item in chat_orders:
+            chat_uuid = item.get("uuid")
+            new_order = item.get("order", 0)
+            
+            if not chat_uuid:
+                continue
+            
+            chat = get_chat_by_uuid(session, chat_uuid, user_id)
+            if chat:
+                chat.order = new_order
+                chat.touch()
+                session.add(chat)
+        
+        session.commit()
+        return True
+    except Exception as e:
+        session.rollback()
+        return False
 

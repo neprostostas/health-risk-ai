@@ -601,9 +601,11 @@ function setAssistantVoiceButton(mode) {
   const icon = btn.querySelector(".icon");
   if (mode === "stop") {
     btn.setAttribute("aria-label", "Зупинити запис");
+    btn.setAttribute("data-tooltip", "Зупинити запис");
     if (icon) icon.setAttribute("data-lucide", "square");
   } else {
     btn.setAttribute("aria-label", "Голосовий ввід");
+    btn.setAttribute("data-tooltip", "Голосовий ввід");
     if (icon) icon.setAttribute("data-lucide", "mic");
   }
   refreshIcons();
@@ -651,7 +653,6 @@ async function deleteSelectedHistory() {
       await apiFetch(`/users/me/history/${id}`, { method: "DELETE" });
       authState.history = authState.history.filter((item) => item.id !== id);
     } catch (e) {
-      console.error("Не вдалося видалити запис:", id, e);
     }
   }
   historySelectedIds.clear();
@@ -671,7 +672,6 @@ async function deleteAllHistory() {
     try {
       await apiFetch(`/users/me/history/${id}`, { method: "DELETE" });
     } catch (e) {
-      console.error("Не вдалося видалити запис:", id, e);
     }
   }
   authState.history = [];
@@ -882,9 +882,11 @@ function setAssistantSendButton(mode) {
     if (icon) icon.setAttribute("data-lucide", "send");
   } else if (mode === "stop") {
     btn.setAttribute("aria-label", "Зупинити");
+    btn.setAttribute("data-tooltip", "Зупинити");
     if (icon) icon.setAttribute("data-lucide", "square");
   } else if (mode === "play") {
     btn.setAttribute("aria-label", "Продовжити");
+    btn.setAttribute("data-tooltip", "Продовжити");
     if (icon) icon.setAttribute("data-lucide", "play");
   }
   refreshIcons();
@@ -1627,7 +1629,7 @@ async function initializeAssistantPage() {
     if (selectedItem) {
       renderAssistantStateCard(buildSnapshotFromHistoryItem(selectedItem));
     } else {
-      renderAssistantStateCard(snapshot);
+  renderAssistantStateCard(snapshot);
     }
   } else {
     renderAssistantStateCard(snapshot);
@@ -1758,7 +1760,7 @@ function formatDateTime(timestamp) {
 async function apiFetch(
   path,
   options = {},
-  { skipAuth = false } = {},
+  { skipAuth = false, skipAuthCheck = false } = {},
 ) {
   const init = {
     method: "GET",
@@ -1782,7 +1784,8 @@ async function apiFetch(
   }
 
   if (!response.ok) {
-    if (response.status === 401 && !skipAuth) {
+    // Якщо skipAuthCheck = true, не викликаємо handleUnauthorized
+    if (response.status === 401 && !skipAuth && !skipAuthCheck) {
       // Перенаправляємо на login перед киданням помилки
       handleUnauthorized();
       // Після перенаправлення кидаємо помилку, яка буде оброблена в catch блоках
@@ -1793,7 +1796,7 @@ async function apiFetch(
       throw authError;
     }
     // Для 404 помилок на захищених роутах перенаправляємо на логін
-    if (response.status === 404 && !skipAuth) {
+    if (response.status === 404 && !skipAuth && !skipAuthCheck) {
       const currentPath = window.location.pathname;
       const protectedPaths = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant"];
       const isProtectedPath = protectedPaths.some(path => currentPath.startsWith(path));
@@ -1915,7 +1918,7 @@ function showSectionForPath(pathname) {
   // Чекаємо, поки автентифікація ініціалізується (syncRouteFromLocation викличе showSectionForPath знову)
   if (protectedSections.includes(section) && !authState.initialized) {
     // Не активуємо сторінку, поки автентифікація не ініціалізується
-    return path;
+  return path;
   }
   
   // Якщо роут не існує і це не захищений роут, перенаправляємо на /app
@@ -2003,6 +2006,8 @@ function clearAuthState() {
   // Очищаємо збережений останній відкритий чат при вилогіненні
   lastOpenedChatUuid = null;
   currentChatUuid = null;
+  // Очищаємо список нещодавно розблокованих користувачів при вилогіненні
+  recentlyUnblockedUsers.clear();
 }
 
 function handleUnauthorized() {
@@ -2013,7 +2018,7 @@ function handleUnauthorized() {
     pendingRouteAfterAuth = currentPath;
     // Використовуємо window.location для примусового редіректу
     window.location.href = "/login";
-  }
+}
 }
 
 async function handleAuthSuccess(payload, options = {}) {
@@ -2023,7 +2028,7 @@ async function handleAuthSuccess(payload, options = {}) {
   authState.history = [];
   updateUserPanel();
   updateProfileSection();
-  loadHistory().catch((error) => console.error("Не вдалося оновити історію:", error));
+  loadHistory().catch(() => {});
   updateNavigationVisibility();
   refreshIcons();
   
@@ -2040,7 +2045,6 @@ async function handleAuthSuccess(payload, options = {}) {
       } catch (e) {
         // Ігноруємо помилки завантаження чатів для сповіщень
         if (!e.isAuthError && !e.silent) {
-          console.error("Не вдалося завантажити список чатів для сповіщень:", e);
         }
       }
     }
@@ -2079,8 +2083,8 @@ function applyAvatarStyle(element, user) {
     element.textContent = ""; // Приховуємо ініціали
   } else {
     // Показуємо згенерований аватар з ініціалами
-    const color = user?.avatar_color || DEFAULT_AVATAR_COLOR;
-    element.style.background = color;
+  const color = user?.avatar_color || DEFAULT_AVATAR_COLOR;
+  element.style.background = color;
     element.style.backgroundImage = "none";
     // Використовуємо getUserInitial для консистентності з іншими місцями
     element.textContent = getUserInitial(user);
@@ -2277,7 +2281,6 @@ function updateProfileSection() {
           
           profileEditDateOfBirthInput.value = normalizedDate;
         } catch (e) {
-          console.error("Помилка парсингу дати для форми:", e, user.date_of_birth);
           profileEditDateOfBirthInput.value = "";
         }
       } else {
@@ -2540,10 +2543,10 @@ function renderHistoryTable() {
           <td>${probabilityLabel}</td>
           <td><span class="history-actions__pill" style="background:${color};color:#fff;">${riskLabel}</span></td>
           <td class="history-table__actions">
-            <button type="button" class="icon-button" data-action="replay" data-id="${entry.id}" title="Повторити" aria-label="Повторити" ${historyBulkMode ? "hidden" : ""}>
+            <button type="button" class="icon-button" data-action="replay" data-id="${entry.id}" title="Повторити" aria-label="Повторити" data-tooltip="Повторити" ${historyBulkMode ? "hidden" : ""}>
               <span class="icon" data-lucide="rotate-ccw"></span>
             </button>
-            <button type="button" class="icon-button icon-button--danger" data-action="delete" data-id="${entry.id}" title="Видалити" aria-label="Видалити" ${historyBulkMode ? "hidden" : ""}>
+            <button type="button" class="icon-button icon-button--danger" data-action="delete" data-id="${entry.id}" title="Видалити" aria-label="Видалити" data-tooltip="Видалити" ${historyBulkMode ? "hidden" : ""}>
               <span class="icon" data-lucide="trash-2"></span>
             </button>
           </td>
@@ -2557,16 +2560,16 @@ function renderHistoryTable() {
   if (historyViewMode === "list") {
     if (grid) grid.hidden = true;
     if (tableEl) tableEl.hidden = false;
-    historyTableBody.innerHTML = rows;
-    if (historyEmpty) {
-      historyEmpty.hidden = true;
-    }
-    if (historyTableWrapper) {
-      historyTableWrapper.hidden = false;
+  historyTableBody.innerHTML = rows;
+  if (historyEmpty) {
+  historyEmpty.hidden = true;
+  }
+  if (historyTableWrapper) {
+    historyTableWrapper.hidden = false;
       // Позначаємо режим групового вибору для керування відображенням колонки "Дії"
       historyTableWrapper.classList.toggle("history--bulk", !!historyBulkMode);
-    }
-    refreshIcons();
+  }
+  refreshIcons();
     // Bind checkboxes in bulk mode
     if (historyBulkMode) {
       document.querySelectorAll(".history-select-checkbox").forEach((cb) => {
@@ -2622,10 +2625,10 @@ function renderHistoryTable() {
               <p class="history-card__meta">Модель: ${modelLabel}</p>
               <p class="history-card__meta">Ймовірність: ${probabilityLabel}</p>
               <div class="history-card__actions">
-                <button type="button" class="icon-button" data-action="replay" data-id="${entry.id}" title="Повторити" aria-label="Повторити">
+                <button type="button" class="icon-button" data-action="replay" data-id="${entry.id}" title="Повторити" aria-label="Повторити" data-tooltip="Повторити">
                   <span class="icon" data-lucide="rotate-ccw"></span>
                 </button>
-                <button type="button" class="icon-button icon-button--danger" data-action="delete" data-id="${entry.id}" title="Видалити" aria-label="Видалити">
+                <button type="button" class="icon-button icon-button--danger" data-action="delete" data-id="${entry.id}" title="Видалити" aria-label="Видалити" data-tooltip="Видалити">
                   <span class="icon" data-lucide="trash-2"></span>
                 </button>
               </div>
@@ -2721,7 +2724,6 @@ async function loadHistory(limit = 50) {
       }
     }
   } catch (error) {
-    console.error("❌ Не вдалося отримати історію прогнозів:", error);
     authState.history = [];
     populatePredictionStoreFromHistory();
     
@@ -2762,7 +2764,6 @@ async function initializeAuth() {
       authState.user = profile;
       await loadHistory();
     } catch (error) {
-      console.warn("Сесію не вдалося поновити:", error);
       clearAuthState();
       // Не показуємо сповіщення про помилку відновлення сесії, бо це нормально при першому відвідуванні
       // або якщо токен застарів - просто очищаємо стан
@@ -2790,7 +2791,6 @@ async function initializeAuth() {
         if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
           return; // Не показуємо помилку, не логуємо
         }
-        console.error("Не вдалося завантажити кількість непрочитаних:", e);
       });
     }, 100);
   }
@@ -2811,7 +2811,7 @@ async function initializeAuth() {
     navigateTo("/app", { replace: true });
   } else {
     // Default: sync route (handles unauthenticated users and other cases)
-    syncRouteFromLocation();
+  syncRouteFromLocation();
   }
 }
 
@@ -3095,9 +3095,7 @@ async function handleProfileUpdate(event) {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         updateProfileSection();
-        console.log("🔄 Повторне оновлення профілю після перемикання табу");
         if (profileInfoDateOfBirth) {
-          console.log("📅 profileInfoDateOfBirth.textContent (після повторного оновлення):", profileInfoDateOfBirth.textContent);
         }
       });
     });
@@ -3570,9 +3568,7 @@ async function handleForgotPassword(event) {
         try {
           await navigator.clipboard.writeText(resetUrl);
           copied = true;
-          console.log("🔗 Посилання скопійовано в буфер обміну через Clipboard API:", resetUrl);
         } catch (clipboardError) {
-          console.warn("Не вдалося скопіювати через Clipboard API:", clipboardError);
         }
       }
 
@@ -3592,19 +3588,15 @@ async function handleForgotPassword(event) {
 
           if (successful) {
             copied = true;
-            console.log("🔗 Посилання скопійовано в буфер обміну через execCommand:", resetUrl);
           }
         } catch (execCommandError) {
-          console.warn("Не вдалося скопіювати через execCommand:", execCommandError);
         }
       }
 
       // Відкриваємо посилання в новій вкладці
       try {
         window.open(resetUrl, '_blank', 'noopener,noreferrer');
-        console.log("🔗 Посилання відкрито в новій вкладці:", resetUrl);
       } catch (openError) {
-        console.warn("Не вдалося відкрити посилання в новій вкладці:", openError);
       }
 
       // Показуємо повідомлення
@@ -3677,7 +3669,6 @@ async function handleForgotPassword(event) {
                     }
                   }
                 } catch (error) {
-                  console.error("Помилка копіювання:", error);
                   showNotification({
                     type: "error",
                     title: "Помилка",
@@ -3703,8 +3694,6 @@ async function handleForgotPassword(event) {
         forgotEmailInput.readOnly = true;
       }
       
-      console.log("🔐 Токен відновлення пароля:", resetToken);
-      console.log("🔗 Посилання для скидання пароля:", resetUrl);
       
       showNotification({
         type: "success",
@@ -3718,7 +3707,6 @@ async function handleForgotPassword(event) {
       // Якщо reset_token відсутній - користувача не знайдено
       // (Але це не повинно статися, якщо backend правильно повертає помилку)
       const errorMessage = "Користувача з такою електронною поштою не зареєстровано.";
-      console.log("❌ reset_token відсутній - користувача не знайдено");
       setForgotPasswordError(errorMessage);
       
       showNotification({
@@ -3747,7 +3735,6 @@ async function handleForgotPassword(event) {
     // Помилка - користувача не знайдено або інша помилка
     // apiFetch кидає Error з message, який містить detail з відповіді
     const errorMessage = error.message || error.detail || "Користувача з такою електронною поштою не зареєстровано.";
-    console.log("❌ Помилка відновлення пароля:", errorMessage);
     setForgotPasswordError(errorMessage);
     
     showNotification({
@@ -3963,7 +3950,6 @@ function openResetPasswordPage(token) {
 async function handleLogout() {
   // Перевіряємо, чи вже не виконується logout (запобігаємо подвійному виклику)
   if (handleLogout.inProgress) {
-    console.log("Logout вже виконується, ігноруємо повторний виклик");
     return;
   }
   
@@ -3978,7 +3964,6 @@ async function handleLogout() {
       duration: 3000,
     });
   } catch (error) {
-    console.warn("Помилка під час виходу:", error);
     showNotification({
       type: "warning",
       title: "Помилка виходу",
@@ -4049,7 +4034,6 @@ async function handleDeleteAccount() {
     const response = await apiFetch("/users/me", { method: "DELETE" }, { skipAuth: false });
     
     // Показуємо повідомлення про успіх (опційно)
-    console.log("Обліковий запис успішно видалено:", response);
     
     // Закриваємо модальне вікно
     closeDeleteAccountModal();
@@ -4158,12 +4142,10 @@ const activeNotifications = new Map();
  */
 function showNotification({ type = "info", title, message = "", duration = DEFAULT_NOTIFICATION_DURATION }) {
   if (!notificationsContainer) {
-    console.warn("Контейнер сповіщень не знайдено");
     return null;
   }
 
   if (!title) {
-    console.warn("Заголовок сповіщення є обов'язковим");
     return null;
   }
 
@@ -4276,6 +4258,199 @@ function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
+}
+
+/**
+ * Показує кастомну модалку підтвердження (заміна confirm)
+ * @param {string} message - Повідомлення для відображення
+ * @param {string} title - Заголовок модалки (опційно)
+ * @param {string} type - Тип модалки: 'warning', 'danger', 'info' (за замовчуванням 'warning')
+ * @returns {Promise<boolean>} Promise, який резолвиться з true якщо підтверджено, false якщо скасовано
+ */
+function showConfirm(message, title = "Підтвердження", type = "warning") {
+  return new Promise((resolve) => {
+    const modalId = `custom-modal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const container = document.getElementById("custom-modal-container");
+    if (!container) {
+      resolve(false);
+      return;
+    }
+
+    const iconMap = {
+      warning: "alert-triangle",
+      danger: "alert-circle",
+      info: "info",
+      success: "check-circle",
+    };
+
+    const colorMap = {
+      warning: "rgba(255, 193, 7, 0.95)",
+      danger: "rgba(241, 94, 111, 0.95)",
+      info: "rgba(95, 109, 250, 0.95)",
+      success: "rgba(34, 197, 94, 0.95)",
+    };
+
+    const icon = iconMap[type] || iconMap.warning;
+    const color = colorMap[type] || colorMap.warning;
+
+    const modal = document.createElement("div");
+    modal.id = modalId;
+    modal.className = "modal custom-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", `${modalId}-title`);
+
+    modal.innerHTML = `
+      <div class="modal__backdrop custom-modal__backdrop"></div>
+      <div class="modal__container">
+        <div class="modal__content glass-card">
+          <div class="modal__header">
+            <h2 class="modal__title" id="${modalId}-title" style="color: ${color};">
+              <span class="icon" data-lucide="${icon}"></span>
+              <span>${escapeHtml(title)}</span>
+            </h2>
+          </div>
+          <div class="modal__body">
+            <p class="modal__message">${escapeHtml(message).replace(/\n/g, '<br>')}</p>
+          </div>
+          <div class="modal__actions">
+            <button type="button" class="button button--ghost custom-modal__cancel-btn">Скасувати</button>
+            <button type="button" class="button button--primary custom-modal__confirm-btn" style="background: ${color}; border-color: ${color};">
+              <span>Підтвердити</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    container.appendChild(modal);
+    refreshIcons();
+
+    const closeModal = (result) => {
+      modal.classList.add("custom-modal--closing");
+      setTimeout(() => {
+        if (modal.parentNode) {
+          modal.parentNode.removeChild(modal);
+        }
+        resolve(result);
+      }, 300);
+    };
+
+    const confirmBtn = modal.querySelector(".custom-modal__confirm-btn");
+    const cancelBtn = modal.querySelector(".custom-modal__cancel-btn");
+    const backdrop = modal.querySelector(".custom-modal__backdrop");
+
+    confirmBtn.addEventListener("click", () => closeModal(true));
+    cancelBtn.addEventListener("click", () => closeModal(false));
+    backdrop.addEventListener("click", () => closeModal(false));
+
+    // Закриваємо по Escape
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        closeModal(false);
+        document.removeEventListener("keydown", handleEscape);
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+
+    // Фокус на кнопці підтвердження
+    setTimeout(() => confirmBtn.focus(), 100);
+  });
+}
+
+/**
+ * Показує кастомну модалку alert (заміна alert)
+ * @param {string} message - Повідомлення для відображення
+ * @param {string} title - Заголовок модалки (опційно)
+ * @param {string} type - Тип модалки: 'info', 'success', 'warning', 'error' (за замовчуванням 'info')
+ * @returns {Promise<void>} Promise, який резолвиться після закриття модалки
+ */
+function showAlert(message, title = "Повідомлення", type = "info") {
+  return new Promise((resolve) => {
+    const modalId = `custom-modal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const container = document.getElementById("custom-modal-container");
+    if (!container) {
+      resolve();
+      return;
+    }
+
+    const iconMap = {
+      info: "info",
+      success: "check-circle",
+      warning: "alert-triangle",
+      error: "alert-circle",
+    };
+
+    const colorMap = {
+      info: "rgba(95, 109, 250, 0.95)",
+      success: "rgba(34, 197, 94, 0.95)",
+      warning: "rgba(255, 193, 7, 0.95)",
+      error: "rgba(241, 94, 111, 0.95)",
+    };
+
+    const icon = iconMap[type] || iconMap.info;
+    const color = colorMap[type] || colorMap.info;
+
+    const modal = document.createElement("div");
+    modal.id = modalId;
+    modal.className = "modal custom-modal";
+    modal.setAttribute("role", "alertdialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", `${modalId}-title`);
+
+    modal.innerHTML = `
+      <div class="modal__backdrop custom-modal__backdrop"></div>
+      <div class="modal__container">
+        <div class="modal__content glass-card">
+          <div class="modal__header">
+            <h2 class="modal__title" id="${modalId}-title" style="color: ${color};">
+              <span class="icon" data-lucide="${icon}"></span>
+              <span>${escapeHtml(title)}</span>
+            </h2>
+          </div>
+          <div class="modal__body">
+            <p class="modal__message">${escapeHtml(message).replace(/\n/g, '<br>')}</p>
+          </div>
+          <div class="modal__actions">
+            <button type="button" class="button button--primary custom-modal__ok-btn" style="background: ${color}; border-color: ${color};">
+              <span>ОК</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    container.appendChild(modal);
+    refreshIcons();
+
+    const closeModal = () => {
+      modal.classList.add("custom-modal--closing");
+      setTimeout(() => {
+        if (modal.parentNode) {
+          modal.parentNode.removeChild(modal);
+        }
+        resolve();
+      }, 300);
+    };
+
+    const okBtn = modal.querySelector(".custom-modal__ok-btn");
+    const backdrop = modal.querySelector(".custom-modal__backdrop");
+
+    okBtn.addEventListener("click", closeModal);
+    backdrop.addEventListener("click", closeModal);
+
+    // Закриваємо по Escape або Enter
+    const handleKey = (e) => {
+      if (e.key === "Escape" || e.key === "Enter") {
+        closeModal();
+        document.removeEventListener("keydown", handleKey);
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+
+    // Фокус на кнопці ОК
+    setTimeout(() => okBtn.focus(), 100);
+  });
 }
 
 function refreshIcons() {
@@ -4680,7 +4855,7 @@ function renderResult(data) {
     pendingPredictionContext = null;
   }
   if (authState.user) {
-    loadHistory().catch((error) => console.error("Не вдалося оновити історію після прогнозу:", error));
+    loadHistory().catch(() => {});
   }
   
   // Показуємо сповіщення про успішне прогнозування
@@ -4939,7 +5114,6 @@ function activateSection(sectionId) {
   });
   if (sectionId === "page-insights") {
     initializeInsightsPage().catch((error) => {
-      console.error("Не вдалося ініціалізувати діаграми:", error);
     });
   }
   if (sectionId === "page-chats") {
@@ -4961,7 +5135,6 @@ function activateSection(sectionId) {
     if (path && path.startsWith("/c/")) {
       const uuid = path.substring(3);
       if (!uuid) {
-        console.error("Chat UUID is empty");
         return;
       }
       if (typeof loadChat === "function") {
@@ -4970,7 +5143,6 @@ function activateSection(sectionId) {
           if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
             return; // Не показуємо помилку, не логуємо, не перенаправляємо (вже зроблено)
           }
-          console.error("Не вдалося завантажити чат:", e);
         });
       }
     } else {
@@ -4988,7 +5160,6 @@ function activateSection(sectionId) {
             if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
               return; // Не показуємо помилку, не логуємо, не перенаправляємо (вже зроблено)
             }
-            console.error("Не вдалося завантажити список чатів:", e);
           });
         }
       }
@@ -4999,7 +5170,6 @@ function activateSection(sectionId) {
         if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
           return; // Не показуємо помилку, не логуємо
         }
-        console.error("Не вдалося завантажити кількість непрочитаних:", e);
       });
     }
   }
@@ -5008,7 +5178,6 @@ function activateSection(sectionId) {
   }
   if (sectionId === "page-assistant") {
     initializeAssistantPage().catch((error) => {
-      console.error("Не вдалося ініціалізувати сторінку асистента:", error);
       showNotification({
         type: "error",
         title: "Помилка ініціалізації",
@@ -5031,7 +5200,6 @@ function activateSection(sectionId) {
         } else {
           // Завантажуємо історію якщо її немає
           loadHistory(50).catch((error) => {
-            console.error("Не вдалося завантажити історію:", error);
             renderHistoryTable(); // Показуємо порожній стан при помилці
           });
         }
@@ -5140,10 +5308,8 @@ async function handleSubmit(event) {
     
     // Оновлюємо історію після успішного прогнозування (для автентифікованих користувачів)
     if (authState.token && authState.user) {
-      console.log("✅ Користувач автентифікований, оновлюємо історію...");
       try {
         await loadHistory(50);
-        console.log("✅ Історія оновлена:", authState.history?.length || 0, "записів");
         
         // Оновлюємо статистику для діаграм
         historyStatsCache = null; // Скидаємо кеш щоб завантажити оновлені дані
@@ -5160,15 +5326,12 @@ async function handleSubmit(event) {
               }
             })
             .catch((error) => {
-              console.error("Помилка завантаження статистики:", error);
             });
           refreshDashboardCharts();
         }
   } catch (error) {
-        console.error("⚠️ Помилка оновлення історії:", error);
       }
     } else {
-      console.log("ℹ️ Користувач не автентифікований, історія не зберігається");
     }
   } catch (error) {
     const errorMessage = error.message || "Не вдалося розрахувати прогноз. Спробуйте ще раз.";
@@ -5317,7 +5480,6 @@ async function loadHistoryStats() {
     historyStatsCache = data;
     return data;
   } catch (error) {
-    console.error("Не вдалося завантажити статистику історії:", error);
     historyStatsCache = null;
     return null;
   }
@@ -6437,7 +6599,6 @@ async function initializeInsightsPage() {
         showHistoryChartsEmptyState();
       }
     } catch (error) {
-      console.warn("Не вдалося завантажити статистику історії:", error);
       showHistoryChartsEmptyState();
     }
   } else {
@@ -6448,7 +6609,6 @@ async function initializeInsightsPage() {
     const analytics = await loadAnalyticsData();
     renderAllAnalyticsCharts(analytics);
   } catch (error) {
-    console.warn("Аналітика недоступна:", error);
   }
 
   insightsInitialized = true;
@@ -6893,7 +7053,7 @@ function initializeSidebarToggle() {
   initializeTheme();
   // Ensure user menu is hidden on initialization
   // Ініціалізація user menu видалена - більше не потрібна
-  initializeAuth().catch((error) => console.error("Помилка під час ініціалізації аутентифікації:", error));
+  initializeAuth().catch(() => {});
   initializeApiStatus();
   registerEventListeners();
   fetchMetadata();
@@ -6906,24 +7066,22 @@ let lastOpenedChatUuid = null; // Зберігаємо останній відк
 let chatsList = [];
 let usersList = [];
 let unreadCount = 0;
+let isEditMode = false; // Режим редагування для drag-and-drop
+let recentlyUnblockedUsers = new Set(); // Множина ID користувачів, які були нещодавно розблоковані (до вилогінення)
 
 async function loadUnreadCount() {
   // Перевіряємо автентифікацію перед виконанням запиту
   if (!authState.initialized) {
     // Чекаємо, поки автентифікація ініціалізується
-    console.log("⏳ [loadUnreadCount] Auth not initialized yet, waiting...");
     return;
   }
   if (!authState.user) {
     // Якщо користувач не автентифікований, не робимо запит (це не критично)
-    console.log("⏭️ [loadUnreadCount] User not authenticated, skipping");
     return;
   }
   try {
-    console.log("📥 [loadUnreadCount] Loading unread count...");
     const res = await apiFetch("/api/chats/unread-count");
     unreadCount = res.count || 0;
-    console.log(`✅ [loadUnreadCount] Loaded unread count: ${unreadCount}`);
     updateChatsBadge();
   } catch (e) {
     // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch
@@ -6931,7 +7089,6 @@ async function loadUnreadCount() {
     if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
       return; // Просто виходимо, не показуємо помилку, не логуємо
     }
-    console.error("❌ [loadUnreadCount] Failed to load unread count:", e);
   }
 }
 
@@ -6939,18 +7096,14 @@ function updateChatsBadge() {
   const badge = document.getElementById("nav-chats-badge");
   if (!badge) {
     // Якщо елемент ще не завантажений, спробуємо через невелику затримку
-    console.log("⏳ [updateChatsBadge] Badge element not found, retrying in 100ms...");
     setTimeout(() => updateChatsBadge(), 100);
     return;
   }
-  console.log(`🔄 [updateChatsBadge] Updating badge with count: ${unreadCount}`);
   if (unreadCount > 0) {
     badge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
     badge.hidden = false;
-    console.log(`✅ [updateChatsBadge] Badge shown with count: ${badge.textContent}`);
   } else {
     badge.hidden = true;
-    console.log("✅ [updateChatsBadge] Badge hidden (no unread messages)");
   }
 }
 
@@ -7007,56 +7160,62 @@ function showUnreadMessagesNotification() {
   });
 }
 
-async function loadChatsList() {
+async function loadChatsList({ skipAuthCheck = false } = {}) {
   // Перевіряємо автентифікацію перед виконанням запиту
   if (!authState.initialized) {
     // Чекаємо, поки автентифікація ініціалізується
     return;
   }
   if (!authState.user) {
-    // Якщо користувач не автентифікований, перенаправляємо на логін
-    handleUnauthorized();
+    // Якщо користувач не автентифікований, перенаправляємо на логін (тільки якщо не skipAuthCheck)
+    if (!skipAuthCheck) {
+      handleUnauthorized();
+    }
     return;
   }
   try {
-    const result = await apiFetch("/api/chats");
+    const result = await apiFetch("/api/chats", {}, { skipAuthCheck });
     // Перевіряємо, чи результат є масивом
     chatsList = Array.isArray(result) ? result : [];
     renderChatsList();
   } catch (e) {
-    // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch
+    // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch (якщо не skipAuthCheck)
     // Не показуємо помилку користувачу, бо вже перенаправлено на login
     if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
       return; // Просто виходимо, не показуємо помилку
     }
-    console.error("Не вдалося завантажити список чатів:", e);
     // Встановлюємо порожній масив на випадок помилки
     chatsList = [];
     renderChatsList();
   }
 }
 
-async function loadUsersList() {
+async function loadUsersList({ skipAuthCheck = false } = {}) {
   // Перевіряємо автентифікацію перед виконанням запиту
   if (!authState.initialized) {
     // Чекаємо, поки автентифікація ініціалізується
     return;
   }
   if (!authState.user) {
-    // Якщо користувач не автентифікований, перенаправляємо на логін
-    handleUnauthorized();
+    // Якщо користувач не автентифікований, перенаправляємо на логін (тільки якщо не skipAuthCheck)
+    if (!skipAuthCheck) {
+      handleUnauthorized();
+    }
     return;
   }
   try {
-    usersList = await apiFetch("/api/chats/users");
+    // Спочатку завантажуємо список чатів, щоб знати, з якими користувачами вже є чати
+    if (!Array.isArray(chatsList) || chatsList.length === 0) {
+      await loadChatsList({ skipAuthCheck });
+    }
+    usersList = await apiFetch("/api/chats/users", {}, { skipAuthCheck });
     renderUsersList();
   } catch (e) {
-    // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch
+    // Якщо помилка автентифікації, handleUnauthorized вже викликається в apiFetch (якщо не skipAuthCheck)
     // Не показуємо помилку користувачу, бо вже перенаправлено на login
     if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
       return; // Просто виходимо, не показуємо помилку, не логуємо
     }
-    console.error("Не вдалося завантажити список користувачів:", e);
   }
 }
 
@@ -7073,23 +7232,53 @@ function renderChatsList() {
   if (chatsList.length === 0) {
     container.innerHTML = "";
     if (empty) empty.hidden = false;
+    // Приховуємо кнопку "Редагувати порядок", коли список пустий
+    const editModeBtn = document.getElementById("chats-edit-mode-btn");
+    if (editModeBtn) {
+      editModeBtn.hidden = true;
+    }
     return;
   }
   
   if (empty) empty.hidden = true;
   
-  container.innerHTML = chatsList.map(chat => {
+  // Фільтруємо заблокованих користувачів
+  const activeChats = chatsList.filter(chat => chat.other_user && chat.other_user.is_blocked !== true);
+  
+  // Приховуємо/показуємо кнопку "Редагувати порядок" залежно від наявності чатів
+  const editModeBtn = document.getElementById("chats-edit-mode-btn");
+  if (editModeBtn) {
+    if (activeChats.length === 0) {
+      editModeBtn.hidden = true;
+    } else {
+      editModeBtn.hidden = false;
+    }
+  }
+  
+  container.innerHTML = activeChats.map(chat => {
     const lastMsg = chat.last_message ? (chat.last_message.content.length > 50 ? chat.last_message.content.substring(0, 50) + "..." : chat.last_message.content) : "Немає повідомлень";
     const unreadBadge = chat.unread_count > 0 ? `<span class="chats-item__badge">${chat.unread_count > 99 ? "99+" : chat.unread_count}</span>` : "";
+    const pinIcon = chat.is_pinned ? `<span class="chats-item__pin-icon" data-lucide="pin"></span>` : "";
+    const gripIcon = isEditMode ? `<span class="chats-item__grip-icon" data-lucide="grip-vertical"></span>` : "";
     return `
-      <div class="chats-item" data-chat-uuid="${chat.uuid}">
+      <div class="chats-item ${chat.is_pinned ? 'chats-item--pinned' : ''} ${isEditMode ? 'chats-item--edit-mode' : ''}" data-chat-uuid="${chat.uuid}" draggable="${isEditMode}">
+        ${gripIcon}
         <div class="chats-item__avatar" data-user-id="${chat.other_user.id}">${getUserInitial(chat.other_user)}</div>
         <div class="chats-item__content">
           <div class="chats-item__header">
             <span class="chats-item__name">${chat.other_user.display_name}</span>
+            ${pinIcon}
             ${unreadBadge}
           </div>
           <p class="chats-item__preview">${lastMsg}</p>
+        </div>
+        <div class="chats-item__actions">
+          <button type="button" class="chats-item__action-btn chats-item__pin-btn" data-chat-uuid="${chat.uuid}" aria-label="${chat.is_pinned ? 'Відкріпити' : 'Закріпити'}">
+            <span class="icon" data-lucide="${chat.is_pinned ? 'pin-off' : 'pin'}"></span>
+          </button>
+          <button type="button" class="chats-item__action-btn chats-item__delete-btn" data-chat-uuid="${chat.uuid}" aria-label="Видалити чат">
+            <span class="icon" data-lucide="trash-2"></span>
+          </button>
         </div>
       </div>
     `;
@@ -7108,15 +7297,40 @@ function renderChatsList() {
   
   // Додаємо обробники кліків
   container.querySelectorAll(".chats-item").forEach(item => {
-    item.addEventListener("click", async () => {
+    item.addEventListener("click", async (e) => {
+      // Не відкриваємо чат, якщо клікнули на кнопку дії
+      if (e.target.closest('.chats-item__actions')) {
+        return;
+      }
       const uuid = item.dataset.chatUuid;
       if (!uuid) {
-        console.error("Chat UUID not found");
         return;
       }
       navigateTo(`/c/${uuid}`);
     });
   });
+  
+  // Додаємо обробники для кнопок pin та delete
+  container.querySelectorAll(".chats-item__pin-btn").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const uuid = btn.dataset.chatUuid;
+      if (!uuid) return;
+      await togglePinChat(uuid);
+    });
+  });
+  
+  container.querySelectorAll(".chats-item__delete-btn").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const uuid = btn.dataset.chatUuid;
+      if (!uuid) return;
+      await deleteChat(uuid);
+    });
+  });
+  
+  // Додаємо drag and drop функціональність
+  setupDragAndDrop(container);
 }
 
 function renderUsersList() {
@@ -7133,31 +7347,147 @@ function renderUsersList() {
     return;
   }
   
+  // Фільтруємо користувачів, які вже мають чати з поточним користувачем
+  // Отримуємо список ID користувачів, з якими вже є чати
+  const existingChatUserIds = new Set();
+  if (Array.isArray(chatsList)) {
+    chatsList.forEach(chat => {
+      if (chat.other_user && chat.other_user.id) {
+        existingChatUserIds.add(chat.other_user.id);
+      }
+    });
+  }
+  
+  // Фільтруємо користувачів, виключаючи поточного користувача та тих, з ким вже є активні чати
+  const currentUserId = authState.user?.id;
+  
+  // Розділяємо користувачів на активних та заблокованих
+  const activeUsers = [];
+  const blockedUsers = [];
+  const recentlyUnblockedActiveUsers = [];
+  
+  usersList.forEach(user => {
+    // Виключаємо поточного користувача
+    if (user.id === currentUserId) return;
+    
+    // Перевіряємо, чи є активний чат з цим користувачем
+    const hasActiveChat = existingChatUserIds.has(user.id);
+    const isRecentlyUnblocked = recentlyUnblockedUsers.has(user.id);
+    const isBlocked = user.is_blocked === true;
+    
+    if (isBlocked) {
+      // Заблоковані користувачі показуємо окремо
+      blockedUsers.push(user);
+    } else if (!hasActiveChat) {
+      // Активні користувачі без чатів
+      if (isRecentlyUnblocked) {
+        // Нещодавно розблоковані користувачі показуємо окремо
+        recentlyUnblockedActiveUsers.push(user);
+      } else {
+        activeUsers.push(user);
+      }
+    }
+  });
+  
+  // Сортуємо: спочатку активні, потім нещодавно розблоковані, потім заблоковані
+  const allUsers = [...activeUsers, ...recentlyUnblockedActiveUsers, ...blockedUsers];
+  
+  if (allUsers.length === 0) {
+    container.innerHTML = "";
+    if (empty) {
+      empty.textContent = "Немає доступних користувачів для нового чату";
+      empty.hidden = false;
+    }
+    return;
+  }
+  
   if (empty) empty.hidden = true;
   
-  container.innerHTML = usersList.map(user => `
-    <div class="chats-item chats-item--user" data-user-id="${user.id}">
-      <div class="chats-item__avatar" data-user-id="${user.id}">${getUserInitial(user)}</div>
-      <div class="chats-item__content">
-        <div class="chats-item__header">
-          <span class="chats-item__name">${user.display_name}</span>
+  container.innerHTML = allUsers.map(user => {
+    const isBlocked = user.is_blocked === true;
+    const isRecentlyUnblocked = recentlyUnblockedUsers.has(user.id);
+    if (isBlocked) {
+      // Для заблокованих користувачів: аватар всередині content, кнопка окремо
+      return `
+        <div class="chats-item chats-item--user chats-item--blocked" data-user-id="${user.id}" data-blocked="true">
+          <div class="chats-item__content">
+            <div class="chats-item__avatar" data-user-id="${user.id}">${getUserInitial(user)}</div>
+            <div class="chats-item__content-inner">
+              <div class="chats-item__header">
+                <span class="chats-item__name">${user.display_name}</span>
+                <span class="chats-item__blocked-badge">Заблокований</span>
+              </div>
+              <p class="chats-item__preview">${user.email}</p>
+            </div>
+          </div>
+          <button type="button" class="button button--ghost button--small btn-unblock-user" data-user-id="${user.id}" aria-label="Розблокувати користувача">
+            <span class="icon" data-lucide="user-check"></span>
+            <span>Розблокувати</span>
+          </button>
         </div>
-        <p class="chats-item__preview">${user.email}</p>
-      </div>
-    </div>
-  `).join("");
+      `;
+    } else {
+      // Для звичайних користувачів: стандартна структура з content-inner для вертикального розташування
+      return `
+        <div class="chats-item chats-item--user ${isRecentlyUnblocked ? 'chats-item--recently-unblocked' : ''}" data-user-id="${user.id}">
+          <div class="chats-item__avatar" data-user-id="${user.id}">${getUserInitial(user)}</div>
+          <div class="chats-item__content">
+            <div class="chats-item__content-inner">
+              <div class="chats-item__header">
+                <span class="chats-item__name">${user.display_name}</span>
+                ${isRecentlyUnblocked ? '<span class="chats-item__unblocked-badge">Нещодавно розблокований</span>' : ''}
+              </div>
+              <p class="chats-item__preview">${user.email}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }).join("");
   
   // Застосовуємо стилі аватарок (фото або кольоровий фон)
   container.querySelectorAll(".chats-item__avatar").forEach(avatarEl => {
     const userId = Number(avatarEl.dataset.userId);
-    const user = usersList.find(u => u.id === userId);
+    const user = allUsers.find(u => u.id === userId);
     if (user) {
       applyAvatarStyle(avatarEl, user);
     }
   });
   
-  // Додаємо обробники кліків
+  // Додаємо обробники кліків для кнопок розблокування
+  container.querySelectorAll(".btn-unblock-user").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const userId = Number(btn.dataset.userId);
+      if (!userId) return;
+      
+      const user = allUsers.find(u => u.id === userId);
+      if (!user) return;
+      
+      // Знаходимо батьківський елемент чату
+      const chatItem = btn.closest(".chats-item");
+      if (!chatItem) return;
+      
+      // Показуємо inline popup для підтвердження
+      showUnblockConfirmationPopup(chatItem, userId, user);
+    });
+  });
+  
+  refreshIcons();
+  
+  // Додаємо обробники кліків для вибору користувача
   container.querySelectorAll(".chats-item--user").forEach(item => {
+    const isBlocked = item.dataset.blocked === "true";
+    const isRecentlyUnblocked = item.classList.contains("chats-item--recently-unblocked");
+    
+    // Заблоковані користувачі неактивні (крім кнопки розблокування)
+    // Нещодавно розблоковані користувачі активні
+    if (isBlocked && !isRecentlyUnblocked) {
+      // Не встановлюємо inline стилі - opacity застосовується через CSS до .chats-item__content
+      return; // Не додаємо обробник кліку для заблокованих
+    }
+    
     item.addEventListener("click", async () => {
       if (!authState.user) {
         pendingRouteAfterAuth = window.location.pathname;
@@ -7165,6 +7495,19 @@ function renderUsersList() {
         return;
       }
       const userId = Number(item.dataset.userId);
+      const user = allUsers.find(u => u.id === userId);
+      
+      // Перевіряємо, чи користувач не заблокований
+      if (user && user.is_blocked === true) {
+        showNotification({
+          type: "error",
+          title: "Помилка",
+          message: "Не можна створити чат з заблокованим користувачем",
+          duration: 3000,
+        });
+        return;
+      }
+      
       try {
         // Створюємо або отримуємо чат з користувачем
         const chat = await apiFetch("/api/chats", {
@@ -7179,7 +7522,6 @@ function renderUsersList() {
         if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
           return;
         }
-        console.error("Не вдалося створити чат:", e);
         showNotification({
           type: "error",
           title: "Помилка",
@@ -7205,7 +7547,6 @@ async function loadChat(uuid) {
   try {
     const chat = await apiFetch(`/api/chats/${uuid}`);
     if (!chat || !chat.uuid) {
-      console.error("Invalid chat data received");
       showNotification({
         type: "error",
         title: "Помилка",
@@ -7224,7 +7565,6 @@ async function loadChat(uuid) {
     if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
       return; // Просто виходимо, не показуємо помилку, не логуємо
     }
-    console.error("Не вдалося завантажити чат:", e);
     showNotification({
       type: "error",
       title: "Помилка",
@@ -7243,6 +7583,7 @@ function renderChat(chat) {
   const messages = document.getElementById("chats-main-messages");
   const avatar = document.getElementById("chats-main-avatar");
   const name = document.getElementById("chats-main-name");
+  const blockBtn = document.getElementById("chats-main-block-btn");
   
   if (!empty || !content || !messages || !avatar || !name) return;
   
@@ -7252,6 +7593,40 @@ function renderChat(chat) {
   // Застосовуємо стилі аватарок (фото або кольоровий фон)
   applyAvatarStyle(avatar, chat.other_user);
   name.textContent = chat.other_user.display_name;
+  
+  // Показуємо/ховаємо кнопку блокування
+  if (blockBtn) {
+    const isBlocked = chat.other_user.is_blocked === true;
+    blockBtn.hidden = false;
+    blockBtn.setAttribute("aria-label", isBlocked ? "Розблокувати користувача" : "Заблокувати користувача");
+    blockBtn.removeAttribute("data-tooltip");
+    blockBtn.dataset.userId = String(chat.other_user.id);
+    blockBtn.dataset.isBlocked = isBlocked ? "true" : "false";
+    
+    // Оновлюємо іконку
+    const icon = blockBtn.querySelector(".icon");
+    if (icon) {
+      icon.setAttribute("data-lucide", isBlocked ? "user-check" : "user-x");
+    }
+    
+    // Видаляємо всі старі обробники подій
+    const newBlockBtn = blockBtn.cloneNode(true);
+    blockBtn.parentNode.replaceChild(newBlockBtn, blockBtn);
+    
+    // Додаємо новий обробник
+    newBlockBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const userId = Number(newBlockBtn.dataset.userId);
+      const isCurrentlyBlocked = newBlockBtn.dataset.isBlocked === "true";
+      if (!userId) {
+        return;
+      }
+      await toggleUserBlock(userId, isCurrentlyBlocked, chat.other_user.display_name || chat.other_user.email);
+    });
+    
+    refreshIcons();
+  }
   
   messages.innerHTML = chat.messages.map(msg => {
     const isOwn = msg.sender_id === authState.user.id;
@@ -7265,16 +7640,326 @@ function renderChat(chat) {
   
   messages.scrollTop = messages.scrollHeight;
   
-  // Оновлюємо sidebar з чатами та виділяємо поточний
+  // Оновлюємо список чатів та непрочитані повідомлення
   if (authState.user) {
-    // Спочатку оновлюємо список чатів, щоб він містив поточний чат
+    // Оновлюємо список чатів
     loadChatsList().then(() => {
-      renderChatsSidebarList(chat);
       loadUnreadCount();
     }).catch(e => {
       // Якщо не вдалося завантажити список, все одно показуємо чат
-      renderChatsSidebarList(chat);
       loadUnreadCount();
+    });
+  }
+}
+
+// Функція для форматування часу блокування (X хв/год/днів тому)
+function formatBlockedTime(blockedAt) {
+  if (!blockedAt) return "нещодавно";
+  
+  const now = new Date();
+  const blocked = new Date(blockedAt);
+  const diffMs = now - blocked;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return "щойно";
+  if (diffMins < 60) {
+    return `${diffMins} ${diffMins === 1 ? 'хвилину' : diffMins < 5 ? 'хвилини' : 'хвилин'} тому`;
+  }
+  if (diffHours < 24) {
+    const remainingMins = diffMins % 60;
+    if (remainingMins === 0) {
+      return `${diffHours} ${diffHours === 1 ? 'годину' : diffHours < 5 ? 'години' : 'годин'} тому`;
+    }
+    return `${diffHours} ${diffHours === 1 ? 'годину' : diffHours < 5 ? 'години' : 'годин'} ${remainingMins} ${remainingMins === 1 ? 'хвилину' : remainingMins < 5 ? 'хвилини' : 'хвилин'} тому`;
+  }
+  return `${diffDays} ${diffDays === 1 ? 'день' : diffDays < 5 ? 'дні' : 'днів'} тому`;
+}
+
+// Функція для показу inline popup підтвердження розблокування
+function showUnblockConfirmationPopup(chatItem, userId, user) {
+  // Видаляємо попередній popup, якщо він існує
+  const existingPopup = document.querySelector(".unblock-confirmation-popup");
+  if (existingPopup) {
+    existingPopup.remove();
+  }
+  
+  // Отримуємо час блокування
+  const blockedAt = user.blocked_at;
+  const blockedTimeText = formatBlockedTime(blockedAt);
+  
+  // Створюємо popup
+  const popup = document.createElement("div");
+  popup.className = "unblock-confirmation-popup";
+  popup.innerHTML = `
+    <div class="unblock-confirmation-popup__content">
+      <div class="unblock-confirmation-popup__header">
+        <h3>Розблокувати користувача?</h3>
+      </div>
+      <div class="unblock-confirmation-popup__body">
+        <p class="unblock-confirmation-popup__text">Ви впевнені, що хочете розблокувати "${user.display_name || user.email}"?</p>
+        <p class="unblock-confirmation-popup__info">Заблокований ${blockedTimeText}</p>
+      </div>
+      <div class="unblock-confirmation-popup__actions">
+        <button type="button" class="button button--ghost button--small unblock-confirmation-popup__cancel">Скасувати</button>
+        <button type="button" class="button button--primary button--small unblock-confirmation-popup__confirm">Підтвердити</button>
+      </div>
+    </div>
+  `;
+  
+  // Додаємо popup до DOM (після chatItem)
+  chatItem.parentNode.insertBefore(popup, chatItem.nextSibling);
+  
+  // Позиціонуємо popup відносно chatItem
+  // Використовуємо fixed positioning для точного позиціювання відносно viewport
+  const rect = chatItem.getBoundingClientRect();
+  
+  // Встановлюємо позицію відносно viewport
+  popup.style.position = "fixed";
+  popup.style.top = `${rect.bottom + 8}px`;
+  popup.style.left = `${rect.left}px`;
+  
+  // Перевіряємо, чи popup не виходить за межі екрану
+  setTimeout(() => {
+    const popupRect = popup.getBoundingClientRect();
+    if (popupRect.right > window.innerWidth) {
+      popup.style.left = `${window.innerWidth - popupRect.width - 16}px`;
+    }
+    if (popupRect.bottom > window.innerHeight) {
+      popup.style.top = `${rect.top - popupRect.height - 8}px`;
+    }
+  }, 0);
+  
+  // Обробники кнопок
+  const cancelBtn = popup.querySelector(".unblock-confirmation-popup__cancel");
+  const confirmBtn = popup.querySelector(".unblock-confirmation-popup__confirm");
+  
+  const closePopup = () => {
+    popup.remove();
+  };
+  
+  cancelBtn.addEventListener("click", closePopup);
+  
+  confirmBtn.addEventListener("click", async () => {
+    closePopup();
+    await handleUnblockUser(userId, user);
+  });
+  
+  // Закриваємо popup при кліку поза ним
+  const handleClickOutside = (e) => {
+    if (!popup.contains(e.target) && !chatItem.contains(e.target)) {
+      closePopup();
+      document.removeEventListener("click", handleClickOutside);
+    }
+  };
+  
+  // Додаємо обробник після невеликої затримки, щоб не спрацював одразу
+  setTimeout(() => {
+    document.addEventListener("click", handleClickOutside);
+  }, 100);
+}
+
+// Функція для обробки розблокування користувача
+async function handleUnblockUser(userId, user) {
+  try {
+    // Виконуємо розблокування
+    const result = await apiFetch(`/users/${userId}/unblock`, { method: "PATCH" }, { skipAuthCheck: true });
+    
+    if (!result || result.is_blocked === undefined) {
+      throw new Error("Некоректна відповідь від сервера");
+    }
+    
+    // Додаємо користувача до списку нещодавно розблокованих
+    recentlyUnblockedUsers.add(userId);
+    
+    showNotification({
+      type: "success",
+      title: "Користувача розблоковано",
+      message: result.message || "Користувач успішно розблокований",
+      duration: 3000,
+    });
+    
+    // Оновлюємо список користувачів (це оновить UI з новим статусом)
+    try {
+      await loadUsersList({ skipAuthCheck: true });
+    } catch (e) {
+      // Ігноруємо помилки при оновленні списку користувачів після розблокування
+    }
+    
+    // Оновлюємо список чатів
+    try {
+      await loadChatsList({ skipAuthCheck: true });
+    } catch (e) {
+      // Ігноруємо помилки
+    }
+  } catch (e) {
+    let errorMessage = "Не вдалося розблокувати користувача";
+    if (e.message) {
+      errorMessage = e.message;
+    } else if (e.detail) {
+      errorMessage = e.detail;
+    }
+    
+    showNotification({
+      type: "error",
+      title: "Помилка",
+      message: errorMessage,
+      duration: 4000,
+    });
+  }
+}
+
+// Функція для блокування/розблокування користувача
+async function toggleUserBlock(userId, isCurrentlyBlocked, userName) {
+  try {
+    // Якщо розблоковуємо, показуємо модалку підтвердження
+    if (isCurrentlyBlocked) {
+      // Показуємо модалку з підтвердженням розблокування
+      const confirmed = await showConfirm(
+        `Ви впевнені, що хочете розблокувати користувача "${userName}"?\n\nПісля розблокування:\n• Ви зможете обмінюватися повідомленнями\n• Чат з цим користувачем стане доступним\n• Користувач зможе відправляти вам повідомлення`,
+        "Розблокувати користувача?",
+        "info"
+      );
+      
+      if (!confirmed) {
+        return; // Користувач скасував розблокування
+      }
+      
+      // Виконуємо розблокування
+      const result = await apiFetch(`/users/${userId}/unblock`, { method: "PATCH" }, { skipAuthCheck: true });
+      
+      if (!result || result.is_blocked === undefined) {
+        throw new Error("Некоректна відповідь від сервера");
+      }
+      
+      // Додаємо користувача до списку нещодавно розблокованих
+      recentlyUnblockedUsers.add(userId);
+      
+      showNotification({
+        type: "success",
+        title: "Користувача розблоковано",
+        message: result.message || "Користувач успішно розблокований",
+        duration: 3000,
+      });
+      
+      // Оновлюємо список чатів та користувачів
+      // Використовуємо skipAuthCheck, щоб не викликати handleUnauthorized при помилках
+      try {
+        await loadChatsList({ skipAuthCheck: true });
+      } catch (e) {
+        // Ігноруємо помилки при оновленні списку чатів після розблокування
+      }
+      try {
+        await loadUsersList({ skipAuthCheck: true });
+      } catch (e) {
+        // Ігноруємо помилки при оновленні списку користувачів після розблокування
+      }
+      
+      // Оновлюємо поточний чат, якщо він відкритий
+      if (currentChatUuid) {
+        try {
+          const currentChat = chatsList.find(c => c.uuid === currentChatUuid);
+          if (currentChat && currentChat.other_user.id === userId) {
+            await loadChat(currentChatUuid);
+          }
+        } catch (e) {
+        }
+      }
+      return;
+    }
+    
+    // Якщо блокуємо, показуємо модалку з попередженням
+    const confirmed = await showConfirm(
+      `Ви впевнені, що хочете заблокувати користувача "${userName}"?\n\nПісля блокування:\n• Ви не зможете обмінюватися повідомленнями\n• Чат з цим користувачем буде приховано\n• Користувач не зможе відправляти вам повідомлення`,
+      "Заблокувати користувача?",
+      "danger"
+    );
+    
+    if (!confirmed) {
+      return; // Користувач скасував блокування
+    }
+    
+    // Виконуємо блокування
+    const result = await apiFetch(`/users/${userId}/block`, { method: "PATCH" }, { skipAuthCheck: true });
+    
+    if (!result || result.is_blocked === undefined) {
+      throw new Error("Некоректна відповідь від сервера");
+    }
+    
+    // Оновлюємо список чатів ПЕРЕД перевіркою закріплення та закриттям чату
+    // Використовуємо skipAuthCheck, щоб не викликати handleUnauthorized при помилках
+    try {
+      await loadChatsList({ skipAuthCheck: true });
+    } catch (e) {
+      // Ігноруємо помилки при оновленні списку чатів після блокування
+    }
+    
+    // Знаходимо чат з заблокованим користувачем (після оновлення списку)
+    const chatToBlock = chatsList.find(c => c.other_user && c.other_user.id === userId);
+    
+    // Якщо чат був закріплений, відкріплюємо його
+    if (chatToBlock && chatToBlock.is_pinned) {
+      try {
+        await togglePinChat(chatToBlock.uuid, true);
+      } catch (e) {
+        // Ігноруємо помилки при відкріпленні
+      }
+    }
+    
+    showNotification({
+      type: "success",
+      title: "Користувача заблоковано",
+      message: result.message || "Користувач успішно заблокований",
+      duration: 3000,
+    });
+    
+    // Оновлюємо список користувачів
+    try {
+      await loadUsersList({ skipAuthCheck: true });
+    } catch (e) {
+      // Ігноруємо помилки при оновленні списку користувачів після блокування
+    }
+    
+    // Якщо заблокований користувач був у відкритому чаті, закриваємо чат
+    if (result.is_blocked && currentChatUuid) {
+      const currentChat = chatsList.find(c => c.uuid === currentChatUuid);
+      if (currentChat && currentChat.other_user && currentChat.other_user.id === userId) {
+        lastOpenedChatUuid = null;
+        navigateTo("/chats", { replace: true });
+        showNotification({
+          type: "info",
+          title: "Чат закрито",
+          message: "Чат з заблокованим користувачем було закрито",
+          duration: 2000,
+        });
+      }
+    } else if (currentChatUuid) {
+      // Якщо чат відкритий, оновлюємо його, щоб відобразити зміни
+      const currentChat = chatsList.find(c => c.uuid === currentChatUuid);
+      if (currentChat && currentChat.other_user && currentChat.other_user.id === userId) {
+        try {
+          await loadChat(currentChatUuid);
+        } catch (e) {
+          // Ігноруємо помилки при оновленні чату
+        }
+      }
+    }
+  } catch (e) {
+    // Не викликаємо handleUnauthorized тут, щоб не вилогінювати користувача
+    
+    let errorMessage = "Не вдалося заблокувати/розблокувати користувача";
+    if (e.message) {
+      errorMessage = e.message;
+    } else if (e.detail) {
+      errorMessage = e.detail;
+    }
+    
+    showNotification({
+      type: "error",
+      title: "Помилка",
+      message: errorMessage,
+      duration: 4000,
     });
   }
 }
@@ -7297,27 +7982,33 @@ function showChatsListFull() {
   const listFull = document.getElementById("chats-list-full");
   const usersFull = document.getElementById("chats-users-full");
   const layout = document.getElementById("chats-layout");
+  const chatsMain = document.querySelector(".chats-main");
   if (listFull) listFull.hidden = false;
   if (usersFull) usersFull.hidden = true;
   if (layout) layout.hidden = true;
+  if (chatsMain) chatsMain.classList.remove("chats-main--in-chat");
 }
 
 function showUsersListFull() {
   const listFull = document.getElementById("chats-list-full");
   const usersFull = document.getElementById("chats-users-full");
   const layout = document.getElementById("chats-layout");
+  const chatsMain = document.querySelector(".chats-main");
   if (listFull) listFull.hidden = true;
   if (usersFull) usersFull.hidden = false;
   if (layout) layout.hidden = true;
+  if (chatsMain) chatsMain.classList.remove("chats-main--in-chat");
 }
 
 function showChatLayout() {
   const listFull = document.getElementById("chats-list-full");
   const usersFull = document.getElementById("chats-users-full");
   const layout = document.getElementById("chats-layout");
+  const chatsMain = document.querySelector(".chats-main");
   if (listFull) listFull.hidden = true;
   if (usersFull) usersFull.hidden = true;
   if (layout) layout.hidden = false;
+  if (chatsMain) chatsMain.classList.add("chats-main--in-chat");
 }
 
 function renderChatsSidebarList(activeChat) {
@@ -7337,16 +8028,23 @@ function renderChatsSidebarList(activeChat) {
   
   if (empty) empty.hidden = true;
   
-  container.innerHTML = chatsList.map(chat => {
+  // Фільтруємо заблокованих користувачів
+  const activeChats = chatsList.filter(chat => chat.other_user && chat.other_user.is_blocked !== true);
+  
+  container.innerHTML = activeChats.map(chat => {
     const isActive = activeChat && chat.uuid === activeChat.uuid;
     const lastMsg = chat.last_message ? (chat.last_message.content.length > 50 ? chat.last_message.content.substring(0, 50) + "..." : chat.last_message.content) : "Немає повідомлень";
     const unreadBadge = chat.unread_count > 0 ? `<span class="chats-item__badge">${chat.unread_count > 99 ? "99+" : chat.unread_count}</span>` : "";
+    const pinIcon = chat.is_pinned ? `<span class="chats-item__pin-icon" data-lucide="pin"></span>` : "";
+    const gripIcon = isEditMode ? `<span class="chats-item__grip-icon" data-lucide="grip-vertical"></span>` : "";
     return `
-      <div class="chats-item ${isActive ? "chats-item--active" : ""}" data-chat-uuid="${chat.uuid}">
+      <div class="chats-item ${isActive ? "chats-item--active" : ""} ${chat.is_pinned ? 'chats-item--pinned' : ''} ${isEditMode ? 'chats-item--edit-mode' : ''}" data-chat-uuid="${chat.uuid}" draggable="${isEditMode}">
+        ${gripIcon}
         <div class="chats-item__avatar" data-user-id="${chat.other_user.id}">${getUserInitial(chat.other_user)}</div>
         <div class="chats-item__content">
           <div class="chats-item__header">
             <span class="chats-item__name">${chat.other_user.display_name}</span>
+            ${pinIcon}
             ${unreadBadge}
           </div>
           <p class="chats-item__preview">${lastMsg}</p>
@@ -7368,23 +8066,184 @@ function renderChatsSidebarList(activeChat) {
   
   // Додаємо обробники кліків
   container.querySelectorAll(".chats-item").forEach(item => {
-    item.addEventListener("click", async () => {
+    item.addEventListener("click", async (e) => {
       const uuid = item.dataset.chatUuid;
       if (!uuid) {
-        console.error("Chat UUID not found");
         return;
       }
       navigateTo(`/c/${uuid}`);
     });
   });
+  
+  // Додаємо drag and drop функціональність
+  setupDragAndDrop(container);
+}
+
+// Функції для роботи з чатами (pin, delete, drag and drop)
+async function togglePinChat(uuid, skipAuthCheck = false) {
+  try {
+    const result = await apiFetch(`/api/chats/${uuid}/pin`, { method: "PATCH" }, { skipAuthCheck });
+    // Оновлюємо список чатів
+    await loadChatsList({ skipAuthCheck });
+    showNotification({
+      type: "success",
+      title: result.is_pinned ? "Чат закріплено" : "Чат відкріплено",
+      message: "",
+      duration: 2000,
+    });
+  } catch (e) {
+    if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+      return;
+    }
+    showNotification({
+      type: "error",
+      title: "Помилка",
+      message: "Не вдалося закріпити/відкріпити чат",
+      duration: 3000,
+    });
+  }
+}
+
+async function deleteChat(uuid) {
+  const confirmed = await showConfirm(
+    "Ви впевнені, що хочете видалити цей чат? Всі повідомлення будуть видалені.",
+    "Видалити чат?",
+    "danger"
+  );
+  if (!confirmed) {
+    return;
+  }
+  
+  try {
+    await apiFetch(`/api/chats/${uuid}`, { method: "DELETE" });
+    // Оновлюємо список чатів
+    await loadChatsList();
+    // Якщо видалений чат був відкритий, закриваємо його
+    if (currentChatUuid === uuid) {
+      lastOpenedChatUuid = null;
+      navigateTo("/chats", { replace: true });
+    }
+    showNotification({
+      type: "success",
+      title: "Чат видалено",
+      message: "",
+      duration: 2000,
+    });
+  } catch (e) {
+    if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
+      return;
+    }
+    showNotification({
+      type: "error",
+      title: "Помилка",
+      message: "Не вдалося видалити чат",
+      duration: 3000,
+    });
+  }
+}
+
+function setupDragAndDrop(container) {
+  let draggedElement = null;
+  
+  container.querySelectorAll(".chats-item").forEach((item) => {
+    item.addEventListener("dragstart", (e) => {
+      // Перевіряємо, чи активований режим редагування
+      if (!isEditMode) {
+        e.preventDefault();
+        return;
+      }
+      draggedElement = item;
+      item.classList.add("chats-item--dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    
+    item.addEventListener("dragend", () => {
+      item.classList.remove("chats-item--dragging");
+      container.querySelectorAll(".chats-item").forEach(el => {
+        el.classList.remove("chats-item--drag-over");
+      });
+    });
+    
+    item.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      
+      const afterElement = getDragAfterElement(container, e.clientY);
+      const dragging = container.querySelector(".chats-item--dragging");
+      
+      if (afterElement == null) {
+        container.appendChild(dragging);
+      } else {
+        container.insertBefore(dragging, afterElement);
+      }
+    });
+    
+    item.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      if (!draggedElement) return;
+      
+      const items = Array.from(container.querySelectorAll(".chats-item"));
+      // Оновлюємо порядок для всіх чатів
+      const newOrder = items.map((item, index) => ({
+        uuid: item.dataset.chatUuid,
+        order: index,
+      }));
+      
+      try {
+        await apiFetch("/api/chats/reorder", {
+          method: "PATCH",
+          body: JSON.stringify({ chats: newOrder }),
+        });
+        await loadChatsList();
+      } catch (error) {
+        // Перезавантажуємо список, щоб відновити правильний порядок
+        await loadChatsList();
+      }
+    });
+  });
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll(".chats-item:not(.chats-item--dragging)")];
+  
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
 function initializeChats() {
   const newChatBtn = document.getElementById("chats-new-chat-btn");
+  const editModeBtn = document.getElementById("chats-edit-mode-btn");
   const backToListBtn = document.getElementById("chats-back-to-list-btn");
   const backFromChatBtn = document.getElementById("chats-back-to-list-from-chat-btn");
   const sendBtn = document.getElementById("chats-main-send-btn");
   const input = document.getElementById("chats-main-input");
+  
+  // Кнопка "Редагувати порядок" - активує/деактивує режим редагування
+  if (editModeBtn) {
+    editModeBtn.addEventListener("click", () => {
+      isEditMode = !isEditMode;
+      editModeBtn.classList.toggle("button--active", isEditMode);
+      editModeBtn.setAttribute("aria-label", isEditMode ? "Завершити редагування" : "Редагувати порядок");
+      editModeBtn.setAttribute("data-tooltip", isEditMode ? "Завершити редагування" : "Редагувати порядок");
+      // Оновлюємо відображення списків чатів
+      renderChatsList();
+      const sidebarContainer = document.getElementById("chats-sidebar-list");
+      if (sidebarContainer && currentChatUuid) {
+        const activeChat = chatsList.find(c => c.uuid === currentChatUuid);
+        if (activeChat) {
+          renderChatsSidebarList(activeChat);
+        }
+      }
+    });
+  }
   
   // Кнопка "Новий чат" - показує список користувачів
   if (newChatBtn) {
@@ -7443,7 +8302,6 @@ function initializeChats() {
         if (e.isAuthError || e.silent || (e.message && e.message.includes("увійти"))) {
           return; // Просто виходимо, не показуємо помилку, не логуємо
         }
-        console.error("Не вдалося відправити повідомлення:", e);
         showNotification({
           type: "error",
           title: "Помилка",
