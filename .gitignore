@@ -72,8 +72,6 @@ certs/
 *.pem
 
 # Local data
-data/app.db
-data/*.db
 data/avatars/*
 !data/avatars/.gitkeep
 
