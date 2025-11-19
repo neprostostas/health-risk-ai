@@ -4813,7 +4813,7 @@ function renderRisk(probability, bucket) {
   riskBadge.textContent = riskLabels[bucket] || bucket;
   riskBadge.className = `badge ${riskClasses[bucket] || ""}`;
   updateRiskBar(probability, bucket);
-  // Показуємо кнопку "Згенерувати Звіт" після успішного розрахунку
+  // Показуємо кнопку "Згенерувати звіт" після успішного розрахунку
   if (generateReportBtn) {
     generateReportBtn.hidden = false;
   }
@@ -8442,9 +8442,11 @@ function initializeChats() {
   // НЕ викликаємо loadChatsList() тут, щоб уникнути API запитів для неавтентифікованих користувачів
   // Ці функції будуть викликатися тільки в activateSection, коли сторінка активується
   
-  // Ініціалізація кнопки "Згенерувати Звіт"
+  // Ініціалізація кнопки "Згенерувати звіт"
   if (generateReportBtn) {
     generateReportBtn.addEventListener("click", () => {
+      // Встановлюємо прапорець, що потрібно автоматично вибрати поточний результат
+      sessionStorage.setItem("hr_auto_select_current", "true");
       navigateTo("/reports");
     });
   }
@@ -8496,8 +8498,35 @@ async function initializeReportPage() {
   reportEmpty.hidden = true;
   reportSelector.hidden = false;
   
+  // Перевіряємо, чи потрібно автоматично вибрати поточний результат
+  const shouldAutoSelect = sessionStorage.getItem("hr_auto_select_current") === "true";
+  if (shouldAutoSelect) {
+    sessionStorage.removeItem("hr_auto_select_current");
+    // Скидаємо вибір формату
+    selectedFormat = null;
+  }
+  
   // Рендеримо список прогнозувань
   renderPredictionsList(history, hasCurrentResult);
+  
+  // Автоматично вибираємо поточний результат, якщо потрібно
+  if (shouldAutoSelect && hasCurrentResult) {
+    // Використовуємо setTimeout, щоб DOM встиг оновитися
+    setTimeout(() => {
+      const currentCard = predictionsList.querySelector('[data-prediction-id="current"]');
+      if (currentCard) {
+        // Симулюємо клік на картку поточного результату
+        currentCard.click();
+      }
+    }, 0);
+  }
+  
+  // Скидаємо вибір формату візуально, якщо потрібно
+  if (shouldAutoSelect) {
+    formatGrid.querySelectorAll(".report-format-card").forEach(c => {
+      c.classList.remove("report-format-card--selected");
+    });
+  }
   
   // Додаємо обробники для вибору формату
   formatGrid.querySelectorAll(".report-format-card").forEach(card => {
