@@ -99,6 +99,7 @@ const ROUTE_SECTIONS = {
   "/reset-password": "page-reset-password",
   "/assistant": "page-assistant",
   "/chats": "page-chats",
+  "/reports": "page-report",
 };
 
 const ROUTE_ALIASES = {
@@ -216,6 +217,7 @@ const riskBadge = document.getElementById("risk-badge");
 const riskBarFill = document.getElementById("risk-bar-fill");
 const modelName = document.getElementById("model-name");
 const modelVersion = document.getElementById("model-version");
+const generateReportBtn = document.getElementById("generate-report-btn");
 const resultNote = document.getElementById("result-note");
 const chartEmpty = document.getElementById("chart-empty");
 const chartCanvas = document.getElementById("factors-chart");
@@ -335,6 +337,7 @@ const riskLabels = {
 const pageTitles = {
   "page-form": "Форма прогнозування",
   "page-insights": "Діаграми",
+  "page-report": "Звіти",
   "page-profile": "Профіль",
   "page-history": "Історія прогнозів",
   "page-api-status": "Статус API",
@@ -1873,7 +1876,7 @@ function showSectionForPath(pathname) {
   // Auth gating: require authentication for main app pages
   // Перевіряємо автентифікацію тільки після того, як authState.initialized === true
   // Це дозволяє правильно завантажити сторінку при оновленні (якщо є токен)
-  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant", "page-chats"];
+  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant", "page-chats", "page-report"];
   
   // Для захищених сторінок, якщо автентифікація ще не ініціалізована, не активуємо сторінку
   // Чекаємо, поки автентифікація ініціалізується
@@ -2123,7 +2126,7 @@ function getRiskColor(bucket) {
 
 function updateNavigationVisibility() {
   // Список захищених сторінок, які потребують автентифікації
-  const protectedSections = ["page-profile", "page-history", "page-insights", "page-form", "page-assistant"];
+  const protectedSections = ["page-profile", "page-history", "page-insights", "page-form", "page-assistant", "page-report"];
   
   // Оновлюємо всі кнопки навігації
   navItems.forEach((navItem) => {
@@ -2162,6 +2165,7 @@ function updateNavigationVisibility() {
   const navProfile = document.getElementById("nav-profile");
   const navHistory = document.getElementById("nav-history");
   const navChats = document.getElementById("nav-chats");
+  const navReport = document.getElementById("nav-report");
   
   // Знаходимо кнопки "Форма прогнозування" та "Діаграми" через data-section (безпечний селектор)
   const navForm = document.querySelector('.sidebar__nav [data-section="page-form"]');
@@ -2183,6 +2187,9 @@ function updateNavigationVisibility() {
   }
   if (navAssistant) {
     navAssistant.hidden = !authState.user;
+  }
+  if (navReport) {
+    navReport.hidden = !authState.user;
   }
   if (navChats) {
     navChats.hidden = !authState.user;
@@ -4740,6 +4747,10 @@ function renderRisk(probability, bucket) {
   riskBadge.textContent = riskLabels[bucket] || bucket;
   riskBadge.className = `badge ${riskClasses[bucket] || ""}`;
   updateRiskBar(probability, bucket);
+  // Показуємо кнопку "Згенерувати Звіт" після успішного розрахунку
+  if (generateReportBtn) {
+    generateReportBtn.hidden = false;
+  }
 }
 
 function renderFactors(factors) {
@@ -5188,6 +5199,9 @@ function activateSection(sectionId) {
   }
   if (sectionId === "page-profile") {
     updateProfileSection();
+  }
+  if (sectionId === "page-report") {
+    initializeReportPage();
   }
   if (sectionId === "page-history") {
     // Завантажуємо історію на сторінці історії
@@ -6980,7 +6994,23 @@ function registerEventListeners() {
   
   // Обробник згортання/розгортання sidebar
   initializeSidebarToggle();
-
+  
+  // Обробник кліків на nav-item кнопки через делегування подій
+  const sidebarNav = document.querySelector(".sidebar__nav");
+  if (sidebarNav) {
+    sidebarNav.addEventListener("click", (event) => {
+      const navItem = event.target.closest(".nav-item");
+      if (navItem && navItem.dataset.section) {
+        const section = navItem.dataset.section;
+        // Знаходимо шлях для цієї секції
+        const path = Object.keys(ROUTE_SECTIONS).find(key => ROUTE_SECTIONS[key] === section);
+        if (path) {
+          navigateTo(path);
+        }
+      }
+    });
+  }
+  
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleGlobalKeydown);
   window.addEventListener("popstate", () => syncRouteFromLocation());
@@ -8322,5 +8352,415 @@ function initializeChats() {
   
   // НЕ викликаємо loadChatsList() тут, щоб уникнути API запитів для неавтентифікованих користувачів
   // Ці функції будуть викликатися тільки в activateSection, коли сторінка активується
+  
+  // Ініціалізація кнопки "Згенерувати Звіт"
+  if (generateReportBtn) {
+    generateReportBtn.addEventListener("click", () => {
+      navigateTo("/reports");
+    });
+  }
+}
+
+// Змінні для сторінки звітів
+let selectedPredictionId = null;
+let selectedFormat = null;
+let currentPredictionData = null;
+let reportViewMode = localStorage.getItem("hr_report_view") === "grid" ? "grid" : "list";
+
+// Ініціалізація сторінки звітів
+async function initializeReportPage() {
+  if (!authState.user) {
+    handleUnauthorized();
+    return;
+  }
+  
+  const reportEmpty = document.getElementById("report-empty");
+  const reportSelector = document.getElementById("report-selector");
+  const predictionsList = document.getElementById("report-predictions-list");
+  const formatGrid = document.getElementById("report-format-grid");
+  
+  if (!reportEmpty || !reportSelector || !predictionsList || !formatGrid) return;
+  
+  // Перевіряємо, чи є поточний результат розрахунку
+  const hasCurrentResult = resultCard && !resultCard.hidden && probabilityValue && probabilityValue.textContent !== "—";
+  
+  // Завантажуємо історію прогнозувань
+  let history = [];
+  try {
+    if (authState.history && authState.history.length > 0) {
+      history = authState.history;
+    } else {
+      history = await loadHistory(50);
+    }
+  } catch (e) {
+    history = [];
+  }
+  
+  // Якщо немає поточного результату і немає історії - показуємо заглушку
+  if (!hasCurrentResult && (!history || history.length === 0)) {
+    reportEmpty.hidden = false;
+    reportSelector.hidden = true;
+    return;
+  }
+  
+  // Показуємо селектор
+  reportEmpty.hidden = true;
+  reportSelector.hidden = false;
+  
+  // Рендеримо список прогнозувань
+  renderPredictionsList(history, hasCurrentResult);
+  
+  // Додаємо обробники для вибору формату
+  formatGrid.querySelectorAll(".report-format-card").forEach(card => {
+    card.addEventListener("click", () => {
+      formatGrid.querySelectorAll(".report-format-card").forEach(c => {
+        c.classList.remove("report-format-card--selected");
+      });
+      card.classList.add("report-format-card--selected");
+      selectedFormat = card.dataset.format;
+      
+      // Якщо обрані і прогнозування, і формат - можна генерувати
+      if (selectedPredictionId && selectedFormat) {
+        generateReport();
+      }
+    });
+  });
+  
+  // Ініціалізація кнопки перемикача view
+  const viewToggleBtn = document.getElementById("report-view-toggle-btn");
+  if (viewToggleBtn) {
+    const setIcon = () => {
+      const icon = viewToggleBtn.querySelector(".icon");
+      if (icon) icon.setAttribute("data-lucide", reportViewMode === "list" ? "layout-grid" : "list");
+      viewToggleBtn.setAttribute("aria-label", reportViewMode === "list" ? "Grid View" : "List View");
+      viewToggleBtn.setAttribute("data-tooltip", reportViewMode === "list" ? "Grid View" : "List View");
+      if (typeof refreshIcons === "function") {
+        refreshIcons();
+      }
+    };
+    setIcon();
+    viewToggleBtn.onclick = () => {
+      reportViewMode = reportViewMode === "list" ? "grid" : "list";
+      localStorage.setItem("hr_report_view", reportViewMode);
+      setIcon();
+      renderPredictionsList(history, hasCurrentResult);
+    };
+  }
+}
+
+// Рендеринг списку прогнозувань
+function renderPredictionsList(history, hasCurrentResult) {
+  const predictionsList = document.getElementById("report-predictions-list");
+  if (!predictionsList) return;
+  
+  predictionsList.innerHTML = "";
+  
+  // Встановлюємо клас для grid або list view
+  predictionsList.className = reportViewMode === "grid" 
+    ? "report-selector__predictions report-selector__predictions--grid" 
+    : "report-selector__predictions";
+  
+  // Збираємо всі прогнозування
+  const allPredictions = [];
+  
+  // Додаємо поточний результат, якщо він є
+  if (hasCurrentResult) {
+    allPredictions.push({
+      id: "current",
+      target: document.getElementById("target-select")?.value || "diabetes_present",
+      probability: parseFloat(probabilityValue.textContent.replace("%", "")) / 100,
+      created_at: new Date().toISOString(),
+      isCurrent: true
+    });
+  }
+  
+  // Додаємо історію
+  if (history && history.length > 0) {
+    allPredictions.push(...history);
+  }
+  
+  // Рендеримо в залежності від режиму
+  allPredictions.forEach(prediction => {
+    const card = createPredictionCard(prediction);
+    predictionsList.appendChild(card);
+  });
+  
+  // Оновлюємо іконки після рендерингу
+  if (typeof refreshIcons === "function") {
+    refreshIcons();
+  }
+}
+
+// Створення картки прогнозування
+function createPredictionCard(prediction) {
+  const card = document.createElement("div");
+  card.className = "report-prediction-card";
+  card.dataset.predictionId = prediction.id;
+  
+  const date = new Date(prediction.created_at);
+  const formattedDate = date.toLocaleString("uk-UA", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  
+  const probability = prediction.probability || 0;
+  const riskLevel = probability < 0.3 ? "низький" : probability < 0.7 ? "середній" : "високий";
+  
+  // Визначаємо bucket для отримання кольору
+  const riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
+  const riskColor = getRiskColor(riskBucket);
+  
+  // Створюємо більш приглушені кольори (зменшуємо насиченість)
+  const mutedColors = {
+    low: "rgba(63, 194, 114, 0.6)",      // приглушений зелений
+    medium: "rgba(245, 182, 73, 0.6)",   // приглушений жовтий/помаранчевий
+    high: "rgba(241, 94, 111, 0.6)"       // приглушений червоний
+  };
+  const badgeColor = mutedColors[riskBucket] || mutedColors.low;
+  
+  const target = prediction.target || "diabetes_present";
+  const targetLabel = TARGET_LABELS[target] || target;
+  
+  card.innerHTML = `
+    <div class="report-prediction-card__info">
+      <h4 class="report-prediction-card__title">
+        ${targetLabel}
+        ${prediction.isCurrent ? '<span style="margin-left: 8px; font-size: 0.75rem; color: var(--accent-color);">(Поточний)</span>' : ''}
+      </h4>
+      <p class="report-prediction-card__meta">${formattedDate}</p>
+    </div>
+    <span class="report-prediction-card__badge badge" style="background: ${badgeColor}; color: #fff;">${(probability * 100).toFixed(1)}% (${riskLevel})</span>
+  `;
+  
+  card.addEventListener("click", () => {
+    const predictionsList = document.getElementById("report-predictions-list");
+    if (predictionsList) {
+      predictionsList.querySelectorAll(".report-prediction-card").forEach(c => {
+        c.classList.remove("report-prediction-card--selected");
+      });
+    }
+    card.classList.add("report-prediction-card--selected");
+    selectedPredictionId = prediction.id;
+    
+    // Зберігаємо дані прогнозування
+    if (prediction.isCurrent) {
+      currentPredictionData = {
+        target: document.getElementById("target-select")?.value || "diabetes",
+        probability: parseFloat(probabilityValue.textContent.replace("%", "")) / 100,
+        riskLevel: riskBadge?.textContent || "N/A",
+        model: modelName?.textContent || "N/A",
+        formData: getCurrentFormData()
+      };
+    } else {
+      currentPredictionData = prediction;
+    }
+    
+    // Якщо обрані і прогнозування, і формат - можна генерувати
+    if (selectedFormat) {
+      generateReport();
+    }
+  });
+  
+  return card;
+}
+
+// Отримання поточних даних форми
+function getCurrentFormData() {
+  const formData = {};
+  if (form) {
+    const inputs = form.querySelectorAll("input, select");
+    inputs.forEach(input => {
+      if (input.id && input.value) {
+        formData[input.id] = input.value;
+      }
+    });
+  }
+  return formData;
+}
+
+// Генерація звіту
+function generateReport() {
+  if (!selectedPredictionId || !selectedFormat || !currentPredictionData) {
+    showNotification({
+      type: "warning",
+      title: "Оберіть параметри",
+      message: "Будь ласка, оберіть прогнозування та формат звіту.",
+      duration: 3000
+    });
+    return;
+  }
+  
+  try {
+    switch (selectedFormat) {
+      case "pdf":
+        generatePDFReport(currentPredictionData);
+        break;
+      case "excel":
+        generateExcelReport(currentPredictionData);
+        break;
+      case "csv":
+        generateCSVReport(currentPredictionData);
+        break;
+      case "json":
+        generateJSONReport(currentPredictionData);
+        break;
+      default:
+        showNotification({
+          type: "error",
+          title: "Помилка",
+          message: "Невідомий формат звіту",
+          duration: 3000
+        });
+    }
+  } catch (error) {
+    showNotification({
+      type: "error",
+      title: "Помилка генерації",
+      message: error.message || "Не вдалося згенерувати звіт",
+      duration: 4000
+    });
+  }
+}
+
+// Генерація PDF звіту
+function generatePDFReport(data) {
+  if (typeof window.jspdf === "undefined") {
+    showNotification({
+      type: "error",
+      title: "Помилка",
+      message: "Бібліотека PDF не завантажена",
+      duration: 3000
+    });
+    return;
+  }
+  
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  
+  // Заголовок
+  doc.setFontSize(20);
+  doc.text("Звіт про прогнозування ризиків здоров'я", 20, 20);
+  
+  // Інформація про прогнозування
+  doc.setFontSize(12);
+  let y = 40;
+  doc.text(`Ціль: ${TARGET_LABELS[data.target] || data.target}`, 20, y);
+  y += 10;
+  doc.text(`Ймовірність: ${(data.probability * 100).toFixed(2)}%`, 20, y);
+  y += 10;
+  doc.text(`Рівень ризику: ${data.riskLevel || "N/A"}`, 20, y);
+  y += 10;
+  doc.text(`Модель: ${data.model || "N/A"}`, 20, y);
+  y += 20;
+  
+  // Дата
+  doc.text(`Дата: ${new Date().toLocaleString("uk-UA")}`, 20, y);
+  
+  // Збереження
+  const filename = `health_risk_report_${data.target}_${Date.now()}.pdf`;
+  doc.save(filename);
+  
+  showNotification({
+    type: "success",
+    title: "Звіт згенеровано",
+    message: `PDF звіт збережено як ${filename}`,
+    duration: 3000
+  });
+}
+
+// Генерація Excel звіту
+function generateExcelReport(data) {
+  if (typeof XLSX === "undefined") {
+    showNotification({
+      type: "error",
+      title: "Помилка",
+      message: "Бібліотека Excel не завантажена",
+      duration: 3000
+    });
+    return;
+  }
+  
+  const worksheet = XLSX.utils.json_to_sheet([{
+    "Ціль": TARGET_LABELS[data.target] || data.target,
+    "Ймовірність (%)": (data.probability * 100).toFixed(2),
+    "Рівень ризику": data.riskLevel || "N/A",
+    "Модель": data.model || "N/A",
+    "Дата": new Date().toLocaleString("uk-UA")
+  }]);
+  
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Прогнозування");
+  
+  const filename = `health_risk_report_${data.target}_${Date.now()}.xlsx`;
+  XLSX.writeFile(workbook, filename);
+  
+  showNotification({
+    type: "success",
+    title: "Звіт згенеровано",
+    message: `Excel звіт збережено як ${filename}`,
+    duration: 3000
+  });
+}
+
+// Генерація CSV звіту
+function generateCSVReport(data) {
+  const csv = [
+    "Параметр,Значення",
+    `Ціль,${TARGET_LABELS[data.target] || data.target}`,
+    `Ймовірність (%),${(data.probability * 100).toFixed(2)}`,
+    `Рівень ризику,${data.riskLevel || "N/A"}`,
+    `Модель,${data.model || "N/A"}`,
+    `Дата,${new Date().toLocaleString("uk-UA")}`
+  ].join("\n");
+  
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `health_risk_report_${data.target}_${Date.now()}.csv`);
+  link.style.visibility = "hidden";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  showNotification({
+    type: "success",
+    title: "Звіт згенеровано",
+    message: "CSV звіт завантажено",
+    duration: 3000
+  });
+}
+
+// Генерація JSON звіту
+function generateJSONReport(data) {
+  const jsonData = {
+    target: TARGET_LABELS[data.target] || data.target,
+    probability: data.probability,
+    riskLevel: data.riskLevel || "N/A",
+    model: data.model || "N/A",
+    date: new Date().toLocaleString("uk-UA"),
+    formData: data.formData || {}
+  };
+  
+  const json = JSON.stringify(jsonData, null, 2);
+  const blob = new Blob([json], { type: "application/json;charset=utf-8;" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `health_risk_report_${data.target}_${Date.now()}.json`);
+  link.style.visibility = "hidden";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  showNotification({
+    type: "success",
+    title: "Звіт згенеровано",
+    message: "JSON звіт завантажено",
+    duration: 3000
+  });
 }
 

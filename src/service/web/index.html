@@ -78,6 +78,10 @@
           <span class="icon" data-lucide="chart-bar"></span>
           <span class="nav-item__text">Діаграми</span>
         </button>
+        <button type="button" class="nav-item" data-section="page-report" id="nav-report" hidden>
+          <span class="icon" data-lucide="file-text"></span>
+          <span class="nav-item__text">Звіти</span>
+        </button>
         <button type="button" class="nav-item" data-section="page-assistant" id="nav-assistant">
           <span class="icon" data-lucide="messages-square"></span>
           <span class="nav-item__text">AI Асистент</span>
@@ -152,7 +156,13 @@
           </section>
 
           <section class="glass-card" id="result-card" hidden>
-            <h2 class="glass-card__title">Результат</h2>
+            <div class="glass-card__header">
+              <h2 class="glass-card__title">Результат</h2>
+              <button type="button" class="button button--ghost button--small" id="generate-report-btn" aria-label="Згенерувати Звіт" hidden>
+                <span class="icon" data-lucide="file-text"></span>
+                <span>Згенерувати Звіт</span>
+              </button>
+            </div>
             <div class="result">
               <div class="result__row">
                 <span class="result__label">Ймовірність</span>
@@ -764,6 +774,82 @@
               <div class="api-status-page__tech-spec-item">
                 <span class="api-status-page__tech-spec-label">Формат відповіді API</span>
                 <span class="api-status-page__tech-spec-value">JSON</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="page-report" class="page" aria-labelledby="page-title" hidden>
+        <div class="page__grid">
+          <section class="glass-card">
+            <h2 class="glass-card__title">
+              <span class="icon" data-lucide="file-text"></span>
+              <span>Генерація звіту</span>
+            </h2>
+            <div id="report-content">
+              <div id="report-empty" class="report-empty">
+                <div class="report-empty__icon">
+                  <span class="icon" data-lucide="file-x"></span>
+                </div>
+                <h3>Немає даних для звіту 📭</h3>
+                <p>Для генерації звіту спочатку виконайте прогнозування ризиків у формі. ✨</p>
+                <button type="button" class="button button--primary" onclick="navigateTo('/app')">
+                  <span class="icon" data-lucide="arrow-left"></span>
+                  <span>Перейти до форми</span>
+                </button>
+              </div>
+              <div id="report-selector" class="report-selector" hidden>
+                <div class="report-selector__section">
+                  <h3 class="report-selector__section-title">Оберіть формат звіту 📊</h3>
+                  <div class="report-format-grid" id="report-format-grid">
+                    <button type="button" class="report-format-card" data-format="pdf">
+                      <div class="report-format-card__icon report-format-card__icon--pdf">
+                        <span class="icon" data-lucide="file-text"></span>
+                      </div>
+                      <div class="report-format-card__content">
+                        <h4 class="report-format-card__title">PDF 📄</h4>
+                        <p class="report-format-card__description">Портативний формат документів</p>
+                      </div>
+                    </button>
+                    <button type="button" class="report-format-card" data-format="excel">
+                      <div class="report-format-card__icon report-format-card__icon--excel">
+                        <span class="icon" data-lucide="file-spreadsheet"></span>
+                      </div>
+                      <div class="report-format-card__content">
+                        <h4 class="report-format-card__title">Excel 📊</h4>
+                        <p class="report-format-card__description">Табличний формат для аналізу</p>
+                      </div>
+                    </button>
+                    <button type="button" class="report-format-card" data-format="csv">
+                      <div class="report-format-card__icon report-format-card__icon--csv">
+                        <span class="icon" data-lucide="file-code"></span>
+                      </div>
+                      <div class="report-format-card__content">
+                        <h4 class="report-format-card__title">CSV 📋</h4>
+                        <p class="report-format-card__description">Текстовий формат даних</p>
+                      </div>
+                    </button>
+                    <button type="button" class="report-format-card" data-format="json">
+                      <div class="report-format-card__icon report-format-card__icon--json">
+                        <span class="icon" data-lucide="braces"></span>
+                      </div>
+                      <div class="report-format-card__content">
+                        <h4 class="report-format-card__title">JSON 💾</h4>
+                        <p class="report-format-card__description">Структурований формат даних</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+                <div class="report-selector__section">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                    <h3 class="report-selector__section-title" style="margin: 0;">Оберіть прогнозування 📈</h3>
+                    <button type="button" class="icon-button icon-button--ghost" id="report-view-toggle-btn" aria-label="Перемкнути вигляд" data-tooltip="Перемкнути вигляд">
+                      <span class="icon" data-lucide="layout-grid"></span>
+                    </button>
+                  </div>
+                  <div class="report-selector__predictions" id="report-predictions-list"></div>
+                </div>
               </div>
             </div>
           </section>
