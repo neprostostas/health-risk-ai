@@ -67,15 +67,10 @@ async def serve_chats_page():
     HTML route for /chats - serves SPA page only.
     Does NOT handle JSON/API requests - those are under /api/chats.
     
-    IMPORTANT: This route does NOT enforce authentication on the backend.
-    - HTML requests don't include Authorization header (token is in localStorage)
-    - Frontend will handle auth checks and redirects via initializeAuth/showSectionForPath
-    - Backend auth is enforced only on /api/chats* endpoints which require Authorization header
-    
-    This allows authenticated users to reload /chats and stay on /chats,
-    while unauthenticated users will be redirected to /login by the frontend.
+    Завжди повертає HTML - автентифікацію перевіряє фронтенд.
+    HTML-запити не містять Authorization header (токен в localStorage),
+    тому бекенд не може перевірити автентифікацію для HTML-роутів.
     """
-    # Always return SPA HTML - let frontend handle authentication and routing
     return serve_frontend()
 
 # Route for /c/:uuid chat URLs (SPA handles routing client-side)
@@ -84,15 +79,19 @@ async def serve_chat_page(chat_uuid: str):
     """
     HTML route for /c/{chat_uuid} - serves SPA page for specific chat.
     
-    IMPORTANT: This route does NOT enforce authentication on the backend.
-    - HTML requests don't include Authorization header (token is in localStorage)
-    - Frontend will handle auth checks and redirects via initializeAuth/showSectionForPath
-    - Backend auth is enforced only on /api/chats* endpoints which require Authorization header
-    
-    This allows authenticated users to reload /c/{uuid} and stay on that chat,
-    while unauthenticated users will be redirected to /login by the frontend.
+    Завжди повертає HTML - автентифікацію перевіряє фронтенд.
     """
-    # Always return SPA HTML - let frontend handle authentication and routing
+    return serve_frontend()
+
+# HTML route for /reports - serves SPA page only
+@app.get("/reports", response_class=HTMLResponse)
+async def serve_reports_page():
+    """
+    HTML route for /reports - serves SPA page only.
+    Does NOT handle JSON/API requests.
+    
+    Завжди повертає HTML - автентифікацію перевіряє фронтенд.
+    """
     return serve_frontend()
 
 # Now include API routers (these will handle /chats API endpoints with proper prefixes)
@@ -201,7 +200,10 @@ def serve_frontend() -> FileResponse:
 
 @app.get("/app", response_class=HTMLResponse)
 async def serve_app():
-    """Повертає головну сторінку веб-інтерфейсу."""
+    """
+    Повертає головну сторінку веб-інтерфейсу.
+    Завжди повертає HTML - автентифікацію перевіряє фронтенд.
+    """
     return serve_frontend()
 
 
@@ -237,12 +239,19 @@ async def serve_register_page():
 
 @app.get("/profile", response_class=HTMLResponse)
 async def serve_profile_page():
+    """
+    Повертає сторінку профілю.
+    Завжди повертає HTML - автентифікацію перевіряє фронтенд.
+    """
     return serve_frontend()
 
 
 @app.get("/history", response_class=HTMLResponse)
 async def serve_history_page():
-    """Повертає сторінку історії прогнозів."""
+    """
+    Повертає сторінку історії прогнозів.
+    Завжди повертає HTML - автентифікацію перевіряє фронтенд.
+    """
     return serve_frontend()
 
 
@@ -254,16 +263,27 @@ async def serve_api_status_page():
 
 @app.get("/diagrams", response_class=HTMLResponse)
 async def serve_diagrams_page():
+    """
+    Повертає сторінку діаграм.
+    Завжди повертає HTML - автентифікацію перевіряє фронтенд.
+    """
     return serve_frontend()
 
 
 @app.get("/assistant", response_class=HTMLResponse)
 async def serve_assistant_page():
-    """Повертає сторінку чату з асистентом."""
+    """
+    Повертає сторінку чату з асистентом.
+    Завжди повертає HTML - автентифікацію перевіряє фронтенд.
+    """
     return serve_frontend()
 
 @app.get("/form", response_class=HTMLResponse)
 async def serve_form_page():
+    """
+    Повертає сторінку форми прогнозування.
+    Завжди повертає HTML - автентифікацію перевіряє фронтенд.
+    """
     return serve_frontend()
 
 

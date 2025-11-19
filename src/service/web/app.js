@@ -1801,7 +1801,7 @@ async function apiFetch(
     // Для 404 помилок на захищених роутах перенаправляємо на логін
     if (response.status === 404 && !skipAuth && !skipAuthCheck) {
       const currentPath = window.location.pathname;
-      const protectedPaths = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant"];
+      const protectedPaths = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant", "/reports"];
       const isProtectedPath = protectedPaths.some(path => currentPath.startsWith(path));
       if (isProtectedPath) {
         handleUnauthorized();
@@ -1843,13 +1843,15 @@ function normalizePath(pathname) {
     normalized = ROUTE_ALIASES[normalized];
   }
   // Якщо роут не існує, перенаправляємо на /app (або /login якщо не автентифікований)
+  // ВАЖЛИВО: Не робимо редірект для існуючих захищених сторінок - вони мають залишатися як є
   if (!ROUTE_SECTIONS[normalized] && !normalized.startsWith("/c/")) {
-    // Перевіряємо, чи це захищений роут (якщо так, перенаправляємо на логін)
-    const protectedPaths = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant"];
+    // Перевіряємо, чи це захищений роут (якщо так, перенаправляємо на логін для неавтентифікованих)
+    const protectedPaths = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant", "/reports"];
     const isProtectedPath = protectedPaths.some(path => pathname.toLowerCase().startsWith(path));
     if (isProtectedPath && authState.initialized && !authState.user) {
       return "/login";
     }
+    // Для неіснуючих роутів перенаправляємо на /app
     return "/app";
   }
   return normalized;
@@ -1864,13 +1866,58 @@ function getSectionByPath(pathname) {
       section: "page-chats",
     };
   }
+  
+  // Для незалогіненого користувача НЕ можна падати в дефолт page-form
+  // Якщо !hasUser і path не публічний - ми вже мали піти в handleUnauthorized() ДО цієї логіки
+  const hasUser = Boolean(authState.user);
+  const defaultSection = hasUser ? ROUTE_SECTIONS["/app"] : "page-not-found";
+  
   return {
     path: normalized,
-    section: ROUTE_SECTIONS[normalized] || ROUTE_SECTIONS["/app"],
+    section: ROUTE_SECTIONS[normalized] || defaultSection,
   };
 }
 
+// Функція для визначення публічних маршрутів (доступних без автентифікації)
+function isPublicRoute(pathname) {
+  const basePath = pathname.split("?")[0];
+  return (
+    basePath === "/login" ||
+    basePath === "/register" ||
+    basePath === "/forgot-password" ||
+    basePath === "/reset-password"
+  );
+}
+
 function showSectionForPath(pathname) {
+  const basePath = pathname.split("?")[0];
+  const hasUser = Boolean(authState.user);
+  console.log("[DEBUG ROUTE] showSectionForPath START", { pathname, basePath, hasUser, initialized: authState.initialized });
+  
+  // 1. ГАРАНТОВАНИЙ guard для незалогіненого - ПЕРШИМ, БЕЗУМОВНО
+  // Guard має працювати завжди, незалежно від initialized
+  if (!hasUser && !isPublicRoute(basePath)) {
+    console.log("[DEBUG ROUTE] unauthorized guard triggered", { basePath, pathname });
+    handleUnauthorized();
+    return "/login";
+  }
+  
+  // Якщо автентифікація ще не ініціалізована - чекаємо (тільки для залогінених або публічних маршрутів)
+  // Але для незалогіненого на непублічному маршруті - одразу редірект
+  if (!authState.initialized) {
+    // Якщо користувач не залогінений і маршрут не публічний - редірект на /login
+    if (!hasUser && !isPublicRoute(basePath)) {
+      console.log("[DEBUG ROUTE] unauthorized guard triggered (not initialized)", { basePath });
+      handleUnauthorized();
+      return "/login";
+    }
+    // Чекаємо, поки автентифікація ініціалізується
+    // syncRouteFromLocation викличе showSectionForPath знову після ініціалізації
+    const { path } = getSectionByPath(pathname);
+    return path;
+  }
+  
+  // 2. Далі ВСЯ інша логіка (normalizePath, getSectionByPath, ROUTE_SECTIONS, тощо)
   const { path, section } = getSectionByPath(pathname);
   
   // Auth gating: require authentication for main app pages
@@ -1878,19 +1925,11 @@ function showSectionForPath(pathname) {
   // Це дозволяє правильно завантажити сторінку при оновленні (якщо є токен)
   const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant", "page-chats", "page-report"];
   
-  // Для захищених сторінок, якщо автентифікація ще не ініціалізована, не активуємо сторінку
-  // Чекаємо, поки автентифікація ініціалізується
-  if (protectedSections.includes(section) && !authState.initialized) {
-    // Не активуємо сторінку, поки автентифікація не ініціалізується
-    // syncRouteFromLocation викличе showSectionForPath знову після ініціалізації
-    return path;
-  }
-  
-  // Для всіх захищених сторінок (включаючи чати) перевіряємо тільки якщо authState.initialized === true
-  if (protectedSections.includes(section) && !authState.user && authState.initialized) {
-    // Використовуємо примусовий редірект через handleUnauthorized
+  // Додаткова перевірка для захищених секцій (на випадок, якщо щось пропустили вище)
+  if (protectedSections.includes(section) && !authState.user) {
+    // Користувач не автентифікований - перенаправляємо на /login
     handleUnauthorized();
-    return "/login";
+    return path; // handleUnauthorized() вже перенаправить через window.location.href
   }
   
   // Redirect authenticated users away from login/register pages (but not forgot/reset password)
@@ -1910,32 +1949,26 @@ function showSectionForPath(pathname) {
     }
   }
   
-  // Для захищених сторінок перевіряємо автентифікацію перед активацією
-  // Якщо користувач не автентифікований і автентифікація вже ініціалізована, не активуємо сторінку
-  if (protectedSections.includes(section) && !authState.user && authState.initialized) {
-    // Вже перенаправлено в перевірці вище через handleUnauthorized
+  // ВАЖЛИВО: Перевіряємо валідні захищені роути
+  // Якщо користувач на валідному захищеному роуті - залишаємо його там, не редіректимо
+  const validProtectedRoutes = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant", "/reports"];
+  const isOnValidProtectedRoute = validProtectedRoutes.some(route => pathname.toLowerCase().startsWith(route));
+  
+  // Додаткова перевірка для валідних захищених роутів (на випадок, якщо щось пропустили вище)
+  if (isOnValidProtectedRoute && authState.initialized && !authState.user) {
+    handleUnauthorized();
     return "/login";
   }
   
-  // Для захищених сторінок, якщо автентифікація ще не ініціалізована, не активуємо сторінку
-  // Чекаємо, поки автентифікація ініціалізується (syncRouteFromLocation викличе showSectionForPath знову)
-  if (protectedSections.includes(section) && !authState.initialized) {
-    // Не активуємо сторінку, поки автентифікація не ініціалізується
-  return path;
-  }
-  
-  // Якщо роут не існує і це не захищений роут, перенаправляємо на /app
-  // Якщо це захищений роут і користувач не автентифікований, перенаправляємо на /login
-  // Для /c/{uuid} не перевіряємо ROUTE_SECTIONS, бо це динамічний роут
-  if (!path.startsWith("/c/") && !ROUTE_SECTIONS[path] && path !== "/login" && path !== "/register" && path !== "/forgot-password" && !path.startsWith("/reset-password")) {
-    const protectedPaths = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant"];
-    const isProtectedPath = protectedPaths.some(protectedPath => pathname.toLowerCase().startsWith(protectedPath));
-    if (isProtectedPath && authState.initialized && !authState.user) {
-      handleUnauthorized();
-      return "/login";
-    }
-    // Для неіснуючих роутів перенаправляємо на /app (only if user is authenticated)
-    // If user is not authenticated, they should already be redirected to /login above
+  // Якщо це валідний захищений роут і користувач автентифікований - залишаємо на цьому роуті
+  // НЕ робимо редірект на /app для валідних захищених роутів
+  if (isOnValidProtectedRoute && authState.user && authState.initialized) {
+    // Просто активуємо секцію без зміни URL
+    // path вже правильний, section вже визначено через getSectionByPath
+    // Просто продовжуємо виконання до activateSection
+  } else if (!path.startsWith("/c/") && !ROUTE_SECTIONS[path] && path !== "/login" && path !== "/register" && path !== "/forgot-password" && !path.startsWith("/reset-password")) {
+    // Якщо роут не існує в ROUTE_SECTIONS і це НЕ валідний захищений роут - редірект на /app
+    // (тільки для неіснуючих роутів, не для валідних захищених)
     if (authState.user && authState.initialized) {
       const appPath = showSectionForPath("/app");
       if (window.location.pathname !== appPath) {
@@ -1946,14 +1979,29 @@ function showSectionForPath(pathname) {
     return path; // Don't redirect if auth not initialized yet
   }
   
-  // АКТИВУЄМО СТОРІНКУ ТІЛЬКИ ЯКЩО КОРИСТУВАЧ АВТЕНТИФІКОВАНИЙ АБО ЦЕ НЕ ЗАХИЩЕНА СТОРІНКА
-  if (protectedSections.includes(section) && (!authState.user || !authState.initialized)) {
-    // Не активуємо захищені сторінки для неавтентифікованих користувачів
+  // Фінальна перевірка перед активацією - не активуємо захищені сторінки для неавтентифікованих
+  // Додаткова перевірка на випадок, якщо guard вище не спрацював
+  if (protectedSections.includes(section) && !hasUser) {
+    // Якщо це не публічний маршрут - редірект на /login
+    if (!isPublicRoute(basePath)) {
+      console.log("[DEBUG ROUTE] final check: unauthorized on protected section", { section, basePath });
+      handleUnauthorized();
+      return "/login";
+    }
     return path;
   }
   
-  // Для /c/{uuid} зберігаємо оригінальний шлях
-  const finalPath = path.startsWith("/c/") ? pathname : path;
+  // ВАЖЛИВО: Для валідних захищених роутів залишаємо оригінальний pathname
+  // Це гарантує, що користувач залишиться на тій самій сторінці після перезавантаження
+  const finalPath = path.startsWith("/c/") ? pathname : (isOnValidProtectedRoute ? pathname : path);
+  
+  // Додаткова перевірка: ніколи не показуємо page-form для незалогіненого
+  if (section === "page-form" && !hasUser) {
+    console.log("[DEBUG ROUTE] preventing page-form for unauthorized user", { basePath });
+    handleUnauthorized();
+    return "/login";
+  }
+  
   activateSection(section);
   return finalPath;
 }
@@ -1982,7 +2030,9 @@ function syncRouteFromLocation() {
   const actualPath = showSectionForPath(pathname);
   // Для /c/{uuid} зберігаємо оригінальний шлях
   const finalPath = pathname.startsWith("/c/") ? pathname : actualPath;
-  if (window.location.pathname !== finalPath) {
+  // Оновлюємо URL тільки якщо шлях змінився і це не перенаправлення на /login через handleUnauthorized
+  // (handleUnauthorized() робить window.location.href = "/login", тому сторінка перезавантажиться)
+  if (window.location.pathname !== finalPath && finalPath !== pathname) {
     history.replaceState({}, "", finalPath);
   }
 }
@@ -2014,14 +2064,17 @@ function clearAuthState() {
 }
 
 function handleUnauthorized() {
+  console.log("[DEBUG AUTH] handleUnauthorized", { from: window.location.pathname });
   clearAuthState();
-  // Використовуємо примусовий редірект через window.location для гарантованого перенаправлення
-  const currentPath = window.location.pathname;
-  if (currentPath !== "/login" && currentPath !== "/register" && currentPath !== "/forgot-password" && !currentPath.startsWith("/reset-password")) {
-    pendingRouteAfterAuth = currentPath;
-    // Використовуємо window.location для примусового редіректу
-    window.location.href = "/login";
-}
+  const loginPath = "/login";
+  
+  // Спочатку міняємо URL на /login
+  if (window.location.pathname !== loginPath) {
+    window.history.replaceState(null, "", loginPath);
+  }
+  
+  // Прямий показ page-login, без викликів showSectionForPath
+  activateSection("page-login");
 }
 
 async function handleAuthSuccess(payload, options = {}) {
@@ -2803,22 +2856,43 @@ async function initializeAuth() {
   }
   
   // Синхронізуємо маршрут після завершення автентифікації
-  // IMPORTANT: If user is authenticated and on a valid protected route (like /chats),
+  // IMPORTANT: If user is authenticated and on a valid protected route (like /chats, /reports, /diagrams),
   // we should stay on that route, not redirect to /app
   // Only redirect to /app if we're on /login, /register, or root /
   const currentPath = window.location.pathname;
-  const validProtectedRoutes = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant"];
-  const isOnValidProtectedRoute = validProtectedRoutes.some(route => currentPath.startsWith(route));
+  const hasUser = Boolean(authState.user);
+  console.log("[DEBUG AUTH] init", { hasUser, pathname: currentPath, initialized: authState.initialized });
   
-  if (authState.user && isOnValidProtectedRoute) {
-    // User is authenticated and on a valid protected route - stay there
+  const validProtectedRoutes = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant", "/reports"];
+  const isOnValidProtectedRoute = validProtectedRoutes.some(route => currentPath.toLowerCase().startsWith(route));
+  
+  // КРИТИЧНО: Обробка для НЕзалогінених користувачів
+  if (!hasUser) {
+    // Якщо користувач не залогінений і на непублічному маршруті - редірект на /login
+    if (!isPublicRoute(currentPath)) {
+      console.log("[DEBUG AUTH] unauthorized user on protected route", { currentPath });
+      // Викликаємо syncRouteFromLocation, який викличе showSectionForPath,
+      // а showSectionForPath зробить редірект через handleUnauthorized
+      syncRouteFromLocation();
+      return;
+    }
+    // Якщо на публічному маршруті - просто синхронізуємо
     syncRouteFromLocation();
-  } else if (authState.user && (currentPath === "/login" || currentPath === "/register" || currentPath === "/")) {
+    return;
+  }
+  
+  // КРИТИЧНО: Редірект на /app тільки для /, /login, /register
+  // Для всіх інших валідних захищених роутів - залишаємося на них
+  if (authState.user && (currentPath === "/login" || currentPath === "/register" || currentPath === "/")) {
     // User is authenticated but on login/register/root - redirect to /app
     navigateTo("/app", { replace: true });
+  } else if (authState.user && isOnValidProtectedRoute) {
+    // User is authenticated and on a valid protected route - stay there
+    // Викликаємо syncRouteFromLocation, який активує поточну секцію без редіректу
+    syncRouteFromLocation();
   } else {
-    // Default: sync route (handles unauthenticated users and other cases)
-  syncRouteFromLocation();
+    // Default: sync route (handles other cases)
+    syncRouteFromLocation();
   }
 }
 
@@ -5091,7 +5165,7 @@ function initializeTheme() {
 function activateSection(sectionId) {
   // Для захищених сторінок перевіряємо автентифікацію перед активацією
   // Але тільки якщо authState.initialized === true (як для діаграм)
-  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant", "page-chats"];
+  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant", "page-chats", "page-report"];
   if (protectedSections.includes(sectionId) && !authState.user && authState.initialized) {
     // Якщо користувач не автентифікований і автентифікація вже ініціалізована, не активуємо сторінку
     // Вже перенаправлено в showSectionForPath, просто виходимо
@@ -7069,6 +7143,30 @@ function initializeSidebarToggle() {
 }
 
 (function init() {
+  // УЛЬТРА-РАННІЙ GUARD: перевірка автентифікації ДО запуску всієї SPA-логіки
+  const publicBasePaths = ["/login", "/register", "/reset-password", "/forgot-password"];
+  const pathname = window.location.pathname.split("?")[0];
+  
+  // Дізнаємося ключ токена з існуючого коду
+  const tokenKey = AUTH_TOKEN_KEY; // "hr_auth_token"
+  const token = window.localStorage.getItem(tokenKey);
+  const hasToken = Boolean(token);
+  
+  const isPublic = publicBasePaths.includes(pathname);
+  
+  // Якщо немає токена і маршрут НЕ публічний → одразу редірект на /login і не запускаємо SPA-логіку
+  if (!hasToken && !isPublic) {
+    const loginPath = "/login";
+    
+    if (window.location.pathname !== loginPath) {
+      console.log("[DEBUG EARLY GUARD] redirecting to /login", { pathname, hasToken, isPublic });
+      window.location.replace(loginPath);
+    }
+    
+    // ВАЖЛИВО: ПЕРЕРВА виконання. Далі ніякий initializeAuth / showSectionForPath не викликаємо
+    return;
+  }
+  
   // Включаємо transitions після повного завантаження DOM
   // Використовуємо requestAnimationFrame для забезпечення відображення DOM перед видаленням класу preload
   // Подвійний requestAnimationFrame забезпечує, що браузер завершив перший рендер
