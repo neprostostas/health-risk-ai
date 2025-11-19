@@ -124,3 +124,86 @@ def clear_history(
     return {"deleted": deleted}
 
 
+@router.get("/health")
+def check_ollama_health() -> Dict[str, Any]:
+    """Перевірка статусу Ollama.
+    
+    Робить простий тестовий запит до Ollama для перевірки доступності.
+    Не вимагає автентифікації, оскільки це системний endpoint.
+    """
+    from datetime import datetime
+    import requests
+    from src.service.services.assistant_llm import OLLAMA_MODEL, OLLAMA_URL
+    
+    start_time = datetime.utcnow()
+    
+    try:
+        # Використовуємо ту саму модель та URL, що й в assistant_llm.py
+        # Простий тестовий запит до Ollama (дуже короткий prompt для швидкої перевірки)
+        payload = {"model": OLLAMA_MODEL, "prompt": "ok", "stream": False}
+        resp = requests.post(OLLAMA_URL, json=payload, timeout=10)
+        end_time = datetime.utcnow()
+        
+        latency_ms = int((end_time - start_time).total_seconds() * 1000)
+        
+        if resp.ok:
+            # Перевіряємо, чи є в відповіді поле response (означає, що Ollama працює)
+            try:
+                data = resp.json()
+                if data.get("response") is not None:
+                    return {
+                        "status": "online",
+                        "is_available": True,
+                        "latency_ms": latency_ms,
+                        "timestamp": end_time.isoformat(),
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "is_available": False,
+                        "error": "Ollama повернув порожню відповідь",
+                        "latency_ms": latency_ms,
+                        "timestamp": end_time.isoformat(),
+                    }
+            except Exception:
+                # Якщо не вдалося розпарсити JSON, але статус OK - вважаємо, що працює
+                return {
+                    "status": "online",
+                    "is_available": True,
+                    "latency_ms": latency_ms,
+                    "timestamp": end_time.isoformat(),
+                }
+        else:
+            return {
+                "status": "error",
+                "is_available": False,
+                "error": f"HTTP {resp.status_code}",
+                "latency_ms": latency_ms,
+                "timestamp": end_time.isoformat(),
+            }
+    except requests.exceptions.Timeout:
+        end_time = datetime.utcnow()
+        return {
+            "status": "timeout",
+            "is_available": False,
+            "error": "Timeout при зверненні до Ollama (перевірте, чи запущений Ollama)",
+            "timestamp": end_time.isoformat(),
+        }
+    except requests.exceptions.ConnectionError:
+        end_time = datetime.utcnow()
+        return {
+            "status": "offline",
+            "is_available": False,
+            "error": "Ollama недоступна (помилка підключення). Перевірте, чи запущений Ollama: ollama serve",
+            "timestamp": end_time.isoformat(),
+        }
+    except Exception as e:
+        end_time = datetime.utcnow()
+        return {
+            "status": "error",
+            "is_available": False,
+            "error": f"Помилка: {str(e)}",
+            "timestamp": end_time.isoformat(),
+        }
+
+

@@ -5017,27 +5017,360 @@ async function checkApiStatusWithLatency() {
   }
 }
 
+// Локальне сховище для статистики API та Ollama
+const apiStatusHistory = [];
+const ollamaStatusHistory = [];
+const MAX_HISTORY_ITEMS = 20;
+
+// Опис маршрутів для таблиці
+const ROUTE_DESCRIPTIONS = {
+  "/health": "Перевірка стану сервісу",
+  "/metadata": "Метадані API та моделей",
+  "/predict": "Прогнозування ризиків здоров'я",
+  "/explain": "Пояснення моделі через permutation importance",
+  "/auth/register": "Реєстрація нового користувача",
+  "/auth/login": "Вхід в систему",
+  "/auth/logout": "Вихід з системи",
+  "/auth/forgot-password": "Запит на відновлення пароля",
+  "/auth/reset-password": "Встановлення нового пароля",
+  "/auth/me": "Отримання профілю поточного користувача",
+  "/users/me": "Отримання/оновлення профілю",
+  "/users/me/avatar": "Завантаження/видалення аватару",
+  "/users/me/password": "Зміна пароля",
+  "/users/me/delete": "Видалення облікового запису",
+  "/users/history": "Історія прогнозів користувача",
+  "/users/history/stats": "Статистика прогнозів",
+  "/users/block": "Блокування користувача",
+  "/users/unblock": "Розблокування користувача",
+  "/assistant/chat": "Чат з AI-асистентом",
+  "/assistant/history": "Історія повідомлень з асистентом",
+  "/api/chats": "Список чатів між користувачами",
+  "/api/chats/{chat_uuid}": "Деталі конкретного чату",
+  "/api/chats/{chat_uuid}/messages": "Відправка повідомлення в чат",
+  "/health-risk/latest": "Останній збережений прогноз ризику",
+};
+
+function getRouteDescription(path) {
+  // Перевіряємо точний збіг
+  if (ROUTE_DESCRIPTIONS[path]) {
+    return ROUTE_DESCRIPTIONS[path];
+  }
+  // Перевіряємо префікси
+  for (const [route, desc] of Object.entries(ROUTE_DESCRIPTIONS)) {
+    if (path.startsWith(route.replace("{chat_uuid}", ""))) {
+      return desc;
+    }
+  }
+  // Генеруємо опис на основі path
+  if (path.startsWith("/auth")) return "Автентифікація";
+  if (path.startsWith("/users")) return "Управління користувачами";
+  if (path.startsWith("/assistant")) return "AI-асистент";
+  if (path.startsWith("/api/chats")) return "Чати між користувачами";
+  if (path.startsWith("/predict")) return "Прогнозування";
+  return "API endpoint";
+}
+
+function getMethodBadgeClass(method) {
+  const methodLower = method.toLowerCase();
+  if (methodLower === "get") return "route-method--get";
+  if (methodLower === "post") return "route-method--post";
+  if (methodLower === "put") return "route-method--put";
+  if (methodLower === "delete") return "route-method--delete";
+  if (methodLower === "patch") return "route-method--patch";
+  return "";
+}
+
+// Перевірка статусу Ollama
+async function checkOllamaStatusWithLatency() {
+  const startTime = performance.now();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // Збільшуємо таймаут до 10 секунд
+  
+  try {
+    // Використовуємо бекенд endpoint для перевірки статусу Ollama
+    const response = await fetch(`${API_BASE}/assistant/health`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+    });
+    
+    const endTime = performance.now();
+    const clientLatency = Math.round(endTime - startTime);
+    
+    if (!response) {
+      throw new Error("Network Error");
+    }
+    
+    // Спробуємо отримати JSON, навіть якщо статус не 200
+    let data = {};
+    try {
+      data = await response.json();
+    } catch (e) {
+      // Якщо не вдалося розпарсити JSON, спробуємо отримати текст
+      const text = await response.text().catch(() => "");
+      throw new Error(`HTTP ${response.status}: ${text || "Unknown error"}`);
+    }
+    
+    // Перевіряємо статус відповіді
+    if (!response.ok) {
+      // Якщо є дані про помилку, використовуємо їх
+      return {
+        isOnline: false,
+        latency: data.latency_ms || clientLatency,
+        error: data.error || `HTTP ${response.status}`,
+        data,
+        timestamp: new Date(),
+      };
+    }
+    
+    // Використовуємо latency з бекенду, якщо він є, інакше клієнтський
+    const latency = data.latency_ms || clientLatency;
+    
+    // Перевіряємо доступність - якщо is_available === true або status === "online"
+    const isAvailable = data.is_available === true || data.status === "online";
+    
+    return {
+      isOnline: isAvailable,
+      latency,
+      data,
+      timestamp: new Date(),
+    };
+  } catch (error) {
+    const endTime = performance.now();
+    const latency = error.name === "AbortError" ? null : Math.round(endTime - startTime);
+    return {
+      isOnline: false,
+      latency,
+      error: error.message || "Ollama недоступна",
+      timestamp: new Date(),
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Ініціалізація табів
+function initializeApiStatusTabs() {
+  const tabs = document.querySelectorAll(".api-status-tab");
+  const panels = document.querySelectorAll(".api-status-tab-panel");
+  
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const tabName = tab.dataset.tab;
+      
+      // Видаляємо активний клас з усіх табів
+      tabs.forEach((t) => {
+        t.classList.remove("api-status-tab--active");
+        t.setAttribute("aria-selected", "false");
+      });
+      
+      // Видаляємо активний клас з усіх панелей
+      panels.forEach((p) => {
+        p.classList.remove("api-status-tab-panel--active");
+      });
+      
+      // Додаємо активний клас до вибраного табу
+      tab.classList.add("api-status-tab--active");
+      tab.setAttribute("aria-selected", "true");
+      
+      // Показуємо відповідну панель
+      const targetPanel = document.getElementById(`api-status-tab-${tabName}`);
+      if (targetPanel) {
+        targetPanel.classList.add("api-status-tab-panel--active");
+      }
+      
+      refreshIcons();
+    });
+  });
+}
+
+// Оновлення графіка часу відгуку API
+function updateApiResponseTimeChart() {
+  const canvas = document.getElementById("api-response-time-chart");
+  if (!canvas || apiStatusHistory.length === 0) return;
+  
+  const labels = apiStatusHistory.map((_, i) => {
+    const date = new Date();
+    date.setMinutes(date.getMinutes() - (apiStatusHistory.length - i - 1));
+    return date.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
+  });
+  
+  const data = apiStatusHistory.map((item) => item.latency || 0);
+  
+  const styles = getChartStyles();
+  upsertDashboardChart("api-response-time-chart", {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Час відгуку (ms)",
+          data,
+          borderColor: "rgba(116, 137, 255, 0.8)",
+          backgroundColor: "rgba(116, 137, 255, 0.1)",
+          tension: 0.4,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => `${context.parsed.y} ms`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: styles.textSecondary },
+          grid: { color: styles.gridColor },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: styles.textSecondary, callback: (value) => `${value} ms` },
+          grid: { color: styles.gridColor },
+        },
+      },
+    },
+  });
+}
+
+// Оновлення графіка часу відгуку Ollama
+function updateOllamaResponseTimeChart() {
+  const canvas = document.getElementById("ollama-response-time-chart");
+  const emptyState = document.getElementById("ollama-chart-empty");
+  
+  if (!canvas) return;
+  
+  // Якщо даних немає, показуємо empty state
+  if (ollamaStatusHistory.length === 0) {
+    if (canvas) {
+      canvas.style.display = "none";
+      // Видаляємо графік, якщо він існує
+      if (dashboardCharts["ollama-response-time-chart"]) {
+        dashboardCharts["ollama-response-time-chart"].destroy();
+        delete dashboardCharts["ollama-response-time-chart"];
+      }
+    }
+    if (emptyState) {
+      emptyState.style.display = "flex";
+    }
+    return;
+  }
+  
+  // Якщо дані є, ховаємо empty state і показуємо графік
+  if (emptyState) {
+    emptyState.style.display = "none";
+  }
+  if (canvas) {
+    canvas.style.display = "block";
+  }
+  
+  const labels = ollamaStatusHistory.map((_, i) => {
+    const date = new Date();
+    date.setMinutes(date.getMinutes() - (ollamaStatusHistory.length - i - 1));
+    return date.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
+  });
+  
+  const data = ollamaStatusHistory.map((item) => item.latency || 0);
+  
+  const styles = getChartStyles();
+  upsertDashboardChart("ollama-response-time-chart", {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Час відгуку (ms)",
+          data,
+          borderColor: "rgba(63, 194, 114, 0.8)",
+          backgroundColor: "rgba(63, 194, 114, 0.1)",
+          tension: 0.4,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => `${context.parsed.y} ms`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: styles.textSecondary },
+          grid: { color: styles.gridColor },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: styles.textSecondary, callback: (value) => `${value} ms` },
+          grid: { color: styles.gridColor },
+        },
+      },
+    },
+  });
+}
+
 async function initializeApiStatusPage() {
+  // Ініціалізація табів
+  initializeApiStatusTabs();
+  
+  // === TAB 1: API ===
   const statusDot = document.getElementById("api-status-page-dot");
   const statusText = document.getElementById("api-status-page-status-text");
+  const statusBadge = document.getElementById("api-status-badge");
   const latencyEl = document.getElementById("api-status-latency");
   const httpStatusEl = document.getElementById("api-status-http-status");
   const lastCheckEl = document.getElementById("api-status-last-check");
   const versionEl = document.getElementById("api-status-version");
   const totalRoutesEl = document.getElementById("api-status-total-routes");
   const mainEndpointsEl = document.getElementById("api-status-main-endpoints");
-  const routesEl = document.getElementById("api-status-page-routes");
+  const routesTableBody = document.getElementById("api-status-page-routes");
   const refreshBtn = document.getElementById("api-status-refresh-btn");
+  const baseUrlEl = document.getElementById("api-status-base-url");
   
-  // Функція для оновлення інтерфейсу
-  const updateStatusUI = (result) => {
+  // Встановлюємо базовий URL
+  if (baseUrlEl) {
+    baseUrlEl.textContent = window.location.origin;
+  }
+  
+  // Функція для оновлення інтерфейсу API
+  const updateApiStatusUI = (result) => {
     if (!statusDot || !statusText) return;
     
     statusDot.classList.remove("status-dot--ok", "status-dot--fail");
+    if (statusBadge) {
+      statusBadge.classList.remove("status-badge--online", "status-badge--offline", "status-badge--degraded");
+      statusBadge.textContent = "";
+    }
+    
+    // Додаємо до історії
+    if (result.latency !== null && result.latency !== undefined) {
+      apiStatusHistory.push({ latency: result.latency, timestamp: result.timestamp });
+      if (apiStatusHistory.length > MAX_HISTORY_ITEMS) {
+        apiStatusHistory.shift();
+      }
+      updateApiResponseTimeChart();
+    }
     
     if (result.isOnline) {
       statusDot.classList.add("status-dot--ok");
       statusText.textContent = "API працює стабільно";
+      if (statusBadge) {
+        statusBadge.classList.add("status-badge--online");
+        statusBadge.textContent = "Online";
+      }
       
       if (latencyEl) {
         latencyEl.textContent = result.latency ? `${result.latency} ms` : "—";
@@ -5059,33 +5392,45 @@ async function initializeApiStatusPage() {
         mainEndpointsEl.textContent = mainRoutes.length;
       }
       
-      if (routesEl && result.data?.routes) {
-        const mainRoutes = result.data.routes
-          .filter(r => !r.path.includes("{") && r.path !== "/" && r.path !== "/app" && !r.path.includes("/static"))
-          .slice(0, 15)
+      if (routesTableBody && result.data?.routes) {
+        const routes = result.data.routes
+          .filter(r => !r.path.includes("{") && r.path !== "/" && r.path !== "/app" && !r.path.includes("/static") && !r.path.startsWith("/c/"))
+          .slice(0, 30)
           .map(r => {
-            const methods = r.methods?.join(", ") || "";
+            const methods = r.methods || [];
+            const methodBadges = methods.map(m => {
+              const methodLower = m.toLowerCase();
+              return `<span class="route-method route-method--${methodLower} ${getMethodBadgeClass(m)}">${m}</span>`;
+            }).join(" ");
+            const description = getRouteDescription(r.path);
             return `
-              <div class="api-status-page__route-item">
-                <div class="api-status-page__route-methods">${methods}</div>
-                <div class="api-status-page__route-path">${r.path}</div>
-              </div>
+              <tr>
+                <td>${methodBadges}</td>
+                <td><code>${r.path}</code></td>
+                <td>${description}</td>
+                <td><span class="route-status route-status--ok" title="OK"><span class="icon" data-lucide="check-circle"></span></span></td>
+              </tr>
             `;
           })
           .join("");
-        routesEl.innerHTML = mainRoutes || '<p class="api-status-page__empty">Немає доступних маршрутів</p>';
+        routesTableBody.innerHTML = routes || '<tr><td colspan="4" class="api-status-page__empty">Немає доступних маршрутів</td></tr>';
+        refreshIcons();
       }
     } else {
       statusDot.classList.add("status-dot--fail");
       statusText.textContent = "API недоступне";
+      if (statusBadge) {
+        statusBadge.classList.add("status-badge--offline");
+        statusBadge.textContent = "Offline";
+      }
       
       if (latencyEl) latencyEl.textContent = "—";
       if (httpStatusEl) httpStatusEl.textContent = "—";
       if (versionEl) versionEl.textContent = "—";
       if (totalRoutesEl) totalRoutesEl.textContent = "—";
       if (mainEndpointsEl) mainEndpointsEl.textContent = "—";
-      if (routesEl) {
-        routesEl.innerHTML = '<p class="api-status-page__empty">API недоступне. Перевірте підключення.</p>';
+      if (routesTableBody) {
+        routesTableBody.innerHTML = '<tr><td colspan="4" class="api-status-page__empty">API недоступне. Перевірте підключення.</td></tr>';
       }
     }
     
@@ -5101,7 +5446,7 @@ async function initializeApiStatusPage() {
     refreshIcons();
   };
   
-  // Обробник кнопки "Перевірити знову"
+  // Обробник кнопки "Перевірити знову" для API
   if (refreshBtn) {
     refreshBtn.onclick = async () => {
       refreshBtn.disabled = true;
@@ -5109,7 +5454,7 @@ async function initializeApiStatusPage() {
       refreshIcons();
       
       const result = await checkApiStatusWithLatency();
-      updateStatusUI(result);
+      updateApiStatusUI(result);
       
       refreshBtn.disabled = false;
       refreshBtn.innerHTML = '<span class="icon" data-lucide="refresh-cw"></span><span>Перевірити знову</span>';
@@ -5117,9 +5462,176 @@ async function initializeApiStatusPage() {
     };
   }
   
-  // Виконуємо початкову перевірку
-  const result = await checkApiStatusWithLatency();
-  updateStatusUI(result);
+  // === TAB 2: Ollama ===
+  const ollamaStatusDot = document.getElementById("ollama-status-page-dot");
+  const ollamaStatusText = document.getElementById("ollama-status-page-status-text");
+  const ollamaStatusBadge = document.getElementById("ollama-status-badge");
+  const ollamaLatencyEl = document.getElementById("ollama-status-latency");
+  const ollamaLastCheckEl = document.getElementById("ollama-status-last-check");
+  const ollamaRefreshBtn = document.getElementById("ollama-status-refresh-btn");
+  
+  // Анімація крапочок для тексту "Перевірка..."
+  let ollamaDotsAnimationInterval = null;
+  
+  function startOllamaDotsAnimation() {
+    if (ollamaDotsAnimationInterval) {
+      clearInterval(ollamaDotsAnimationInterval);
+    }
+    
+    let dotCount = 0;
+    ollamaDotsAnimationInterval = setInterval(() => {
+      if (!ollamaStatusText) {
+        clearInterval(ollamaDotsAnimationInterval);
+        ollamaDotsAnimationInterval = null;
+        return;
+      }
+      
+      // Перевіряємо, чи текст все ще містить "Перевірка"
+      if (ollamaStatusText.textContent.includes("Перевірка")) {
+        dotCount = (dotCount + 1) % 4; // 0, 1, 2, 3 -> ., .., ..., (порожньо)
+        const dots = ".".repeat(dotCount);
+        ollamaStatusText.textContent = `Перевірка${dots}`;
+      } else {
+        // Якщо текст змінився, зупиняємо анімацію
+        clearInterval(ollamaDotsAnimationInterval);
+        ollamaDotsAnimationInterval = null;
+      }
+    }, 500); // Оновлюємо кожні 500мс
+  }
+  
+  function stopOllamaDotsAnimation() {
+    if (ollamaDotsAnimationInterval) {
+      clearInterval(ollamaDotsAnimationInterval);
+      ollamaDotsAnimationInterval = null;
+    }
+  }
+  
+  const updateOllamaStatusUI = (result) => {
+    // Зупиняємо анімацію крапочок
+    stopOllamaDotsAnimation();
+    if (!ollamaStatusDot || !ollamaStatusText) return;
+    
+    ollamaStatusDot.classList.remove("status-dot--ok", "status-dot--fail");
+    if (ollamaStatusBadge) {
+      ollamaStatusBadge.classList.remove("status-badge--online", "status-badge--offline", "status-badge--degraded");
+      ollamaStatusBadge.textContent = "";
+    }
+    
+    // Додаємо до історії
+    if (result.latency !== null && result.latency !== undefined) {
+      ollamaStatusHistory.push({ latency: result.latency, timestamp: result.timestamp });
+      if (ollamaStatusHistory.length > MAX_HISTORY_ITEMS) {
+        ollamaStatusHistory.shift();
+      }
+      updateOllamaResponseTimeChart();
+    }
+    
+    if (result.isOnline) {
+      ollamaStatusDot.classList.add("status-dot--ok");
+      ollamaStatusText.textContent = "Ollama працює стабільно";
+      if (ollamaStatusBadge) {
+        ollamaStatusBadge.classList.add("status-badge--online");
+        ollamaStatusBadge.textContent = "Online";
+      }
+      
+      if (ollamaLatencyEl) {
+        ollamaLatencyEl.textContent = result.latency ? `${result.latency} ms` : "—";
+      }
+    } else {
+      ollamaStatusDot.classList.add("status-dot--fail");
+      ollamaStatusText.textContent = "Ollama недоступна";
+      if (ollamaStatusBadge) {
+        ollamaStatusBadge.classList.add("status-badge--offline");
+        ollamaStatusBadge.textContent = "Offline";
+      }
+      
+      if (ollamaLatencyEl) ollamaLatencyEl.textContent = "—";
+    }
+    
+    if (ollamaLastCheckEl) {
+      const timeString = result.timestamp.toLocaleTimeString("uk-UA", { 
+        hour: "2-digit", 
+        minute: "2-digit",
+        second: "2-digit"
+      });
+      ollamaLastCheckEl.textContent = timeString;
+    }
+    
+    refreshIcons();
+  };
+  
+  if (ollamaRefreshBtn) {
+    ollamaRefreshBtn.onclick = async () => {
+      ollamaRefreshBtn.disabled = true;
+      ollamaRefreshBtn.innerHTML = '<span class="icon" data-lucide="loader-2"></span><span>Перевірка...</span>';
+      refreshIcons();
+      
+      // Запускаємо анімацію крапочок
+      if (ollamaStatusText) {
+        ollamaStatusText.textContent = "Перевірка";
+        startOllamaDotsAnimation();
+      }
+      
+      const result = await checkOllamaStatusWithLatency();
+      updateOllamaStatusUI(result);
+      
+      ollamaRefreshBtn.disabled = false;
+      ollamaRefreshBtn.innerHTML = '<span class="icon" data-lucide="refresh-cw"></span><span>Перевірити Ollama</span>';
+      refreshIcons();
+    };
+  }
+  
+  // === TAB 3: System ===
+  const dbStatusDot = document.getElementById("db-status-page-dot");
+  const dbStatusText = document.getElementById("db-status-page-status-text");
+  const dbStatusBadge = document.getElementById("db-status-badge");
+  const dbConnectionStatus = document.getElementById("db-connection-status");
+  
+  // Перевірка БД (спрощена - через спробу отримати health)
+  const checkDbStatus = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/health`);
+      if (response.ok) {
+        if (dbStatusDot) dbStatusDot.classList.add("status-dot--ok");
+        if (dbStatusText) dbStatusText.textContent = "База даних доступна";
+        if (dbStatusBadge) {
+          dbStatusBadge.classList.add("status-badge--online");
+          dbStatusBadge.textContent = "Online";
+        }
+        if (dbConnectionStatus) dbConnectionStatus.textContent = "Підключено";
+      } else {
+        throw new Error("DB check failed");
+      }
+    } catch (error) {
+      if (dbStatusDot) dbStatusDot.classList.add("status-dot--fail");
+      if (dbStatusText) dbStatusText.textContent = "База даних недоступна";
+      if (dbStatusBadge) {
+        dbStatusBadge.classList.add("status-badge--offline");
+        dbStatusBadge.textContent = "Offline";
+      }
+      if (dbConnectionStatus) dbConnectionStatus.textContent = "Помилка підключення";
+    }
+    refreshIcons();
+  };
+  
+  // Виконуємо початкові перевірки
+  const apiResult = await checkApiStatusWithLatency();
+  updateApiStatusUI(apiResult);
+  
+  // Запускаємо анімацію крапочок перед перевіркою Ollama
+  if (ollamaStatusText) {
+    ollamaStatusText.textContent = "Перевірка";
+    startOllamaDotsAnimation();
+  }
+  
+  // Ініціалізуємо графік (показуємо empty state, якщо даних немає)
+  updateOllamaResponseTimeChart();
+  refreshIcons(); // Оновлюємо іконки в empty state
+  
+  const ollamaResult = await checkOllamaStatusWithLatency();
+  updateOllamaStatusUI(ollamaResult);
+  
+  checkDbStatus();
 }
 
 function initializeApiStatus() {

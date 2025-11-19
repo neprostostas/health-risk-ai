@@ -689,105 +689,327 @@
 
       <section id="page-api-status" class="page" aria-labelledby="page-title">
         <div class="api-status-page-content">
-          <section class="glass-card api-status-card">
-            <h2 class="glass-card__title">
+          <!-- Tabs -->
+          <div class="api-status-tabs" role="tablist">
+            <button type="button" class="api-status-tab api-status-tab--active" data-tab="api" role="tab" aria-selected="true">
               <span class="icon" data-lucide="activity"></span>
-              <span>Поточний статус</span>
-            </h2>
-            <div class="api-status-page__status" id="api-status-page-status">
-              <div class="api-status-page__status-indicator">
-                <span class="status-dot" id="api-status-page-dot"></span>
-                <span class="api-status-page__status-text" id="api-status-page-status-text">Перевірка...</span>
-              </div>
-              <button type="button" class="button button--ghost" id="api-status-refresh-btn">
-                <span class="icon" data-lucide="refresh-cw"></span>
-                <span>Перевірити знову</span>
-              </button>
-            </div>
-          </section>
-
-          <div class="api-status-page__grid">
-            <section class="glass-card api-status-card">
-              <h2 class="glass-card__title">
-                <span class="icon" data-lucide="clock"></span>
-                <span>Час відгуку</span>
-              </h2>
-              <div class="api-status-page__metrics" id="api-status-page-metrics">
-                <div class="api-status-page__metric">
-                  <span class="api-status-page__metric-label">Latency (Ping)</span>
-                  <span class="api-status-page__metric-value" id="api-status-latency">—</span>
-                </div>
-                <div class="api-status-page__metric">
-                  <span class="api-status-page__metric-label">HTTP статус</span>
-                  <span class="api-status-page__metric-value" id="api-status-http-status">—</span>
-                </div>
-                <div class="api-status-page__metric">
-                  <span class="api-status-page__metric-label">Остання перевірка</span>
-                  <span class="api-status-page__metric-value" id="api-status-last-check">—</span>
-                </div>
-              </div>
-            </section>
-
-            <section class="glass-card api-status-card">
-              <h2 class="glass-card__title">
-                <span class="icon" data-lucide="info"></span>
-                <span>Інформація про API</span>
-              </h2>
-              <div class="api-status-page__info" id="api-status-page-info">
-                <div class="api-status-page__info-item">
-                  <span class="api-status-page__info-label">Версія</span>
-                  <span class="api-status-page__info-value" id="api-status-version">—</span>
-                </div>
-                <div class="api-status-page__info-item">
-                  <span class="api-status-page__info-label">Загальна кількість маршрутів</span>
-                  <span class="api-status-page__info-value" id="api-status-total-routes">—</span>
-                </div>
-                <div class="api-status-page__info-item">
-                  <span class="api-status-page__info-label">Основних ендпоінтів</span>
-                  <span class="api-status-page__info-value" id="api-status-main-endpoints">—</span>
-                </div>
-              </div>
-            </section>
+              <span>API</span>
+            </button>
+            <button type="button" class="api-status-tab" data-tab="ollama" role="tab" aria-selected="false">
+              <span class="icon" data-lucide="brain"></span>
+              <span>AI Модель (Ollama)</span>
+            </button>
+            <button type="button" class="api-status-tab" data-tab="system" role="tab" aria-selected="false">
+              <span class="icon" data-lucide="server"></span>
+              <span>Система</span>
+            </button>
           </div>
 
-          <section class="glass-card api-status-card">
-            <h2 class="glass-card__title">
-              <span class="icon" data-lucide="list"></span>
-              <span>Основні маршрути</span>
-            </h2>
-            <div class="api-status-page__routes" id="api-status-page-routes">
-              <p class="api-status-page__empty">Завантаження...</p>
-            </div>
-          </section>
+          <!-- Tab Content -->
+          <div class="api-status-tab-content">
+            <!-- Tab 1: API -->
+            <div class="api-status-tab-panel api-status-tab-panel--active" id="api-status-tab-api" role="tabpanel">
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="activity"></span>
+                  <span>Статус API</span>
+                </h2>
+                <div class="api-status-page__status" id="api-status-page-status">
+                  <div class="api-status-page__status-indicator">
+                    <span class="status-dot" id="api-status-page-dot"></span>
+                    <span class="api-status-page__status-text" id="api-status-page-status-text">Перевірка...</span>
+                    <span class="status-badge" id="api-status-badge"></span>
+                  </div>
+                  <button type="button" class="button button--ghost" id="api-status-refresh-btn">
+                    <span class="icon" data-lucide="refresh-cw"></span>
+                    <span>Перевірити знову</span>
+                  </button>
+                </div>
+              </section>
 
-          <section class="glass-card api-status-card">
-            <h2 class="glass-card__title">
-              <span class="icon" data-lucide="cpu"></span>
-              <span>Технічні характеристики</span>
-            </h2>
-            <div class="api-status-page__tech-specs">
-              <div class="api-status-page__tech-spec-item">
-                <span class="api-status-page__tech-spec-label">Платформа</span>
-                <span class="api-status-page__tech-spec-value">FastAPI</span>
+              <div class="api-status-page__grid">
+                <section class="glass-card api-status-card">
+                  <h2 class="glass-card__title">
+                    <span class="icon" data-lucide="clock"></span>
+                    <span>Час відгуку</span>
+                  </h2>
+                  <div class="api-status-page__metrics" id="api-status-page-metrics">
+                    <div class="api-status-page__metric">
+                      <span class="api-status-page__metric-label">Latency (Ping)</span>
+                      <span class="api-status-page__metric-value" id="api-status-latency">—</span>
+                    </div>
+                    <div class="api-status-page__metric">
+                      <span class="api-status-page__metric-label">HTTP статус</span>
+                      <span class="api-status-page__metric-value" id="api-status-http-status">—</span>
+                    </div>
+                    <div class="api-status-page__metric">
+                      <span class="api-status-page__metric-label">Остання перевірка</span>
+                      <span class="api-status-page__metric-value" id="api-status-last-check">—</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="glass-card api-status-card">
+                  <h2 class="glass-card__title">
+                    <span class="icon" data-lucide="info"></span>
+                    <span>Інформація про API</span>
+                  </h2>
+                  <div class="api-status-page__info" id="api-status-page-info">
+                    <div class="api-status-page__info-item">
+                      <span class="api-status-page__info-label">Версія</span>
+                      <span class="api-status-page__info-value" id="api-status-version">—</span>
+                    </div>
+                    <div class="api-status-page__info-item">
+                      <span class="api-status-page__info-label">Загальна кількість маршрутів</span>
+                      <span class="api-status-page__info-value" id="api-status-total-routes">—</span>
+                    </div>
+                    <div class="api-status-page__info-item">
+                      <span class="api-status-page__info-label">Основних ендпоінтів</span>
+                      <span class="api-status-page__info-value" id="api-status-main-endpoints">—</span>
+                    </div>
+                  </div>
+                </section>
               </div>
-              <div class="api-status-page__tech-spec-item">
-                <span class="api-status-page__tech-spec-label">База даних</span>
-                <span class="api-status-page__tech-spec-value">SQLite</span>
-              </div>
-              <div class="api-status-page__tech-spec-item">
-                <span class="api-status-page__tech-spec-label">Збереження користувачів</span>
-                <span class="api-status-page__tech-spec-value">SQLModel</span>
-              </div>
-              <div class="api-status-page__tech-spec-item">
-                <span class="api-status-page__tech-spec-label">Моделі ШІ</span>
-                <span class="api-status-page__tech-spec-value">LogReg, RandomForest, XGB, MLP</span>
-              </div>
-              <div class="api-status-page__tech-spec-item">
-                <span class="api-status-page__tech-spec-label">Формат відповіді API</span>
-                <span class="api-status-page__tech-spec-value">JSON</span>
-              </div>
+
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="list"></span>
+                  <span>Основні маршрути</span>
+                </h2>
+                <div class="api-status-page__routes-table-wrapper">
+                  <table class="api-status-page__routes-table" id="api-status-routes-table">
+                    <thead>
+                      <tr>
+                        <th>Method</th>
+                        <th>Path</th>
+                        <th>Опис</th>
+                        <th>Статус</th>
+                      </tr>
+                    </thead>
+                    <tbody id="api-status-page-routes">
+                      <tr>
+                        <td colspan="4" class="api-status-page__empty">Завантаження...</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="cpu"></span>
+                  <span>Технічні характеристики</span>
+                </h2>
+                <div class="api-status-page__tech-specs">
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Базова URL</span>
+                    <span class="api-status-page__tech-spec-value" id="api-status-base-url">—</span>
+                  </div>
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Платформа</span>
+                    <span class="api-status-page__tech-spec-value">FastAPI</span>
+                  </div>
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Авторизація</span>
+                    <span class="api-status-page__tech-spec-value">JWT Bearer Token</span>
+                  </div>
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">База даних</span>
+                    <span class="api-status-page__tech-spec-value">SQLite</span>
+                  </div>
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Збереження користувачів</span>
+                    <span class="api-status-page__tech-spec-value">SQLModel</span>
+                  </div>
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Моделі ШІ</span>
+                    <span class="api-status-page__tech-spec-value">LogReg, RandomForest, XGB, MLP, KNN, SVC</span>
+                  </div>
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Формат відповіді API</span>
+                    <span class="api-status-page__tech-spec-value">JSON</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="trending-up"></span>
+                  <span>Статистика відгуку</span>
+                </h2>
+                <div class="chart-wrapper chart-wrapper--compact">
+                  <canvas id="api-response-time-chart" aria-label="Графік часу відгуку API" role="img"></canvas>
+                </div>
+              </section>
             </div>
-          </section>
+
+            <!-- Tab 2: Ollama -->
+            <div class="api-status-tab-panel" id="api-status-tab-ollama" role="tabpanel">
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="brain"></span>
+                  <span>Статус Ollama</span>
+                </h2>
+                <div class="api-status-page__status" id="ollama-status-page-status">
+                  <div class="api-status-page__status-indicator">
+                    <span class="status-dot" id="ollama-status-page-dot"></span>
+                    <span class="api-status-page__status-text" id="ollama-status-page-status-text">Перевірка...</span>
+                    <span class="status-badge" id="ollama-status-badge"></span>
+                  </div>
+                  <button type="button" class="button button--ghost" id="ollama-status-refresh-btn">
+                    <span class="icon" data-lucide="refresh-cw"></span>
+                    <span>Перевірити Ollama</span>
+                  </button>
+                </div>
+              </section>
+
+              <div class="api-status-page__grid">
+                <section class="glass-card api-status-card">
+                  <h2 class="glass-card__title">
+                    <span class="icon" data-lucide="clock"></span>
+                    <span>Час відгуку</span>
+                  </h2>
+                  <div class="api-status-page__metrics" id="ollama-status-page-metrics">
+                    <div class="api-status-page__metric">
+                      <span class="api-status-page__metric-label">Latency (Ping)</span>
+                      <span class="api-status-page__metric-value" id="ollama-status-latency">—</span>
+                    </div>
+                    <div class="api-status-page__metric">
+                      <span class="api-status-page__metric-label">Остання перевірка</span>
+                      <span class="api-status-page__metric-value" id="ollama-status-last-check">—</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="glass-card api-status-card">
+                  <h2 class="glass-card__title">
+                    <span class="icon" data-lucide="info"></span>
+                    <span>Інформація про модель</span>
+                  </h2>
+                  <div class="api-status-page__info" id="ollama-status-page-info">
+                    <div class="api-status-page__info-item">
+                      <span class="api-status-page__info-label">Модель</span>
+                      <span class="api-status-page__info-value" id="ollama-model-name">llama3</span>
+                    </div>
+                    <div class="api-status-page__info-item">
+                      <span class="api-status-page__info-label">Endpoint</span>
+                      <span class="api-status-page__info-value" id="ollama-endpoint">http://localhost:11434/api/generate</span>
+                    </div>
+                    <div class="api-status-page__info-item">
+                      <span class="api-status-page__info-label">Режим роботи</span>
+                      <span class="api-status-page__info-value">Chat / Completion</span>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="settings"></span>
+                  <span>Параметри за замовчуванням</span>
+                </h2>
+                <div class="api-status-page__tech-specs">
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Temperature</span>
+                    <span class="api-status-page__tech-spec-value">За замовчуванням (не вказано)</span>
+                  </div>
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Max Tokens</span>
+                    <span class="api-status-page__tech-spec-value">За замовчуванням (не вказано)</span>
+                  </div>
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Timeout</span>
+                    <span class="api-status-page__tech-spec-value">60 секунд</span>
+                  </div>
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Streaming</span>
+                    <span class="api-status-page__tech-spec-value">Вимкнено (stream: false)</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="alert-circle"></span>
+                  <span>Історія помилок</span>
+                </h2>
+                <div class="api-status-page__errors" id="ollama-errors">
+                  <div class="api-status-page__errors-empty">
+                    <div class="api-status-page__errors-empty-icon">
+                      <span class="icon" data-lucide="check-circle-2"></span>
+                    </div>
+                    <h3 class="api-status-page__errors-empty-title">Помилок не зафіксовано</h3>
+                    <p class="api-status-page__errors-empty-description">Ollama працює стабільно, всі запити виконуються успішно</p>
+                  </div>
+                </div>
+              </section>
+
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="trending-up"></span>
+                  <span>Статистика запитів</span>
+                </h2>
+                <div class="chart-wrapper chart-wrapper--compact">
+                  <canvas id="ollama-response-time-chart" aria-label="Графік часу відгуку Ollama" role="img"></canvas>
+                  <div class="chart-empty-state" id="ollama-chart-empty">
+                    <div class="chart-empty-state__icon">
+                      <span class="icon" data-lucide="activity"></span>
+                    </div>
+                    <h3 class="chart-empty-state__title">Поки що немає даних</h3>
+                    <p class="chart-empty-state__description">Після перших запитів до Ollama тут з'явиться графік часу відгуку</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <!-- Tab 3: System -->
+            <div class="api-status-tab-panel" id="api-status-tab-system" role="tabpanel">
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="database"></span>
+                  <span>База даних</span>
+                </h2>
+                <div class="api-status-page__status" id="db-status-page-status">
+                  <div class="api-status-page__status-indicator">
+                    <span class="status-dot" id="db-status-page-dot"></span>
+                    <span class="api-status-page__status-text" id="db-status-page-status-text">Перевірка...</span>
+                    <span class="status-badge" id="db-status-badge"></span>
+                  </div>
+                </div>
+                <div class="api-status-page__info" id="db-status-page-info">
+                  <div class="api-status-page__info-item">
+                    <span class="api-status-page__info-label">Тип БД</span>
+                    <span class="api-status-page__info-value">SQLite</span>
+                  </div>
+                  <div class="api-status-page__info-item">
+                    <span class="api-status-page__info-label">Підключення</span>
+                    <span class="api-status-page__info-value" id="db-connection-status">—</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="info"></span>
+                  <span>Системна інформація</span>
+                </h2>
+                <div class="api-status-page__tech-specs">
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Середовище</span>
+                    <span class="api-status-page__tech-spec-value" id="system-environment">Development</span>
+                  </div>
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Версія бекенда</span>
+                    <span class="api-status-page__tech-spec-value" id="backend-version">1.0.0</span>
+                  </div>
+                  <div class="api-status-page__tech-spec-item">
+                    <span class="api-status-page__tech-spec-label">Версія фронтенда</span>
+                    <span class="api-status-page__tech-spec-value">1.0.0</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -2209,6 +2209,267 @@ select:focus {
   gap: 24px;
 }
 
+/* Tabs для API Status */
+.api-status-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-glass);
+  margin-bottom: 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.api-status-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.api-status-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 12px 12px 0 0;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-medium);
+  white-space: nowrap;
+  position: relative;
+}
+
+.api-status-tab .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.api-status-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.api-status-tab.api-status-tab--active {
+  color: var(--text-primary);
+  border-bottom-color: rgba(116, 137, 255, 0.8);
+  background: rgba(116, 137, 255, 0.08);
+}
+
+.api-status-tab.api-status-tab--active .icon {
+  color: rgba(116, 137, 255, 0.95);
+}
+
+/* Tab Content */
+.api-status-tab-content {
+  position: relative;
+  min-height: 400px;
+}
+
+.api-status-tab-panel {
+  display: none;
+}
+
+.api-status-tab-panel.api-status-tab-panel--active {
+  display: block;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-left: 8px;
+}
+
+.status-badge.status-badge--online {
+  background: rgba(63, 194, 114, 0.2);
+  color: rgba(63, 194, 114, 0.95);
+}
+
+.status-badge.status-badge--offline {
+  background: rgba(241, 94, 111, 0.2);
+  color: rgba(241, 94, 111, 0.95);
+}
+
+.status-badge.status-badge--degraded {
+  background: rgba(245, 182, 73, 0.2);
+  color: rgba(245, 182, 73, 0.95);
+}
+
+/* Routes Table */
+.api-status-page__routes-table-wrapper {
+  overflow-x: auto;
+  padding: 20px 0;
+}
+
+.api-status-page__routes-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.api-status-page__routes-table thead {
+  border-bottom: 2px solid var(--border-glass);
+}
+
+.api-status-page__routes-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.api-status-page__routes-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-glass);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.api-status-page__routes-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.api-status-page__routes-table .api-status-page__empty {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+/* Route Method Badge */
+.route-method {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: "SF Mono", "Monaco", "Consolas", monospace;
+}
+
+.route-method.route-method--get {
+  background: rgba(63, 194, 114, 0.2);
+  color: rgba(63, 194, 114, 0.95);
+}
+
+.route-method.route-method--post {
+  background: rgba(116, 137, 255, 0.2);
+  color: rgba(116, 137, 255, 0.95);
+}
+
+.route-method.route-method--put {
+  background: rgba(245, 182, 73, 0.2);
+  color: rgba(245, 182, 73, 0.95);
+}
+
+.route-method.route-method--delete {
+  background: rgba(241, 94, 111, 0.2);
+  color: rgba(241, 94, 111, 0.95);
+}
+
+.route-method.route-method--patch {
+  background: rgba(156, 136, 255, 0.2);
+  color: rgba(156, 136, 255, 0.95);
+}
+
+/* Route Status Icon */
+.route-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+.route-status.route-status--ok {
+  background: rgba(63, 194, 114, 0.2);
+  color: rgba(63, 194, 114, 0.95);
+}
+
+.route-status.route-status--experimental {
+  background: rgba(245, 182, 73, 0.2);
+  color: rgba(245, 182, 73, 0.95);
+}
+
+/* Errors List */
+.api-status-page__errors {
+  padding: 20px 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.api-status-page__error-item {
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: rgba(241, 94, 111, 0.1);
+  border-left: 3px solid rgba(241, 94, 111, 0.5);
+  font-size: 0.9rem;
+}
+
+.api-status-page__error-time {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Empty State for Errors */
+.api-status-page__errors-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  min-height: 200px;
+}
+
+.api-status-page__errors-empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(63, 194, 114, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.api-status-page__errors-empty-icon .icon {
+  width: 32px;
+  height: 32px;
+  color: rgba(63, 194, 114, 0.9);
+}
+
+.api-status-page__errors-empty-title {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.api-status-page__errors-empty-description {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 400px;
+}
+
 .api-status-card {
   animation: fadeInUp 0.4s ease-out;
 }
@@ -2237,6 +2498,26 @@ select:focus {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 24px;
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+/* Марджіни для конкретних секцій */
+/* Tab API: Технічні характеристики - секція після "Основні маршрути" */
+#api-status-tab-api .api-status-card:nth-of-type(4) {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+/* Tab Ollama: Історія помилок - секція перед "Статистика запитів" */
+#api-status-tab-ollama .api-status-card:nth-of-type(3) {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+/* Tab System: База даних - перша секція */
+#api-status-tab-system .api-status-card:first-of-type {
+  margin-bottom: 24px;
 }
 
 .api-status-page__metrics {
@@ -2306,6 +2587,61 @@ select:focus {
   padding: 20px 0;
   max-height: 400px;
   overflow-y: auto;
+}
+
+/* Chart Wrapper для API Status */
+.chart-wrapper--compact {
+  height: 250px;
+  margin-top: 20px;
+}
+
+/* Empty State for Charts */
+.chart-empty-state {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  text-align: center;
+  z-index: 1;
+}
+
+.chart-empty-state__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(116, 137, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.chart-empty-state__icon .icon {
+  width: 28px;
+  height: 28px;
+  color: rgba(116, 137, 255, 0.8);
+}
+
+.chart-empty-state__title {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chart-empty-state__description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 320px;
 }
 
 .api-status-page__route-item {
@@ -2389,6 +2725,32 @@ select:focus {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Анімація обертання для лоадера */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Лоадер іконка в кнопках */
+.button .icon[data-lucide="loader-2"],
+.button:disabled .icon[data-lucide="loader-2"] {
+  animation: spin 1s linear infinite;
+  display: inline-block;
 }
 
 .auth-page {
