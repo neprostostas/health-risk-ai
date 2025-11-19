@@ -8718,11 +8718,12 @@ function generateReport() {
 let pdfFontInitialized = false;
 let pdfFontInitializing = false;
 
-// Зберігаємо завантажений шрифт для подальшого використання
+// Зберігаємо завантажені шрифти для подальшого використання
 let loadedFontBase64 = null;
+let loadedFontBoldBase64 = null;
 
 async function ensurePdfFontInitialized(jsPDF) {
-  if (pdfFontInitialized && loadedFontBase64) return;
+  if (pdfFontInitialized && loadedFontBase64 && loadedFontBoldBase64) return;
   if (pdfFontInitializing) {
     // Чекаємо, поки шрифт завантажується
     while (pdfFontInitializing) {
@@ -8742,34 +8743,39 @@ async function ensurePdfFontInitialized(jsPDF) {
     return;
   }
 
-  const fontName = "DejaVuSans";
-  const fontFileName = "DejaVuSans.ttf";
-
   try {
-    // Завантажуємо TTF-шрифт з локального файлу
+    // Завантажуємо звичайний шрифт
     const fontUrl = "/app/static/fonts/DejaVuSans.ttf";
-    
     const response = await fetch(fontUrl);
     if (!response.ok) {
       throw new Error(`Failed to load font: ${response.status}`);
     }
 
-    // Отримуємо шрифт як ArrayBuffer
     const fontBytes = await response.arrayBuffer();
     const fontUint8 = new Uint8Array(fontBytes);
     
-    // Конвертуємо Uint8Array в base64 для jsPDF
-    // Використовуємо більш ефективний спосіб для великих файлів
     let fontBinary = '';
     const chunkSize = 8192;
     for (let i = 0; i < fontUint8.length; i += chunkSize) {
       const chunk = fontUint8.subarray(i, i + chunkSize);
       fontBinary += String.fromCharCode.apply(null, chunk);
     }
-    const fontBase64 = btoa(fontBinary);
+    loadedFontBase64 = btoa(fontBinary);
     
-    // Зберігаємо base64 для подальшого використання
-    loadedFontBase64 = fontBase64;
+    // Завантажуємо жирний шрифт
+    const fontBoldUrl = "/app/static/fonts/DejaVuSans-Bold.ttf";
+    const responseBold = await fetch(fontBoldUrl);
+    if (responseBold.ok) {
+      const fontBoldBytes = await responseBold.arrayBuffer();
+      const fontBoldUint8 = new Uint8Array(fontBoldBytes);
+      
+      let fontBoldBinary = '';
+      for (let i = 0; i < fontBoldUint8.length; i += chunkSize) {
+        const chunk = fontBoldUint8.subarray(i, i + chunkSize);
+        fontBoldBinary += String.fromCharCode.apply(null, chunk);
+      }
+      loadedFontBoldBase64 = btoa(fontBoldBinary);
+    }
     
     pdfFontInitialized = true;
   } catch (error) {
@@ -9009,17 +9015,24 @@ async function renderLucideIconForPdf(iconName, {
   }
 }
 
-async function preparePdfIconAssets({ colors, riskColor }) {
+async function preparePdfIconAssets({ colors, riskColor, theme = "light" }) {
   const safeColors = colors || {};
+  const isDark = theme === "dark";
   try {
-    const [header, risk, factors, recommendations] = await Promise.all([
+    const [header, risk, factors, recommendations, cover] = await Promise.all([
       renderLucideIconForPdf("activity", { size: 22, color: "#FFFFFF", strokeWidth: 1.6, padding: 3 }),
       renderLucideIconForPdf("heart-pulse", { size: 18, color: rgbArrayToHex(riskColor || safeColors.accent || [255, 107, 129]) }),
       renderLucideIconForPdf("sliders", { size: 16, color: rgbArrayToHex(safeColors.primary || [76, 111, 255]) }),
-      renderLucideIconForPdf("check-circle-2", { size: 14, color: rgbArrayToHex(safeColors.accent || [255, 107, 129]) })
+      renderLucideIconForPdf("check-circle-2", { size: 14, color: rgbArrayToHex(safeColors.accent || [255, 107, 129]) }),
+      renderLucideIconForPdf("activity", { 
+        size: 48, 
+        color: rgbArrayToHex(safeColors.primary || [76, 111, 255]), 
+        strokeWidth: 2, 
+        padding: 8 
+      })
     ]);
     
-    return { header, risk, factors, recommendations };
+    return { header, risk, factors, recommendations, cover };
   } catch (error) {
     console.warn("Не вдалося підготувати ікони для PDF", error);
     return {};
@@ -9148,6 +9161,103 @@ async function handlePdfReportGeneration() {
   }
 }
 
+// Рендеринг обкладинки PDF
+function renderCoverPage(doc, { colors, pdfIconAssets, dateStr, pdfThemeKey }) {
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const isDark = pdfThemeKey === "dark";
+  
+  // Фон сторінки
+  if (isDark) {
+    doc.setFillColor(...colors.background);
+  } else {
+    doc.setFillColor(255, 255, 255);
+  }
+  doc.rect(0, 0, pageWidth, pageHeight, "F");
+  
+  // Центрований круг з іконкою
+  const iconCircleRadius = 25;
+  const iconCircleY = pageHeight * 0.25;
+  const iconCircleX = pageWidth / 2;
+  
+  // Коло для іконки
+  if (isDark) {
+    doc.setFillColor(...colors.surface);
+    doc.setDrawColor(...colors.surfaceBorder);
+  } else {
+    doc.setFillColor(245, 247, 255);
+    doc.setDrawColor(223, 230, 255);
+  }
+  doc.setLineWidth(1.5);
+  doc.circle(iconCircleX, iconCircleY, iconCircleRadius, "FD");
+  
+  // Іконка всередині кола
+  if (pdfIconAssets?.cover) {
+    const icon = pdfIconAssets.cover;
+    const iconX = iconCircleX - icon.widthMm;
+    const iconY = iconCircleY - icon.heightMm;
+    try {
+      doc.addImage(icon.dataUrl, "PNG", iconX, iconY, icon.widthMm * 2, icon.heightMm * 2);
+    } catch (error) {
+      // Якщо не вдалося додати іконку, продовжуємо без неї
+    }
+  }
+  
+  // Заголовок
+  const titleY = iconCircleY + iconCircleRadius + 35;
+  doc.setFontSize(20);
+  // Спробуємо використати жирний шрифт, якщо він доступний
+  try {
+    doc.setFont("DejaVuSans", "bold");
+  } catch (error) {
+    // Якщо жирний шрифт недоступний, використовуємо звичайний
+    doc.setFont("DejaVuSans", "normal");
+  }
+  doc.setTextColor(...colors.text);
+  const titleText = "Автоматизована система оцінки та прогнозування ризиків для здоров'я з використанням методів штучного інтелекту";
+  const titleMaxWidth = pageWidth - 40;
+  const titleLines = doc.splitTextToSize(titleText, titleMaxWidth);
+  const titleLineHeight = 10;
+  const totalTitleHeight = titleLines.length * titleLineHeight;
+  const titleStartY = titleY - (totalTitleHeight / 2);
+  
+  titleLines.forEach((line, index) => {
+    const lineWidth = doc.getTextWidth(line);
+    doc.text(line, (pageWidth - lineWidth) / 2, titleStartY + (index * titleLineHeight));
+  });
+  
+  // Повертаємо звичайний шрифт
+  doc.setFont("DejaVuSans", "normal");
+  
+  // Підзаголовок
+  const subtitleY = titleStartY + totalTitleHeight + 25;
+  doc.setFontSize(14);
+  doc.setTextColor(...colors.textMuted);
+  const subtitleText = "Аналітичний звіт";
+  const subtitleWidth = doc.getTextWidth(subtitleText);
+  doc.text(subtitleText, (pageWidth - subtitleWidth) / 2, subtitleY);
+  
+  // Автор та група
+  const authorY = pageHeight - 50;
+  doc.setFontSize(16);
+  doc.setTextColor(...colors.textMuted);
+  const authorText = "Кінаш Станіслав Андрійович";
+  const authorWidth = doc.getTextWidth(authorText);
+  doc.text(authorText, (pageWidth - authorWidth) / 2, authorY);
+  
+  const groupY = authorY + 8;
+  const groupText = "КНУС-23";
+  const groupWidth = doc.getTextWidth(groupText);
+  doc.text(groupText, (pageWidth - groupWidth) / 2, groupY);
+  
+  // Дата внизу
+  const dateY = pageHeight - 30;
+  doc.setFontSize(10);
+  doc.setTextColor(...colors.textMuted);
+  const dateWidth = doc.getTextWidth(dateStr);
+  doc.text(dateStr, (pageWidth - dateWidth) / 2, dateY);
+}
+
 // Генерація PDF звіту
 // Функція для показу/приховування overlay під час генерації PDF
 function setPdfExportOverlayVisible(visible) {
@@ -9205,17 +9315,24 @@ async function generatePDFReport(data, options = {}) {
     
     const doc = new jsPDF();
     
-    // Додаємо шрифт до документа, якщо він ще не доданий
+    // Додаємо шрифти до документа, якщо вони ще не додані
     if (loadedFontBase64) {
       try {
         const fontFileName = "DejaVuSans.ttf";
         const fontName = "DejaVuSans";
         
-        // Додаємо шрифт до віртуальної файлової системи документа
+        // Додаємо звичайний шрифт до віртуальної файлової системи документа
         doc.addFileToVFS(fontFileName, loadedFontBase64);
         
-        // Реєструємо шрифт
+        // Реєструємо звичайний шрифт
         doc.addFont(fontFileName, fontName, "normal");
+        
+        // Додаємо жирний шрифт, якщо він завантажений
+        if (loadedFontBoldBase64) {
+          const fontBoldFileName = "DejaVuSans-Bold.ttf";
+          doc.addFileToVFS(fontBoldFileName, loadedFontBoldBase64);
+          doc.addFont(fontBoldFileName, fontName, "bold");
+        }
         
       } catch (error) {
       }
@@ -9276,16 +9393,27 @@ async function generatePDFReport(data, options = {}) {
     }
     
     const riskColor = colors[riskBucket] || colors.medium;
-    const pdfIconAssets = await preparePdfIconAssets({ colors, riskColor });
+    const pdfIconAssets = await preparePdfIconAssets({ colors, riskColor, theme: pdfThemeKey });
     
     // Дата
     const date = new Date(data.created_at || new Date());
     const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    const dateStrShort = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
     
     const model = data.model_name || data.model || "Автоматично";
     
     // Встановлюємо шрифт для всього документа
     doc.setFont("DejaVuSans", "normal");
+  
+  // ============================================
+  // Cover Page - Обкладинка
+  // ============================================
+  renderCoverPage(doc, { colors, pdfIconAssets, dateStr: dateStrShort, pdfThemeKey });
+  
+  // ============================================
+  // Main Content Page - Основна сторінка з контентом
+  // ============================================
+  doc.addPage();
   
   // ============================================
   // Page background - Фон сторінки
@@ -9944,16 +10072,19 @@ async function generatePDFReport(data, options = {}) {
   }
   
   // ============================================
-  // Нумерація сторінок на всіх сторінках
+  // Нумерація сторінок на всіх сторінках (крім обкладинки)
   // ============================================
   const totalPages = doc.internal.getNumberOfPages();
   doc.setFontSize(8);
   doc.setTextColor(...colors.textMuted);
   
-  // Оновлюємо нумерацію на всіх сторінках
-  for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+  // Оновлюємо нумерацію на всіх сторінках, починаючи зі сторінки 2 (обкладинка без номера)
+  for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
     doc.setPage(pageNum);
-    const pageNumText = `Сторінка ${pageNum} з ${totalPages}`;
+    // Нумеруємо як сторінку (pageNum - 1), оскільки обкладинка не рахується
+    const contentPageNum = pageNum - 1;
+    const totalContentPages = totalPages - 1;
+    const pageNumText = `Сторінка ${contentPageNum} з ${totalContentPages}`;
     const pageNumWidth = doc.getTextWidth(pageNumText);
     doc.text(pageNumText, (pageWidth - pageNumWidth) / 2, pageHeight - 5);
   }
