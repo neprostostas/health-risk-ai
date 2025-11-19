@@ -9719,9 +9719,11 @@ async function generatePDFReport(data, options = {}) {
       });
     }
     
-    const pdfColor = "#111827";
+    // Визначаємо колір тексту для PDF залежно від теми
+    // Для темної теми - світлий колір, для світлої - темний
+    const pdfColor = pdfThemeKey === "dark" ? "#F3F6FF" : "#111827";
     
-    // Застосовуємо темні кольори для PDF
+    // Застосовуємо кольори для PDF
     if (chartInstance.options.plugins?.legend?.labels) {
       chartInstance.options.plugins.legend.labels.color = pdfColor;
     }
