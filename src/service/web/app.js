@@ -10296,6 +10296,280 @@ async function generatePDFReport(data, options = {}) {
   }
 }
 
+// Генерація HTML попереднього перегляду Excel звіту
+function generateExcelPreviewHTML(data, options = {}) {
+  const theme = options.theme || "light";
+  const themeColors = PDF_THEME_PRESETS[theme] || PDF_THEME_PRESETS.light;
+  const isDark = theme === "dark";
+  
+  // Конвертуємо RGB в hex
+  const rgbToHex = (rgb) => {
+    return "#" + rgb.map(c => c.toString(16).padStart(2, '0')).join('');
+  };
+  
+  // Кольори
+  const colors = {
+    primary: rgbToHex(themeColors.primary),
+    background: rgbToHex(themeColors.background),
+    surface: rgbToHex(themeColors.surface),
+    text: rgbToHex(themeColors.text),
+    textMuted: rgbToHex(themeColors.textMuted),
+    headerBg: rgbToHex(themeColors.headerBackground),
+    headerText: rgbToHex(themeColors.headerText),
+    rowEven: rgbToHex(isDark ? themeColors.surface : [255, 255, 255]),
+    rowOdd: rgbToHex(isDark ? themeColors.background : [248, 249, 255]),
+    sectionBg: rgbToHex(isDark ? themeColors.surface : [235, 239, 255]),
+    border: rgbToHex(themeColors.surfaceBorder)
+  };
+  
+  // Отримуємо дані
+  const factors = data.top_factors || data.inputs?.top_factors || [];
+  const factorsToShow = factors.slice(0, 10).map((factor, index) => {
+    const factorCode = factor.feature || factor.name || "Невідомий фактор";
+    let factorImpact = factor.impact || 0;
+    if (factorCode === "RIAGENDR" && factorImpact > 1.0) {
+      factorImpact = factorImpact / 2.0;
+    }
+    if (factorImpact > 1.0) {
+      factorImpact = 1.0;
+    }
+    return {
+      rank: index + 1,
+      code: factorCode,
+      name: FACTOR_LABELS[factorCode] || factorCode,
+      impact: (factorImpact * 100).toFixed(1)
+    };
+  });
+  
+  const recommendations = getRecommendations(data);
+  
+  // Генеруємо HTML
+  const html = `<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HealthRisk.AI - Попередній перегляд Excel звіту</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: ${colors.background};
+      color: ${colors.text};
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: ${colors.surface};
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    .header {
+      background: ${colors.headerBg};
+      color: ${colors.headerText};
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .content {
+      padding: 30px;
+    }
+    .section {
+      margin-bottom: 40px;
+    }
+    .section-title {
+      background: ${colors.headerBg};
+      color: ${colors.headerText};
+      padding: 15px 20px;
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center;
+      border-radius: 4px 4px 0 0;
+    }
+    .table-container {
+      border: 1px solid ${colors.border};
+      border-radius: 0 0 4px 4px;
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      background: ${colors.sectionBg};
+      padding: 12px;
+      text-align: left;
+      font-weight: bold;
+      border-bottom: 2px solid ${colors.border};
+    }
+    td {
+      padding: 12px;
+      border-bottom: 1px solid ${colors.border};
+    }
+    tr:nth-child(even) {
+      background: ${colors.rowEven};
+    }
+    tr:nth-child(odd) {
+      background: ${colors.rowOdd};
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    .text-center {
+      text-align: center;
+    }
+    .text-right {
+      text-align: right;
+    }
+    .recommendation-item {
+      padding: 10px 0;
+      border-bottom: 1px solid ${colors.border};
+    }
+    .recommendation-item:last-child {
+      border-bottom: none;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: ${colors.textMuted};
+      font-size: 12px;
+      border-top: 1px solid ${colors.border};
+    }
+    @media print {
+      body {
+        padding: 0;
+      }
+      .container {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я</h1>
+    </div>
+    <div class="content">
+      <!-- Основна інформація -->
+      <div class="section">
+        <div class="section-title">Основна інформація</div>
+        <div class="table-container">
+          <table>
+            <tbody>
+              <tr>
+                <th style="width: 40%;">Параметр</th>
+                <td>${TARGET_LABELS[data.target] || data.target}</td>
+              </tr>
+              <tr>
+                <th>Ймовірність</th>
+                <td>${(data.probability * 100).toFixed(2)}%</td>
+              </tr>
+              <tr>
+                <th>Рівень ризику</th>
+                <td>${data.riskLevel || "N/A"}</td>
+              </tr>
+              <tr>
+                <th>Модель</th>
+                <td>${data.model || data.model_name || "Автоматично"}</td>
+              </tr>
+              <tr>
+                <th>Дата створення</th>
+                <td>${new Date(data.created_at || new Date()).toLocaleString("uk-UA")}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      ${factorsToShow.length > 0 ? `
+      <!-- Ключові фактори -->
+      <div class="section">
+        <div class="section-title">Ключові фактори, що вплинули на ризик</div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 60px;" class="text-center">№</th>
+                <th>Фактор</th>
+                <th style="width: 150px;">Код</th>
+                <th style="width: 120px;" class="text-right">Вплив (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${factorsToShow.map(f => `
+                <tr>
+                  <td class="text-center">${f.rank}</td>
+                  <td>${f.name}</td>
+                  <td>${f.code}</td>
+                  <td class="text-right">${f.impact}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ` : ""}
+      
+      ${recommendations.length > 0 ? `
+      <!-- Рекомендації -->
+      <div class="section">
+        <div class="section-title">Рекомендації / наступні кроки</div>
+        <div class="table-container">
+          <table>
+            <tbody>
+              ${recommendations.map((rec, index) => `
+                <tr>
+                  <td style="width: 60px;" class="text-center"><strong>${index + 1}</strong></td>
+                  <td>${rec}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ` : ""}
+      
+      ${data.formData && Object.keys(data.formData).length > 0 ? `
+      <!-- Введені дані -->
+      <div class="section">
+        <div class="section-title">Введені дані</div>
+        <div class="table-container">
+          <table>
+            <tbody>
+              ${Object.entries(data.formData).map(([key, value]) => `
+                <tr>
+                  <th style="width: 40%;">${FACTOR_LABELS[key] || key}</th>
+                  <td>${value}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ` : ""}
+    </div>
+    <div class="footer">
+      Згенеровано: ${new Date().toLocaleString("uk-UA")}
+    </div>
+  </div>
+</body>
+</html>`;
+  
+  return html;
+}
+
 // Генерація Excel звіту
 function generateExcelReport(data, options = {}) {
   // Перевірка наявності бібліотеки XLSX
@@ -10700,14 +10974,27 @@ function generateExcelReport(data, options = {}) {
   // Додаємо аркуш до книги
   XLSX.utils.book_append_sheet(workbook, worksheet, "Звіт");
   
+  // Створюємо HTML попередній перегляд
+  const previewHtml = generateExcelPreviewHTML(data, options);
+  const previewBlob = new Blob([previewHtml], { type: "text/html;charset=utf-8;" });
+  const previewUrl = URL.createObjectURL(previewBlob);
+  
+  // Відкриваємо попередній перегляд в новій вкладці
+  window.open(previewUrl, "_blank");
+  
   // Зберігаємо файл
   const filename = `health_risk_report_${data.target}_${Date.now()}.xlsx`;
   XLSX.writeFile(workbook, filename);
   
+  // Звільняємо URL після невеликої затримки
+  setTimeout(() => {
+    URL.revokeObjectURL(previewUrl);
+  }, 1000);
+  
   showNotification({
     type: "success",
     title: "Звіт згенеровано",
-    message: `Excel звіт збережено як ${filename}`,
+    message: `Excel звіт збережено як ${filename} та відкрито попередній перегляд`,
     duration: 3000
   });
 }
@@ -10752,6 +11039,182 @@ function getRecommendations(data) {
   }
   
   return recommendations;
+}
+
+// Генерація HTML попереднього перегляду CSV звіту
+function generateCSVPreviewHTML(data) {
+  const lines = [];
+  
+  // Заголовок звіту
+  lines.push("HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я");
+  lines.push("");
+  
+  // Основна інформація
+  lines.push("=== ОСНОВНА ІНФОРМАЦІЯ ===");
+  lines.push("Параметр,Значення");
+  lines.push(`Ціль,"${TARGET_LABELS[data.target] || data.target}"`);
+  lines.push(`Ймовірність (%),${(data.probability * 100).toFixed(2)}`);
+  lines.push(`Рівень ризику,"${data.riskLevel || "N/A"}"`);
+  lines.push(`Модель,"${data.model || data.model_name || "Автоматично"}"`);
+  lines.push(`Дата створення,"${new Date(data.created_at || new Date()).toLocaleString("uk-UA")}"`);
+  lines.push("");
+  
+  // Ключові фактори
+  const factors = data.top_factors || data.inputs?.top_factors || [];
+  if (factors.length > 0) {
+    lines.push("=== КЛЮЧОВІ ФАКТОРИ, ЩО ВПЛИНУЛИ НА РИЗИК ===");
+    lines.push("№,Фактор,Код,Вплив (%)");
+    
+    const factorsToShow = factors.slice(0, 10);
+    factorsToShow.forEach((factor, index) => {
+      const factorCode = factor.feature || factor.name || "Невідомий фактор";
+      let factorImpact = factor.impact || 0;
+      
+      if (factorCode === "RIAGENDR" && factorImpact > 1.0) {
+        factorImpact = factorImpact / 2.0;
+      }
+      if (factorImpact > 1.0) {
+        factorImpact = 1.0;
+      }
+      
+      const label = FACTOR_LABELS[factorCode] || factorCode;
+      const impactPercent = (factorImpact * 100).toFixed(1);
+      
+      lines.push(`${index + 1},"${label}","${factorCode}",${impactPercent}`);
+    });
+    lines.push("");
+  }
+  
+  // Рекомендації
+  const recommendations = getRecommendations(data);
+  if (recommendations.length > 0) {
+    lines.push("=== РЕКОМЕНДАЦІЇ / НАСТУПНІ КРОКИ ===");
+    recommendations.forEach((rec, index) => {
+      lines.push(`${index + 1},"${rec}"`);
+    });
+    lines.push("");
+  }
+  
+  // Дані форми
+  if (data.formData && Object.keys(data.formData).length > 0) {
+    lines.push("=== ВВЕДЕНІ ДАНІ ===");
+    lines.push("Параметр,Значення");
+    Object.entries(data.formData).forEach(([key, value]) => {
+      const label = FACTOR_LABELS[key] || key;
+      lines.push(`"${label}","${value}"`);
+    });
+    lines.push("");
+  }
+  
+  // Футер
+  lines.push("=== КІНЕЦЬ ЗВІТУ ===");
+  lines.push(`Згенеровано: ${new Date().toLocaleString("uk-UA")}`);
+  
+  const csvContent = lines.join("\n");
+  
+  const html = `<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HealthRisk.AI - Попередній перегляд CSV звіту</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Courier New', Courier, monospace;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: #252526;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+    .header {
+      background: #2d2d30;
+      padding: 20px 30px;
+      border-bottom: 1px solid #3e3e42;
+    }
+    .header h1 {
+      font-size: 20px;
+      color: #4ec9b0;
+      margin-bottom: 5px;
+    }
+    .header p {
+      font-size: 12px;
+      color: #858585;
+    }
+    .content {
+      padding: 20px;
+      overflow-x: auto;
+    }
+    pre {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: #d4d4d4;
+      font-size: 13px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .csv-line {
+      display: block;
+    }
+    .csv-section {
+      color: #4ec9b0;
+      font-weight: bold;
+    }
+    .csv-header {
+      color: #ce9178;
+    }
+    .csv-value {
+      color: #ce9178;
+    }
+    .csv-number {
+      color: #b5cea8;
+    }
+    .csv-separator {
+      color: #808080;
+    }
+    @media print {
+      body {
+        background: white;
+        color: black;
+      }
+      .container {
+        background: white;
+        box-shadow: none;
+      }
+      pre {
+        color: black;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>HealthRisk.AI - Попередній перегляд CSV звіту</h1>
+      <p>Згенеровано: ${new Date().toLocaleString("uk-UA")}</p>
+    </div>
+    <div class="content">
+      <pre>${csvContent.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
+    </div>
+  </div>
+</body>
+</html>`;
+  
+  return html;
 }
 
 // Генерація CSV звіту
@@ -10825,6 +11288,15 @@ function generateCSVReport(data) {
   lines.push(`Згенеровано: ${new Date().toLocaleString("uk-UA")}`);
   
   const csv = lines.join("\n");
+  
+  // Створюємо HTML попередній перегляд
+  const previewHtml = generateCSVPreviewHTML(data);
+  const previewBlob = new Blob([previewHtml], { type: "text/html;charset=utf-8;" });
+  const previewUrl = URL.createObjectURL(previewBlob);
+  
+  // Відкриваємо попередній перегляд в новій вкладці
+  window.open(previewUrl, "_blank");
+  
   const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" }); // BOM для правильного відображення кирилиці
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
@@ -10835,12 +11307,306 @@ function generateCSVReport(data) {
   link.click();
   document.body.removeChild(link);
   
+  // Звільняємо URL після невеликої затримки
+  setTimeout(() => {
+    URL.revokeObjectURL(previewUrl);
+    URL.revokeObjectURL(url);
+  }, 1000);
+  
   showNotification({
     type: "success",
     title: "Звіт згенеровано",
-    message: "CSV звіт завантажено",
+    message: "CSV звіт завантажено та відкрито попередній перегляд",
     duration: 3000
   });
+}
+
+// Функція для підсвітки JSON синтаксису
+function highlightJSON(json) {
+  return json
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+      let cls = "json-number";
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) {
+          cls = "json-key";
+        } else {
+          cls = "json-string";
+        }
+      } else if (/true|false/.test(match)) {
+        cls = "json-boolean";
+      } else if (/null/.test(match)) {
+        cls = "json-null";
+      }
+      return `<span class="${cls}">${match}</span>`;
+    });
+}
+
+// Генерація HTML попереднього перегляду JSON звіту
+function generateJSONPreviewHTML(jsonData) {
+  const json = JSON.stringify(jsonData, null, 2);
+  const highlightedJson = highlightJSON(json);
+  
+  const html = `<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HealthRisk.AI - Попередній перегляд JSON звіту</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: #252526;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+    .header {
+      background: #2d2d30;
+      padding: 20px 30px;
+      border-bottom: 1px solid #3e3e42;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 {
+      font-size: 20px;
+      color: #4ec9b0;
+      margin-bottom: 5px;
+    }
+    .header p {
+      font-size: 12px;
+      color: #858585;
+    }
+    .header-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      padding: 8px 16px;
+      background: #0e639c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .btn:hover {
+      background: #1177bb;
+    }
+    .content {
+      padding: 20px;
+      overflow-x: auto;
+    }
+    pre {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-size: 13px;
+      line-height: 1.8;
+      white-space: pre;
+      word-wrap: normal;
+    }
+    .json-key {
+      color: #9cdcfe;
+    }
+    .json-string {
+      color: #ce9178;
+    }
+    .json-number {
+      color: #b5cea8;
+    }
+    .json-boolean {
+      color: #569cd6;
+    }
+    .json-null {
+      color: #569cd6;
+    }
+    @media print {
+      body {
+        background: white;
+        color: black;
+      }
+      .container {
+        background: white;
+        box-shadow: none;
+      }
+      .header-actions {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>HealthRisk.AI - Попередній перегляд JSON звіту</h1>
+        <p>Згенеровано: ${new Date().toLocaleString("uk-UA")}</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn" id="copy-btn">Копіювати JSON</button>
+        <button class="btn" onclick="window.print()">Друкувати</button>
+      </div>
+    </div>
+    <div class="content">
+      <pre id="json-content">${highlightedJson}</pre>
+    </div>
+  </div>
+  <script>
+    const jsonText = ${JSON.stringify(json)};
+    
+    function showToast(message, isError = false) {
+      // Видаляємо попереднє повідомлення, якщо воно є
+      const existingToast = document.getElementById('json-toast');
+      if (existingToast) {
+        existingToast.remove();
+      }
+      
+      const toast = document.createElement('div');
+      toast.id = 'json-toast';
+      toast.style.cssText = \`
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: \${isError ? '#f44336' : '#4caf50'};
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 10000;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 14px;
+        animation: slideIn 0.3s ease-out;
+        max-width: 300px;
+      \`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+    
+    function copyToClipboard(btn) {
+      const originalText = btn.textContent;
+      
+      // Спробуємо використати Clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(jsonText).then(() => {
+          btn.textContent = "Скопійовано!";
+          btn.style.background = "#0e7c0e";
+          showToast("JSON скопійовано в буфер обміну");
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = "#0e639c";
+          }, 2000);
+        }).catch(() => {
+          // Fallback якщо Clipboard API не працює
+          fallbackCopyToClipboard(btn);
+        });
+      } else {
+        // Fallback для старих браузерів
+        fallbackCopyToClipboard(btn);
+      }
+    }
+    
+    function fallbackCopyToClipboard(btn) {
+      const textArea = document.createElement("textarea");
+      textArea.value = jsonText;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          const originalText = btn.textContent;
+          btn.textContent = "Скопійовано!";
+          btn.style.background = "#0e7c0e";
+          showToast("JSON скопійовано в буфер обміну");
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = "#0e639c";
+          }, 2000);
+        } else {
+          showToast("Не вдалося скопіювати. Спробуйте виділити текст вручну.", true);
+        }
+      } catch (err) {
+        showToast("Не вдалося скопіювати. Спробуйте виділити текст вручну.", true);
+      } finally {
+        document.body.removeChild(textArea);
+      }
+    }
+    
+    // Додаємо обробник події для кнопки копіювання
+    document.addEventListener('DOMContentLoaded', function() {
+      const copyBtn = document.getElementById('copy-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', function() {
+          copyToClipboard(this);
+        });
+      }
+    });
+    
+    // Якщо DOM вже завантажений
+    const copyBtn = document.getElementById('copy-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function() {
+        copyToClipboard(this);
+      });
+    }
+    
+    // Додаємо стилі для анімації
+    const style = document.createElement('style');
+    style.textContent = \`
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+      }
+    \`;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>`;
+  
+  return html;
 }
 
 // Генерація JSON звіту
@@ -10935,6 +11701,15 @@ function generateJSONReport(data) {
   };
   
   const json = JSON.stringify(jsonData, null, 2);
+  
+  // Створюємо HTML попередній перегляд
+  const previewHtml = generateJSONPreviewHTML(jsonData);
+  const previewBlob = new Blob([previewHtml], { type: "text/html;charset=utf-8;" });
+  const previewUrl = URL.createObjectURL(previewBlob);
+  
+  // Відкриваємо попередній перегляд в новій вкладці
+  window.open(previewUrl, "_blank");
+  
   const blob = new Blob([json], { type: "application/json;charset=utf-8;" });
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
@@ -10945,10 +11720,16 @@ function generateJSONReport(data) {
   link.click();
   document.body.removeChild(link);
   
+  // Звільняємо URL після невеликої затримки
+  setTimeout(() => {
+    URL.revokeObjectURL(previewUrl);
+    URL.revokeObjectURL(url);
+  }, 1000);
+  
   showNotification({
     type: "success",
     title: "Звіт згенеровано",
-    message: "JSON звіт завантажено",
+    message: "JSON звіт завантажено та відкрито попередній перегляд",
     duration: 3000
   });
 }
