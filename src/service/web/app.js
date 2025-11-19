@@ -9019,7 +9019,7 @@ async function preparePdfIconAssets({ colors, riskColor, theme = "light" }) {
   const safeColors = colors || {};
   const isDark = theme === "dark";
   try {
-    const [header, risk, factors, recommendations, cover] = await Promise.all([
+    const [header, risk, factors, recommendations, cover, closing] = await Promise.all([
       renderLucideIconForPdf("activity", { size: 22, color: "#FFFFFF", strokeWidth: 1.6, padding: 3 }),
       renderLucideIconForPdf("heart-pulse", { size: 18, color: rgbArrayToHex(riskColor || safeColors.accent || [255, 107, 129]) }),
       renderLucideIconForPdf("sliders", { size: 16, color: rgbArrayToHex(safeColors.primary || [76, 111, 255]) }),
@@ -9029,10 +9029,16 @@ async function preparePdfIconAssets({ colors, riskColor, theme = "light" }) {
         color: rgbArrayToHex(safeColors.primary || [76, 111, 255]), 
         strokeWidth: 2, 
         padding: 8 
+      }),
+      renderLucideIconForPdf("sparkles", { 
+        size: 24, 
+        color: rgbArrayToHex(safeColors.primary || [76, 111, 255]), 
+        strokeWidth: 1.5, 
+        padding: 4 
       })
     ]);
     
-    return { header, risk, factors, recommendations, cover };
+    return { header, risk, factors, recommendations, cover, closing };
   } catch (error) {
     console.warn("Не вдалося підготувати ікони для PDF", error);
     return {};
@@ -9256,6 +9262,101 @@ function renderCoverPage(doc, { colors, pdfIconAssets, dateStr, pdfThemeKey }) {
   doc.setTextColor(...colors.textMuted);
   const dateWidth = doc.getTextWidth(dateStr);
   doc.text(dateStr, (pageWidth - dateWidth) / 2, dateY);
+}
+
+// Рендеринг фінальної сторінки PDF
+function renderClosingPage(doc, { colors, pdfIconAssets, pdfThemeKey }) {
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const isDark = pdfThemeKey === "dark";
+  
+  // Фон сторінки
+  if (isDark) {
+    doc.setFillColor(...colors.background);
+  } else {
+    doc.setFillColor(255, 255, 255);
+  }
+  doc.rect(0, 0, pageWidth, pageHeight, "F");
+  
+  // Центруємо контент вертикально
+  const centerY = pageHeight / 2;
+  
+  // Іконка вище тексту
+  let iconY = centerY - 50;
+  if (pdfIconAssets?.closing) {
+    const icon = pdfIconAssets.closing;
+    const iconX = (pageWidth - icon.widthMm) / 2;
+    try {
+      doc.addImage(icon.dataUrl, "PNG", iconX, iconY, icon.widthMm, icon.heightMm);
+      iconY += icon.heightMm + 20;
+    } catch (error) {
+      // Якщо не вдалося додати іконку, продовжуємо без неї
+    }
+  } else {
+    iconY = centerY - 30;
+  }
+  
+  // Основний текст
+  doc.setFontSize(16);
+  doc.setFont("DejaVuSans", "normal");
+  doc.setTextColor(...colors.text);
+  const mainText = "Турбота про здоров'я починається з усвідомлення";
+  const mainTextMaxWidth = pageWidth - 50;
+  const mainTextLines = doc.splitTextToSize(mainText, mainTextMaxWidth);
+  const mainTextLineHeight = 9;
+  const totalMainTextHeight = mainTextLines.length * mainTextLineHeight;
+  const mainTextStartY = iconY + (iconY < centerY ? 0 : 10);
+  
+  mainTextLines.forEach((line, index) => {
+    const lineWidth = doc.getTextWidth(line);
+    doc.text(line, (pageWidth - lineWidth) / 2, mainTextStartY + (index * mainTextLineHeight));
+  });
+  
+  // Другий рядок тексту
+  const secondaryTextY = mainTextStartY + totalMainTextHeight + 20;
+  doc.setFontSize(11);
+  doc.setTextColor(...colors.textMuted);
+  const secondaryText = "Система аналізу та прогнозування створена, щоб допомогти приймати кращі рішення.";
+  const secondaryTextMaxWidth = pageWidth - 50;
+  const secondaryTextLines = doc.splitTextToSize(secondaryText, secondaryTextMaxWidth);
+  const secondaryTextLineHeight = 7;
+  
+  secondaryTextLines.forEach((line, index) => {
+    const lineWidth = doc.getTextWidth(line);
+    doc.text(line, (pageWidth - lineWidth) / 2, secondaryTextY + (index * secondaryTextLineHeight));
+  });
+  
+  // Жирний текст подяки
+  const totalSecondaryTextHeight = secondaryTextLines.length * secondaryTextLineHeight;
+  const thanksY = secondaryTextY + totalSecondaryTextHeight + 30;
+  doc.setFontSize(14);
+  // Спробуємо використати жирний шрифт
+  try {
+    doc.setFont("DejaVuSans", "bold");
+  } catch (error) {
+    doc.setFont("DejaVuSans", "normal");
+  }
+  doc.setTextColor(...colors.text);
+  const thanksText = "Дякуємо, що турбуєтесь про своє здоров'я!";
+  const thanksMaxWidth = pageWidth - 50;
+  const thanksLines = doc.splitTextToSize(thanksText, thanksMaxWidth);
+  const thanksLineHeight = 8;
+  
+  thanksLines.forEach((line, index) => {
+    const lineWidth = doc.getTextWidth(line);
+    doc.text(line, (pageWidth - lineWidth) / 2, thanksY + (index * thanksLineHeight));
+  });
+  
+  // Повертаємо звичайний шрифт
+  doc.setFont("DejaVuSans", "normal");
+  
+  // Футер внизу
+  const footerY = pageHeight - 25;
+  doc.setFontSize(9);
+  doc.setTextColor(...colors.textMuted);
+  const footerText = "Створено за підтримки алгоритмів штучного інтелекту.";
+  const footerWidth = doc.getTextWidth(footerText);
+  doc.text(footerText, (pageWidth - footerWidth) / 2, footerY);
 }
 
 // Генерація PDF звіту
@@ -10072,18 +10173,26 @@ async function generatePDFReport(data, options = {}) {
   }
   
   // ============================================
-  // Нумерація сторінок на всіх сторінках (крім обкладинки)
+  // Closing Page - Фінальна сторінка
+  // ============================================
+  doc.addPage();
+  renderClosingPage(doc, { colors, pdfIconAssets, pdfThemeKey });
+  
+  // ============================================
+  // Нумерація сторінок на всіх сторінках (крім обкладинки та фінальної)
   // ============================================
   const totalPages = doc.internal.getNumberOfPages();
   doc.setFontSize(8);
   doc.setTextColor(...colors.textMuted);
   
   // Оновлюємо нумерацію на всіх сторінках, починаючи зі сторінки 2 (обкладинка без номера)
-  for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
+  // і закінчуючи перед останньою (фінальна сторінка без номера)
+  const lastContentPage = totalPages - 1; // Остання сторінка з контентом (перед фінальною)
+  for (let pageNum = 2; pageNum <= lastContentPage; pageNum++) {
     doc.setPage(pageNum);
     // Нумеруємо як сторінку (pageNum - 1), оскільки обкладинка не рахується
     const contentPageNum = pageNum - 1;
-    const totalContentPages = totalPages - 1;
+    const totalContentPages = lastContentPage - 1; // Загальна кількість сторінок з контентом (без обкладинки та фінальної)
     const pageNumText = `Сторінка ${contentPageNum} з ${totalContentPages}`;
     const pageNumWidth = doc.getTextWidth(pageNumText);
     doc.text(pageNumText, (pageWidth - pageNumWidth) / 2, pageHeight - 5);
