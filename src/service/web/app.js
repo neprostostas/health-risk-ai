@@ -8685,14 +8685,7 @@ function generateReport() {
   try {
     switch (selectedFormat) {
       case "pdf":
-        generatePDFReport(currentPredictionData).catch(error => {
-          showNotification({
-            type: "error",
-            title: "Помилка генерації PDF",
-            message: error.message || "Не вдалося згенерувати PDF звіт",
-            duration: 4000
-          });
-        });
+        handlePdfReportGeneration();
         break;
       case "excel":
         generateExcelReport(currentPredictionData);
@@ -8796,6 +8789,57 @@ const FACTOR_LABELS = {
   LBXGLU: "Рівень глюкози у крові натще",
   LBXTC: "Рівень загального холестерину",
 };
+
+// Тема PDF (світла/темна) з використанням брендованих кольорів застосунку
+const PDF_THEME_PRESETS = {
+  light: {
+    headerBackground: [95, 109, 250],     // #5F6DFA
+    primary: [95, 109, 250],
+    accent: [255, 107, 129],              // #FF6B81
+    background: [245, 247, 255],          // #F5F7FF
+    surface: [255, 255, 255],
+    surfaceBorder: [223, 230, 255],       // #DFE6FF
+    divider: [233, 236, 250],             // #E9ECFA
+    text: [28, 35, 51],                   // #1C2333
+    textMuted: [110, 118, 155],           // #6E769B
+    headerText: [255, 255, 255],
+    headerMeta: [235, 239, 255],          // #EBEFFF
+    low: [85, 200, 145],
+    medium: [245, 182, 73],
+    high: [241, 94, 111],
+  },
+  dark: {
+    headerBackground: [17, 24, 44],       // #11182C
+    primary: [116, 137, 255],             // #7489FF
+    accent: [96, 244, 255],               // #60F4FF
+    background: [21, 27, 46],             // #151B2E
+    surface: [26, 34, 58],                // #1A223A
+    surfaceBorder: [61, 73, 108],         // #3D496C
+    divider: [75, 87, 123],               // #4B577B
+    text: [243, 246, 255],                // #F3F6FF
+    textMuted: [178, 188, 224],           // #B2BCE0
+    headerText: [243, 246, 255],
+    headerMeta: [168, 182, 232],          // #A8B6E8
+    low: [60, 201, 158],
+    medium: [247, 181, 69],
+    high: [245, 94, 131],
+  }
+};
+
+const PDF_THEME_METADATA = {
+  light: {
+    title: "Світлий",
+    description: "Класичне світле оформлення HealthRisk.AI",
+    icon: "sun"
+  },
+  dark: {
+    title: "Темний",
+    description: "Контрастна темна тема під нічний режим сайту",
+    icon: "moon"
+  }
+};
+
+const PDF_THEME_OPTIONS = Object.keys(PDF_THEME_PRESETS);
 
 // ============================================
 // Допоміжні функції для рендеру Lucide-ікон у PDF
@@ -8982,6 +9026,128 @@ async function preparePdfIconAssets({ colors, riskColor }) {
   }
 }
 
+let pdfThemeModalIsOpen = false;
+
+function getActiveSiteTheme() {
+  if (currentTheme === "dark" || currentTheme === "light") {
+    return currentTheme;
+  }
+  return document.body.classList.contains("theme-dark") ? "dark" : "light";
+}
+
+function showPdfThemeModal(defaultTheme = "light") {
+  return new Promise((resolve) => {
+    if (pdfThemeModalIsOpen) {
+      resolve(defaultTheme);
+      return;
+    }
+    pdfThemeModalIsOpen = true;
+    const initialTheme = PDF_THEME_OPTIONS.includes(defaultTheme) ? defaultTheme : "light";
+    const modal = document.createElement("div");
+    modal.className = "modal pdf-theme-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.innerHTML = `
+      <div class="modal__backdrop pdf-theme-modal__backdrop" data-action="cancel"></div>
+      <div class="modal__container">
+        <div class="modal__content">
+          <div class="modal__header">
+            <div>
+              <h3 class="modal__title" style="color: inherit;">Оберіть тему PDF</h3>
+              <p class="pdf-theme-modal__subtitle">За замовчуванням використовуємо активну тему сайту.</p>
+            </div>
+          </div>
+          <div class="modal__body">
+            <div class="pdf-theme-modal__options">
+              ${PDF_THEME_OPTIONS.map(theme => {
+                const meta = PDF_THEME_METADATA[theme];
+                return `
+                  <button type="button" class="pdf-theme-option" data-theme="${theme}">
+                    <span class="icon pdf-theme-option__icon" data-lucide="${meta.icon}" aria-hidden="true"></span>
+                    <span class="pdf-theme-option__title">${meta.title}</span>
+                    <span class="pdf-theme-option__desc">${meta.description}</span>
+                  </button>
+                `;
+              }).join("")}
+            </div>
+          </div>
+          <div class="modal__actions">
+            <button type="button" class="button button--ghost btn-pdf-modal-theme" data-action="cancel">Скасувати</button>
+            <button type="button" class="button button--primary btn-pdf-modal-theme" data-action="confirm" disabled>Згенерувати</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    refreshIcons();
+    
+    const optionButtons = modal.querySelectorAll(".pdf-theme-option");
+    const confirmBtn = modal.querySelector('[data-action="confirm"]');
+    const cancelTriggers = modal.querySelectorAll('[data-action="cancel"]');
+    let selectedTheme = null;
+    
+    const applySelection = (theme) => {
+      selectedTheme = theme;
+      optionButtons.forEach(btn => {
+        btn.classList.toggle("pdf-theme-option--selected", btn.dataset.theme === theme);
+      });
+      confirmBtn.disabled = !theme;
+    };
+    
+    applySelection(initialTheme);
+    
+    optionButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        applySelection(btn.dataset.theme);
+      });
+    });
+    
+    const closeModal = (result) => {
+      if (pdfThemeModalIsOpen) {
+        pdfThemeModalIsOpen = false;
+        document.removeEventListener("keydown", handleKeydown);
+        modal.remove();
+        resolve(result || null);
+      }
+    };
+    
+    confirmBtn.addEventListener("click", () => closeModal(selectedTheme));
+    cancelTriggers.forEach(trigger => trigger.addEventListener("click", () => closeModal(null)));
+    
+    const handleKeydown = (event) => {
+      if (event.key === "Escape") {
+        closeModal(null);
+      }
+      if (event.key === "Enter" && !confirmBtn.disabled) {
+        closeModal(selectedTheme);
+      }
+    };
+    document.addEventListener("keydown", handleKeydown);
+  });
+}
+
+async function promptPdfThemeSelection() {
+  const defaultTheme = getActiveSiteTheme();
+  return showPdfThemeModal(defaultTheme);
+}
+
+async function handlePdfReportGeneration() {
+  if (!currentPredictionData) return;
+  try {
+    const selectedTheme = await promptPdfThemeSelection();
+    if (!selectedTheme) return;
+    await generatePDFReport(currentPredictionData, { theme: selectedTheme });
+  } catch (error) {
+    showNotification({
+      type: "error",
+      title: "Помилка генерації PDF",
+      message: error.message || "Не вдалося згенерувати PDF звіт",
+      duration: 4000
+    });
+  }
+}
+
 // Генерація PDF звіту
 // Функція для показу/приховування overlay під час генерації PDF
 function setPdfExportOverlayVisible(visible) {
@@ -9000,7 +9166,7 @@ function setPdfExportOverlayVisible(visible) {
   }
 }
 
-async function generatePDFReport(data) {
+async function generatePDFReport(data, options = {}) {
   // Показуємо overlay перед початком генерації
   setPdfExportOverlayVisible(true);
   
@@ -9073,16 +9239,8 @@ async function generatePDFReport(data) {
     }
     
     // Кольорова палітра
-    const colors = {
-      primary: [76, 111, 255],      // #4C6FFF - індиго-синій
-      accent: [255, 107, 129],      // #FF6B81 - рожево-червоний
-      low: [0, 184, 148],           // #00B894 - зелений
-      medium: [241, 196, 15],        // #F1C40F - жовтий
-      high: [231, 76, 60],          // #E74C3C - червоний
-      background: [245, 246, 250],  // #F5F6FA - світло-сірий
-      text: [44, 62, 80],           // #2C3E50 - темно-сірий
-      textMuted: [127, 140, 141]    // #7F8C8D - приглушений сірий
-    };
+    const pdfThemeKey = options.theme === "dark" ? "dark" : "light";
+    const colors = PDF_THEME_PRESETS[pdfThemeKey] || PDF_THEME_PRESETS.light;
     
     // Розміри сторінки A4 (в мм)
     const pageWidth = 210;
@@ -9130,14 +9288,22 @@ async function generatePDFReport(data) {
     doc.setFont("DejaVuSans", "normal");
   
   // ============================================
+  // Page background - Фон сторінки
+  // ============================================
+  if (pdfThemeKey === "dark") {
+    doc.setFillColor(...colors.background);
+    doc.rect(0, 0, pageWidth, pageHeight, "F");
+  }
+  
+  // ============================================
   // Header - Верхній кольоровий хедер
   // ============================================
   const headerHeight = 25;
-  doc.setFillColor(...colors.primary);
+  doc.setFillColor(...colors.headerBackground);
   doc.rect(0, 0, pageWidth, headerHeight, "F");
   
   // Лого-текст зліва
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(...colors.headerText);
   doc.setFontSize(16);
   let headerTextX = margin;
   if (pdfIconAssets?.header) {
@@ -9149,6 +9315,7 @@ async function generatePDFReport(data) {
   doc.text("HealthRisk.AI", headerTextX, 15);
   
   // Текст справа
+  doc.setTextColor(...colors.headerMeta);
   doc.setFontSize(10);
   const headerText = "Звіт про прогнозування ризиків для здоров'я";
   const headerTextWidth = doc.getTextWidth(headerText);
@@ -9167,7 +9334,7 @@ async function generatePDFReport(data) {
   
   // Фон контенту
   doc.setFillColor(...colors.background);
-  doc.setDrawColor(200, 200, 200);
+  doc.setDrawColor(...colors.surfaceBorder);
   doc.setLineWidth(0.5);
   // Використовуємо roundedRect з двома параметрами радіуса (rx, ry)
   doc.roundedRect(margin, contentStartY, contentWidth, contentHeight, borderRadius, borderRadius, "FD");
@@ -9185,8 +9352,8 @@ async function generatePDFReport(data) {
   const cardHeight = 35;
   
   // Білий фон карточки
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(220, 220, 220);
+  doc.setFillColor(...colors.surface);
+  doc.setDrawColor(...colors.surfaceBorder);
   doc.setLineWidth(0.3);
   // Використовуємо roundedRect з двома параметрами радіуса (rx, ry)
   doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 3, 3, "FD");
@@ -9220,6 +9387,7 @@ async function generatePDFReport(data) {
   doc.text(probText, cardX + cardWidth - probTextWidth - 8, cardY + 20);
   
   doc.setFontSize(10);
+  doc.setTextColor(...colors.textMuted);
   doc.text("Ймовірність", cardX + cardWidth - probTextWidth - 8, cardY + 8);
   
   y += cardHeight + 12;
@@ -9317,7 +9485,7 @@ async function generatePDFReport(data) {
       
       // Легка сіра лінія між рядками
       if (index > 0) {
-        doc.setDrawColor(230, 230, 230);
+        doc.setDrawColor(...colors.divider);
         doc.setLineWidth(0.2);
         doc.line(cardX, y - 2, cardX + scaleWidth, y - 2);
       }
@@ -9722,6 +9890,11 @@ async function generatePDFReport(data) {
     
     for (let i = 0; i < chartImages.length; i += 4) {
       doc.addPage();
+      // Встановлюємо темний фон для нової сторінки в темній темі
+      if (pdfThemeKey === "dark") {
+        doc.setFillColor(...colors.background);
+        doc.rect(0, 0, pageWidth, pageHeight, "F");
+      }
       const chartsOnPage = chartImages.slice(i, i + 4);
       
       chartsOnPage.forEach((chart, index) => {
