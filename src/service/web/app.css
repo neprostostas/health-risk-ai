@@ -4642,9 +4642,33 @@ button[data-tooltip]:focus-visible::after {
   border-radius: 12px;
   font-size: 14px;
   color: #111827;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
 .theme-dark .pdf-export-overlay__content {
   background: var(--bg-elevated);
   color: var(--text-primary);
+}
+
+.pdf-export-overlay__spinner {
+  width: 24px;
+  height: 24px;
+  animation: pdf-export-spinner-rotate 1s linear infinite;
+  color: var(--accent-color, #4C6FFF);
+}
+
+.theme-dark .pdf-export-overlay__spinner {
+  color: var(--accent-color, #5F6DFA);
+}
+
+@keyframes pdf-export-spinner-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

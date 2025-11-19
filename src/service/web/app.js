@@ -8797,6 +8797,191 @@ const FACTOR_LABELS = {
   LBXTC: "Рівень загального холестерину",
 };
 
+// ============================================
+// Допоміжні функції для рендеру Lucide-ікон у PDF
+// ============================================
+const LUCIDE_ICON_PX_TO_MM = 0.264583;
+const LUCIDE_ICON_RENDER_SCALE = 6;
+const LUCIDE_SVG_BASE_URLS = [
+  "https://cdn.jsdelivr.net/npm/lucide-static@0.554.0/icons/",
+  "https://unpkg.com/lucide-static@latest/icons/"
+];
+const lucidePdfIconCache = new Map();
+const lucideSvgTemplateCache = new Map();
+
+function pxToMm(px) {
+  return Math.round(px * LUCIDE_ICON_PX_TO_MM * 1000) / 1000;
+}
+
+function rgbArrayToHex(colorArray = []) {
+  if (!Array.isArray(colorArray) || colorArray.length < 3) return "#000000";
+  return `#${colorArray
+    .slice(0, 3)
+    .map(component => {
+      const value = Math.max(0, Math.min(255, Math.round(component)));
+      return value.toString(16).padStart(2, "0");
+    })
+    .join("")}`;
+}
+
+function loadImageElement(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.crossOrigin = "anonymous";
+    img.src = url;
+  });
+}
+
+async function loadLucideSvgTemplate(iconName) {
+  if (lucideSvgTemplateCache.has(iconName)) {
+    return lucideSvgTemplateCache.get(iconName);
+  }
+  
+  const triedUrls = [];
+  for (const baseUrl of LUCIDE_SVG_BASE_URLS) {
+    const url = `${baseUrl}${iconName}.svg`;
+    triedUrls.push(url);
+    try {
+      const response = await fetch(url, { mode: "cors" });
+      if (!response.ok) {
+        console.warn(`[PDF] Failed to load Lucide icon "${iconName}" from ${url}: HTTP ${response.status}`);
+        continue;
+      }
+      const svgText = await response.text();
+      lucideSvgTemplateCache.set(iconName, svgText);
+      return svgText;
+    } catch (error) {
+      console.warn(`[PDF] Failed to load Lucide icon "${iconName}" from ${url}:`, error);
+    }
+  }
+  
+  console.error(`[PDF] Unable to load Lucide icon "${iconName}" from any CDN`, {
+    iconName,
+    triedUrls
+  });
+  lucideSvgTemplateCache.set(iconName, null);
+  throw new Error(`Unable to load Lucide icon "${iconName}" from provided CDNs`);
+}
+
+function normalizeLucideSvg(svgString, {
+  size = 18,
+  color = "#111827",
+  strokeWidth = 1.8
+} = {}) {
+  if (!svgString) return null;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgString, "image/svg+xml");
+    const svgEl = doc.documentElement;
+    svgEl.setAttribute("width", size.toString());
+    svgEl.setAttribute("height", size.toString());
+    svgEl.setAttribute("stroke", color);
+    svgEl.setAttribute("fill", svgEl.getAttribute("fill") || "none");
+    svgEl.setAttribute("stroke-width", strokeWidth.toString());
+    svgEl.setAttribute("stroke-linecap", svgEl.getAttribute("stroke-linecap") || "round");
+    svgEl.setAttribute("stroke-linejoin", svgEl.getAttribute("stroke-linejoin") || "round");
+    return new XMLSerializer().serializeToString(svgEl);
+  } catch (error) {
+    console.warn("Не вдалося нормалізувати SVG Lucide", error);
+    return svgString;
+  }
+}
+
+async function getLucideSvgMarkup(iconName, options) {
+  const lucideApiIcon = window.lucide?.icons?.[iconName];
+  if (lucideApiIcon?.toSvg) {
+    try {
+      return lucideApiIcon.toSvg({
+        width: options.size,
+        height: options.size,
+        stroke: options.color,
+        "stroke-width": options.strokeWidth,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round"
+      });
+    } catch (error) {
+      console.warn(`Не вдалося створити SVG через window.lucide для "${iconName}"`, error);
+    }
+  }
+  
+  try {
+    const template = await loadLucideSvgTemplate(iconName);
+    if (!template) {
+      return null;
+    }
+    return normalizeLucideSvg(template, options);
+  } catch (error) {
+    console.warn(`[PDF] Falling back without icon "${iconName}" due to load error`, error);
+    return null;
+  }
+}
+
+async function renderLucideIconForPdf(iconName, {
+  size = 18,
+  color = "#111827",
+  strokeWidth = 1.8,
+  padding = 2
+} = {}) {
+  const cacheKey = `${iconName}_${size}_${color}_${strokeWidth}_${padding}_${LUCIDE_ICON_RENDER_SCALE}`;
+  if (lucidePdfIconCache.has(cacheKey)) {
+    return lucidePdfIconCache.get(cacheKey);
+  }
+  
+  const svgString = await getLucideSvgMarkup(iconName, { size, color, strokeWidth });
+  if (!svgString) {
+    return null;
+  }
+  
+  const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  
+  try {
+    const img = await loadImageElement(url);
+    const canvas = document.createElement("canvas");
+    const logicalPx = size + padding * 2;
+    canvas.width = Math.ceil(logicalPx * LUCIDE_ICON_RENDER_SCALE);
+    canvas.height = Math.ceil(logicalPx * LUCIDE_ICON_RENDER_SCALE);
+    const ctx = canvas.getContext("2d");
+    ctx.scale(LUCIDE_ICON_RENDER_SCALE, LUCIDE_ICON_RENDER_SCALE);
+    ctx.clearRect(0, 0, logicalPx, logicalPx);
+    ctx.drawImage(img, padding, padding, size, size);
+    const dataUrl = canvas.toDataURL("image/png");
+    const asset = {
+      dataUrl,
+      widthPx: logicalPx,
+      heightPx: logicalPx,
+      widthMm: pxToMm(logicalPx),
+      heightMm: pxToMm(logicalPx)
+    };
+    lucidePdfIconCache.set(cacheKey, asset);
+    return asset;
+  } catch (error) {
+    console.warn(`Не вдалося згенерувати ікону "${iconName}" для PDF`, error);
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function preparePdfIconAssets({ colors, riskColor }) {
+  const safeColors = colors || {};
+  try {
+    const [header, risk, factors, recommendations] = await Promise.all([
+      renderLucideIconForPdf("activity", { size: 22, color: "#FFFFFF", strokeWidth: 1.6, padding: 3 }),
+      renderLucideIconForPdf("heart-pulse", { size: 18, color: rgbArrayToHex(riskColor || safeColors.accent || [255, 107, 129]) }),
+      renderLucideIconForPdf("sliders", { size: 16, color: rgbArrayToHex(safeColors.primary || [76, 111, 255]) }),
+      renderLucideIconForPdf("check-circle-2", { size: 14, color: rgbArrayToHex(safeColors.accent || [255, 107, 129]) })
+    ]);
+    
+    return { header, risk, factors, recommendations };
+  } catch (error) {
+    console.warn("Не вдалося підготувати ікони для PDF", error);
+    return {};
+  }
+}
+
 // Генерація PDF звіту
 // Функція для показу/приховування overlay під час генерації PDF
 function setPdfExportOverlayVisible(visible) {
@@ -8805,6 +8990,14 @@ function setPdfExportOverlayVisible(visible) {
   overlay.classList.toggle("pdf-export-overlay--visible", visible);
   overlay.setAttribute("aria-hidden", !visible);
   document.body.classList.toggle("pdf-export-lock-scroll", visible);
+  
+  // Ініціалізуємо іконку спінера, якщо overlay стає видимим
+  if (visible && window.lucide?.createIcons) {
+    const spinner = overlay.querySelector(".pdf-export-overlay__spinner");
+    if (spinner) {
+      window.lucide.createIcons({ nodes: [spinner] });
+    }
+  }
 }
 
 async function generatePDFReport(data) {
@@ -8924,6 +9117,9 @@ async function generatePDFReport(data) {
       riskLevelText = riskLabels[riskBucket] || riskBucket;
     }
     
+    const riskColor = colors[riskBucket] || colors.medium;
+    const pdfIconAssets = await preparePdfIconAssets({ colors, riskColor });
+    
     // Дата
     const date = new Date(data.created_at || new Date());
     const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
@@ -8943,7 +9139,14 @@ async function generatePDFReport(data) {
   // Лого-текст зліва
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
-  doc.text("HealthRisk.AI", margin, 12);
+  let headerTextX = margin;
+  if (pdfIconAssets?.header) {
+    const icon = pdfIconAssets.header;
+    const iconY = 9.2;
+    doc.addImage(icon.dataUrl, "PNG", margin, iconY, icon.widthMm, icon.heightMm);
+    headerTextX += icon.widthMm + 2;
+  }
+  doc.text("HealthRisk.AI", headerTextX, 15);
   
   // Текст справа
   doc.setFontSize(10);
@@ -8993,10 +9196,17 @@ async function generatePDFReport(data) {
   const riskType = targetLabel.replace(/^Ризик\s+/i, "").toLowerCase();
   doc.setFontSize(10);
   doc.setTextColor(...colors.textMuted);
-  doc.text(`Рівень ризику ${riskType}`, cardX + 8, cardY + 8);
+  let riskLabelX = cardX + 8;
+  if (pdfIconAssets?.risk) {
+    const icon = pdfIconAssets.risk;
+    const iconX = cardX + 6;
+    const iconY = cardY + 3.7;
+    doc.addImage(icon.dataUrl, "PNG", iconX, iconY, icon.widthMm, icon.heightMm);
+    riskLabelX = iconX + icon.widthMm + 2;
+  }
+  doc.text(`Рівень ризику ${riskType}`, riskLabelX, cardY + 8);
   
   // Великий текст рівня ризику
-  const riskColor = colors[riskBucket] || colors.medium;
   doc.setFontSize(20);
   doc.setTextColor(...riskColor);
   const riskText = riskLevelText.toUpperCase();
@@ -9071,7 +9281,14 @@ async function generatePDFReport(data) {
   // ============================================
   doc.setFontSize(11);
   doc.setTextColor(...colors.text);
-  doc.text("Ключові фактори, що вплинули на ризик: ", cardX, y);
+  let factorsTitleX = cardX;
+  if (pdfIconAssets?.factors) {
+    const icon = pdfIconAssets.factors;
+    const iconY = y - 4.2;
+    doc.addImage(icon.dataUrl, "PNG", cardX, iconY, icon.widthMm, icon.heightMm);
+    factorsTitleX += icon.widthMm + 2;
+  }
+  doc.text("Ключові фактори, що вплинули на ризик: ", factorsTitleX, y);
   y += 8;
   
   // Таблиця факторів
@@ -9133,7 +9350,14 @@ async function generatePDFReport(data) {
   // ============================================
   doc.setFontSize(11);
   doc.setTextColor(...colors.text);
-  doc.text("Рекомендації / наступні кроки", cardX, y);
+  let recommendationsTitleX = cardX;
+  if (pdfIconAssets?.recommendations) {
+    const icon = pdfIconAssets.recommendations;
+    const iconY = y - 3.7;
+    doc.addImage(icon.dataUrl, "PNG", cardX, iconY, icon.widthMm, icon.heightMm);
+    recommendationsTitleX += icon.widthMm + 2;
+  }
+  doc.text("Рекомендації / наступні кроки", recommendationsTitleX, y);
   y += 8;
   
   // Рекомендації на основі рівня ризику
@@ -9155,13 +9379,22 @@ async function generatePDFReport(data) {
     recommendations.push("Дотримуйтесь всіх рекомендацій медичного персоналу");
   }
   
+  const recommendationIcon = pdfIconAssets?.recommendations;
+  const recommendationLineSpacing = 7;
   recommendations.forEach((rec, index) => {
     doc.setFontSize(9);
     doc.setTextColor(...colors.text);
-    // Булет-пункт
-    doc.circle(cardX + 3, y + 3, 1.5, "F");
-    doc.text(rec, cardX + 8, y + 4);
-    y += 7;
+    if (recommendationIcon) {
+      const resizedIconSize = Math.min(recommendationIcon.widthMm, 4.5);
+      const bulletY = y + 1.2;
+      doc.addImage(recommendationIcon.dataUrl, "PNG", cardX + 1, bulletY - .5, resizedIconSize, resizedIconSize);
+      doc.text(rec, cardX + 2 + resizedIconSize, y + 4);
+      y += Math.max(resizedIconSize + 2, recommendationLineSpacing);
+    } else {
+      doc.circle(cardX + 3, y + 3, 1.5, "F");
+      doc.text(rec, cardX + 8, y + 4);
+      y += recommendationLineSpacing;
+    }
   });
   
   // ============================================
