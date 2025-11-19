@@ -10577,43 +10577,7 @@ function generateExcelReport(data, options = {}) {
   // ============================================
   // Рекомендації
   // ============================================
-  // Визначаємо рівень ризику для рекомендацій
-  const probability = data.probability || 0;
-  let riskBucket;
-  if (data.risk_bucket) {
-    riskBucket = data.risk_bucket;
-  } else if (data.riskLevel) {
-    const riskLevelText = data.riskLevel.toLowerCase();
-    if (riskLevelText.includes("низьк")) {
-      riskBucket = "low";
-    } else if (riskLevelText.includes("серед") || riskLevelText.includes("помір")) {
-      riskBucket = "medium";
-    } else if (riskLevelText.includes("висок")) {
-      riskBucket = "high";
-    } else {
-      riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
-    }
-  } else {
-    riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
-  }
-  
-  const recommendations = [];
-  if (riskBucket === "low") {
-    recommendations.push("Продовжуйте підтримувати здоровий спосіб життя");
-    recommendations.push("Регулярно проходьте профілактичні обстеження");
-    recommendations.push("Дотримуйтесь збалансованого раціону харчування");
-    recommendations.push("Занимайтеся фізичною активністю");
-  } else if (riskBucket === "medium") {
-    recommendations.push("Рекомендується звернутися до лікаря для консультації");
-    recommendations.push("Пройдіть додаткові обстеження для уточнення стану");
-    recommendations.push("Зверніть увагу на фактори, що впливають на ризик");
-    recommendations.push("Розгляньте можливість зміни способу життя");
-  } else {
-    recommendations.push("Негайно зверніться до лікаря для детального обстеження");
-    recommendations.push("Пройдіть комплексну діагностику");
-    recommendations.push("Обговоріть з лікарем план лікування та профілактики");
-    recommendations.push("Дотримуйтесь всіх рекомендацій медичного персоналу");
-  }
+  const recommendations = getRecommendations(data);
   
   if (recommendations.length > 0) {
     addCell(currentRow, 0, "Рекомендації / наступні кроки", {
@@ -10748,18 +10712,120 @@ function generateExcelReport(data, options = {}) {
   });
 }
 
+// Допоміжна функція для отримання рекомендацій на основі рівня ризику
+function getRecommendations(data) {
+  const probability = data.probability || 0;
+  let riskBucket;
+  if (data.risk_bucket) {
+    riskBucket = data.risk_bucket;
+  } else if (data.riskLevel) {
+    const riskLevelText = data.riskLevel.toLowerCase();
+    if (riskLevelText.includes("низьк")) {
+      riskBucket = "low";
+    } else if (riskLevelText.includes("серед") || riskLevelText.includes("помір")) {
+      riskBucket = "medium";
+    } else if (riskLevelText.includes("висок")) {
+      riskBucket = "high";
+    } else {
+      riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
+    }
+  } else {
+    riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
+  }
+  
+  const recommendations = [];
+  if (riskBucket === "low") {
+    recommendations.push("Продовжуйте підтримувати здоровий спосіб життя");
+    recommendations.push("Регулярно проходьте профілактичні обстеження");
+    recommendations.push("Дотримуйтесь збалансованого раціону харчування");
+    recommendations.push("Занимайтеся фізичною активністю");
+  } else if (riskBucket === "medium") {
+    recommendations.push("Рекомендується звернутися до лікаря для консультації");
+    recommendations.push("Пройдіть додаткові обстеження для уточнення стану");
+    recommendations.push("Зверніть увагу на фактори, що впливають на ризик");
+    recommendations.push("Розгляньте можливість зміни способу життя");
+  } else {
+    recommendations.push("Негайно зверніться до лікаря для детального обстеження");
+    recommendations.push("Пройдіть комплексну діагностику");
+    recommendations.push("Обговоріть з лікарем план лікування та профілактики");
+    recommendations.push("Дотримуйтесь всіх рекомендацій медичного персоналу");
+  }
+  
+  return recommendations;
+}
+
 // Генерація CSV звіту
 function generateCSVReport(data) {
-  const csv = [
-    "Параметр,Значення",
-    `Ціль,${TARGET_LABELS[data.target] || data.target}`,
-    `Ймовірність (%),${(data.probability * 100).toFixed(2)}`,
-    `Рівень ризику,${data.riskLevel || "N/A"}`,
-    `Модель,${data.model || "N/A"}`,
-    `Дата,${new Date().toLocaleString("uk-UA")}`
-  ].join("\n");
+  const lines = [];
   
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  // Заголовок звіту
+  lines.push("HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я");
+  lines.push("");
+  
+  // Основна інформація
+  lines.push("=== ОСНОВНА ІНФОРМАЦІЯ ===");
+  lines.push("Параметр,Значення");
+  lines.push(`Ціль,"${TARGET_LABELS[data.target] || data.target}"`);
+  lines.push(`Ймовірність (%),${(data.probability * 100).toFixed(2)}`);
+  lines.push(`Рівень ризику,"${data.riskLevel || "N/A"}"`);
+  lines.push(`Модель,"${data.model || data.model_name || "Автоматично"}"`);
+  lines.push(`Дата створення,"${new Date(data.created_at || new Date()).toLocaleString("uk-UA")}"`);
+  lines.push("");
+  
+  // Ключові фактори
+  const factors = data.top_factors || data.inputs?.top_factors || [];
+  if (factors.length > 0) {
+    lines.push("=== КЛЮЧОВІ ФАКТОРИ, ЩО ВПЛИНУЛИ НА РИЗИК ===");
+    lines.push("№,Фактор,Код,Вплив (%)");
+    
+    const factorsToShow = factors.slice(0, 10);
+    factorsToShow.forEach((factor, index) => {
+      const factorCode = factor.feature || factor.name || "Невідомий фактор";
+      let factorImpact = factor.impact || 0;
+      
+      // Нормалізація для старих даних
+      if (factorCode === "RIAGENDR" && factorImpact > 1.0) {
+        factorImpact = factorImpact / 2.0;
+      }
+      if (factorImpact > 1.0) {
+        factorImpact = 1.0;
+      }
+      
+      const label = FACTOR_LABELS[factorCode] || factorCode;
+      const impactPercent = (factorImpact * 100).toFixed(1);
+      
+      lines.push(`${index + 1},"${label}","${factorCode}",${impactPercent}`);
+    });
+    lines.push("");
+  }
+  
+  // Рекомендації
+  const recommendations = getRecommendations(data);
+  if (recommendations.length > 0) {
+    lines.push("=== РЕКОМЕНДАЦІЇ / НАСТУПНІ КРОКИ ===");
+    recommendations.forEach((rec, index) => {
+      lines.push(`${index + 1},"${rec}"`);
+    });
+    lines.push("");
+  }
+  
+  // Дані форми
+  if (data.formData && Object.keys(data.formData).length > 0) {
+    lines.push("=== ВВЕДЕНІ ДАНІ ===");
+    lines.push("Параметр,Значення");
+    Object.entries(data.formData).forEach(([key, value]) => {
+      const label = FACTOR_LABELS[key] || key;
+      lines.push(`"${label}","${value}"`);
+    });
+    lines.push("");
+  }
+  
+  // Футер
+  lines.push("=== КІНЕЦЬ ЗВІТУ ===");
+  lines.push(`Згенеровано: ${new Date().toLocaleString("uk-UA")}`);
+  
+  const csv = lines.join("\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" }); // BOM для правильного відображення кирилиці
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
   link.setAttribute("href", url);
@@ -10779,13 +10845,93 @@ function generateCSVReport(data) {
 
 // Генерація JSON звіту
 function generateJSONReport(data) {
+  // Обробка факторів
+  const factors = data.top_factors || data.inputs?.top_factors || [];
+  const processedFactors = factors.slice(0, 10).map((factor, index) => {
+    const factorCode = factor.feature || factor.name || "Невідомий фактор";
+    let factorImpact = factor.impact || 0;
+    
+    // Нормалізація для старих даних
+    if (factorCode === "RIAGENDR" && factorImpact > 1.0) {
+      factorImpact = factorImpact / 2.0;
+    }
+    if (factorImpact > 1.0) {
+      factorImpact = 1.0;
+    }
+    
+    return {
+      rank: index + 1,
+      code: factorCode,
+      name: FACTOR_LABELS[factorCode] || factorCode,
+      impact: factorImpact,
+      impactPercent: (factorImpact * 100).toFixed(1)
+    };
+  });
+  
+  // Обробка даних форми
+  const processedFormData = {};
+  if (data.formData && Object.keys(data.formData).length > 0) {
+    Object.entries(data.formData).forEach(([key, value]) => {
+      processedFormData[key] = {
+        code: key,
+        label: FACTOR_LABELS[key] || key,
+        value: value
+      };
+    });
+  }
+  
+  // Визначення рівня ризику
+  const probability = data.probability || 0;
+  let riskBucket;
+  if (data.risk_bucket) {
+    riskBucket = data.risk_bucket;
+  } else if (data.riskLevel) {
+    const riskLevelText = data.riskLevel.toLowerCase();
+    if (riskLevelText.includes("низьк")) {
+      riskBucket = "low";
+    } else if (riskLevelText.includes("серед") || riskLevelText.includes("помір")) {
+      riskBucket = "medium";
+    } else if (riskLevelText.includes("висок")) {
+      riskBucket = "high";
+    } else {
+      riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
+    }
+  } else {
+    riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
+  }
+  
   const jsonData = {
-    target: TARGET_LABELS[data.target] || data.target,
-    probability: data.probability,
-    riskLevel: data.riskLevel || "N/A",
-    model: data.model || "N/A",
-    date: new Date().toLocaleString("uk-UA"),
-    formData: data.formData || {}
+    metadata: {
+      title: "HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я",
+      generatedAt: new Date().toISOString(),
+      generatedAtFormatted: new Date().toLocaleString("uk-UA"),
+      version: "1.0"
+    },
+    summary: {
+      target: {
+        code: data.target,
+        label: TARGET_LABELS[data.target] || data.target
+      },
+      probability: data.probability,
+      probabilityPercent: (data.probability * 100).toFixed(2),
+      riskLevel: data.riskLevel || "N/A",
+      riskBucket: riskBucket,
+      model: data.model || data.model_name || "Автоматично",
+      createdAt: data.created_at || new Date().toISOString(),
+      createdAtFormatted: new Date(data.created_at || new Date()).toLocaleString("uk-UA")
+    },
+    keyFactors: {
+      count: processedFactors.length,
+      factors: processedFactors
+    },
+    recommendations: {
+      riskBucket: riskBucket,
+      items: getRecommendations(data)
+    },
+    inputData: {
+      count: Object.keys(processedFormData).length,
+      fields: processedFormData
+    }
   };
   
   const json = JSON.stringify(jsonData, null, 2);
