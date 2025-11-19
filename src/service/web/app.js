@@ -8457,6 +8457,11 @@ let selectedPredictionId = null;
 let selectedFormat = null;
 let currentPredictionData = null;
 let reportViewMode = localStorage.getItem("hr_report_view") === "grid" ? "grid" : "list";
+// Прапорець для запобігання автоматичному запуску генерації
+let reportGenerationInProgress = false;
+// Зберігаємо обробники для можливості їх видалення
+let formatCardHandlers = new Map();
+let predictionCardHandlers = new Map();
 
 // Ініціалізація сторінки звітів
 async function initializeReportPage() {
@@ -8471,6 +8476,33 @@ async function initializeReportPage() {
   const formatGrid = document.getElementById("report-format-grid");
   
   if (!reportEmpty || !reportSelector || !predictionsList || !formatGrid) return;
+  
+  // ВАЖЛИВО: Скидаємо стан при кожній ініціалізації (якщо не було явного вибору)
+  // Перевіряємо, чи це новий перехід (не повернення назад зі збереженим станом)
+  const shouldAutoSelect = sessionStorage.getItem("hr_auto_select_current") === "true";
+  
+  // Якщо це не автоматичний вибір - скидаємо весь стан
+  // Це запобігає автоматичному скачуванню при поверненні назад
+  if (!shouldAutoSelect) {
+    // Очищаємо sessionStorage на випадок, якщо там залишилися старі дані
+    sessionStorage.removeItem("hr_auto_select_current");
+    
+    // Скидаємо весь стан
+    selectedPredictionId = null;
+    selectedFormat = null;
+    currentPredictionData = null;
+    reportGenerationInProgress = false;
+    
+    // Скидаємо візуальний стан
+    formatGrid.querySelectorAll(".report-format-card").forEach(c => {
+      c.classList.remove("report-format-card--selected");
+    });
+    
+    // Також скидаємо вибір прогнозувань
+    predictionsList.querySelectorAll(".report-prediction-card").forEach(c => {
+      c.classList.remove("report-prediction-card--selected");
+    });
+  }
   
   // Перевіряємо, чи є поточний результат розрахунку
   const hasCurrentResult = resultCard && !resultCard.hidden && probabilityValue && probabilityValue.textContent !== "—";
@@ -8498,11 +8530,9 @@ async function initializeReportPage() {
   reportEmpty.hidden = true;
   reportSelector.hidden = false;
   
-  // Перевіряємо, чи потрібно автоматично вибрати поточний результат
-  const shouldAutoSelect = sessionStorage.getItem("hr_auto_select_current") === "true";
   if (shouldAutoSelect) {
     sessionStorage.removeItem("hr_auto_select_current");
-    // Скидаємо вибір формату
+    // Скидаємо вибір формату при автоматичному виборі
     selectedFormat = null;
   }
   
@@ -8515,6 +8545,8 @@ async function initializeReportPage() {
     setTimeout(() => {
       const currentCard = predictionsList.querySelector('[data-prediction-id="current"]');
       if (currentCard) {
+        // Встановлюємо прапорець, щоб не запускати генерацію автоматично
+        reportGenerationInProgress = false;
         // Симулюємо клік на картку поточного результату
         currentCard.click();
       }
@@ -8528,20 +8560,29 @@ async function initializeReportPage() {
     });
   }
   
+  // ВАЖЛИВО: Видаляємо старі обробники перед додаванням нових
+  formatCardHandlers.forEach((handler, card) => {
+    card.removeEventListener("click", handler);
+  });
+  formatCardHandlers.clear();
+  
   // Додаємо обробники для вибору формату
   formatGrid.querySelectorAll(".report-format-card").forEach(card => {
-    card.addEventListener("click", () => {
+    const handler = () => {
       formatGrid.querySelectorAll(".report-format-card").forEach(c => {
         c.classList.remove("report-format-card--selected");
       });
       card.classList.add("report-format-card--selected");
       selectedFormat = card.dataset.format;
       
-      // Якщо обрані і прогнозування, і формат - можна генерувати
-      if (selectedPredictionId && selectedFormat) {
+      // ВАЖЛИВО: Генеруємо звіт тільки якщо це явна дія користувача
+      // і прогнозування вже вибране, і не генерується інший звіт
+      if (selectedPredictionId && selectedFormat && !reportGenerationInProgress) {
         generateReport();
       }
-    });
+    };
+    card.addEventListener("click", handler);
+    formatCardHandlers.set(card, handler);
   });
   
   // Ініціалізація кнопки перемикача view
@@ -8570,6 +8611,14 @@ async function initializeReportPage() {
 function renderPredictionsList(history, hasCurrentResult) {
   const predictionsList = document.getElementById("report-predictions-list");
   if (!predictionsList) return;
+  
+  // ВАЖЛИВО: Видаляємо старі обробники перед очищенням DOM
+  predictionCardHandlers.forEach((handler, card) => {
+    if (card && card.parentNode) {
+      card.removeEventListener("click", handler);
+    }
+  });
+  predictionCardHandlers.clear();
   
   predictionsList.innerHTML = "";
   
@@ -8653,7 +8702,7 @@ function createPredictionCard(prediction) {
     <span class="report-prediction-card__badge badge" style="background: ${badgeColor}; color: #fff;">${(probability * 100).toFixed(1)}% (${riskLevel})</span>
   `;
   
-  card.addEventListener("click", () => {
+  const clickHandler = () => {
     const predictionsList = document.getElementById("report-predictions-list");
     if (predictionsList) {
       predictionsList.querySelectorAll(".report-prediction-card").forEach(c => {
@@ -8676,11 +8725,16 @@ function createPredictionCard(prediction) {
       currentPredictionData = prediction;
     }
     
-    // Якщо обрані і прогнозування, і формат - можна генерувати
-    if (selectedFormat) {
+    // ВАЖЛИВО: Генеруємо звіт тільки якщо це явна дія користувача
+    // і формат вже вибраний, і не генерується інший звіт
+    if (selectedFormat && !reportGenerationInProgress) {
       generateReport();
     }
-  });
+  };
+  
+  card.addEventListener("click", clickHandler);
+  // Зберігаємо обробник для можливості його видалення
+  predictionCardHandlers.set(card, clickHandler);
   
   return card;
 }
@@ -8702,6 +8756,7 @@ function getCurrentFormData() {
 // Генерація звіту
 function generateReport() {
   if (!selectedPredictionId || !selectedFormat || !currentPredictionData) {
+    reportGenerationInProgress = false;
     showNotification({
       type: "warning",
       title: "Оберіть параметри",
@@ -8711,21 +8766,47 @@ function generateReport() {
     return;
   }
   
+  // Перевіряємо, чи не вже генерується звіт (захист від мультискачування)
+  if (reportGenerationInProgress) {
+    return; // Вже генерується, не запускаємо повторно
+  }
+  
   try {
+    // Встановлюємо прапорець перед генерацією
+    reportGenerationInProgress = true;
+    
     switch (selectedFormat) {
       case "pdf":
-        handlePdfReportGeneration();
+        handlePdfReportGeneration().finally(() => {
+          // Скидаємо прапорець після завершення (або помилки)
+          setTimeout(() => {
+            reportGenerationInProgress = false;
+          }, 500);
+        });
         break;
       case "excel":
         handleExcelReportGeneration();
+        // Скидаємо прапорець після завершення
+        setTimeout(() => {
+          reportGenerationInProgress = false;
+        }, 500);
         break;
       case "csv":
         generateCSVReport(currentPredictionData);
+        // Скидаємо прапорець після завершення
+        setTimeout(() => {
+          reportGenerationInProgress = false;
+        }, 500);
         break;
       case "json":
         generateJSONReport(currentPredictionData);
+        // Скидаємо прапорець після завершення
+        setTimeout(() => {
+          reportGenerationInProgress = false;
+        }, 500);
         break;
       default:
+        reportGenerationInProgress = false;
         showNotification({
           type: "error",
           title: "Помилка",
@@ -8734,6 +8815,7 @@ function generateReport() {
         });
     }
   } catch (error) {
+    reportGenerationInProgress = false;
     showNotification({
       type: "error",
       title: "Помилка генерації",
