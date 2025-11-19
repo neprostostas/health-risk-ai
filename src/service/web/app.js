@@ -136,7 +136,7 @@ const factorInfo = {
   },
   RIAGENDR: {
     name: "Стать",
-    desc: "1 — чоловік, 2 — жінка.",
+    desc: "👨🏻‍🦰/ 👩🏻‍🦰",
   },
   BMXBMI: {
     name: "Індекс маси тіла (BMI)",
@@ -357,7 +357,7 @@ const riskClasses = {
 
 const TOOLTIP_TEXTS = {
   RIDAGEYR: "Вік учасника у повних роках.",
-  RIAGENDR: "Стать: 1 — чоловік, 2 — жінка.",
+  RIAGENDR: "Стать",
   BMXBMI: "Індекс маси тіла (кг/м²). Понад 30 може свідчити про ожиріння.",
   BPXSY1: "Систолічний артеріальний тиск (верхнє значення) у мм рт. ст.",
   BPXDI1: "Діастолічний артеріальний тиск (нижнє значення) у мм рт. ст.",
@@ -1861,8 +1861,8 @@ function getSectionByPath(pathname) {
   const normalized = normalizePath(pathname);
   // Обробка маршруту /c/:chatId
   if (normalized.startsWith("/c/")) {
-    return {
-      path: normalized,
+  return {
+    path: normalized,
       section: "page-chats",
     };
   }
@@ -1984,7 +1984,7 @@ function showSectionForPath(pathname) {
       handleUnauthorized();
       return "/login";
     }
-    return path;
+  return path;
   }
   
   // ВАЖЛИВО: Для валідних захищених роутів залишаємо оригінальний pathname
@@ -2865,7 +2865,7 @@ async function initializeAuth() {
     if (!isPublicRoute(currentPath)) {
       // Викликаємо syncRouteFromLocation, який викличе showSectionForPath,
       // а showSectionForPath зробить редірект через handleUnauthorized
-      syncRouteFromLocation();
+  syncRouteFromLocation();
       return;
     }
     // Якщо на публічному маршруті - просто синхронізуємо
@@ -7076,7 +7076,7 @@ function registerEventListeners() {
       }
     });
   }
-  
+
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("keydown", handleGlobalKeydown);
   window.addEventListener("popstate", () => syncRouteFromLocation());
@@ -8686,7 +8686,6 @@ function generateReport() {
     switch (selectedFormat) {
       case "pdf":
         generatePDFReport(currentPredictionData).catch(error => {
-          console.error("PDF generation error:", error);
           showNotification({
             type: "error",
             title: "Помилка генерації PDF",
@@ -8746,7 +8745,6 @@ async function ensurePdfFontInitialized(jsPDF) {
   const JsPDF = jsPDF || JsPDFClass || window.jsPDF;
 
   if (!JsPDF) {
-    console.warn("[PDF Font] jsPDF not available");
     pdfFontInitializing = false;
     return;
   }
@@ -8781,127 +8779,827 @@ async function ensurePdfFontInitialized(jsPDF) {
     loadedFontBase64 = fontBase64;
     
     pdfFontInitialized = true;
-    console.log("[PDF Font] DejaVuSans font loaded successfully");
   } catch (error) {
-    console.error("[PDF Font] Failed to load font:", error);
     throw error; // Прокидаємо помилку далі
   } finally {
     pdfFontInitializing = false;
   }
 }
 
+// Словник назв факторів для PDF-звіту
+const FACTOR_LABELS = {
+  RIDAGEYR: "Вік учасника у повних роках",
+  RIAGENDR: "Стать",
+  BMXBMI: "Індекс маси тіла",
+  BPXSY1: "Систолічний артеріальний тиск",
+  BPXDI1: "Діастолічний артеріальний тиск",
+  LBXGLU: "Рівень глюкози у крові натще",
+  LBXTC: "Рівень загального холестерину",
+};
+
 // Генерація PDF звіту
+// Функція для показу/приховування overlay під час генерації PDF
+function setPdfExportOverlayVisible(visible) {
+  const overlay = document.getElementById("pdf-export-overlay");
+  if (!overlay) return;
+  overlay.classList.toggle("pdf-export-overlay--visible", visible);
+  overlay.setAttribute("aria-hidden", !visible);
+  document.body.classList.toggle("pdf-export-lock-scroll", visible);
+}
+
 async function generatePDFReport(data) {
-  // Перевірка наявності бібліотеки jsPDF
-  // jsPDF може бути доступний як window.jspdf.jsPDF або window.jsPDF
-  let jsPDF;
-  if (typeof window.jspdf !== "undefined" && window.jspdf.jsPDF) {
-    jsPDF = window.jspdf.jsPDF;
-  } else if (typeof window.jsPDF !== "undefined") {
-    jsPDF = window.jsPDF;
-  } else {
-    showNotification({
-      type: "error",
-      title: "Помилка",
-      message: "Бібліотека PDF не завантажена. Будь ласка, оновіть сторінку.",
-      duration: 5000
-    });
-    return;
-  }
-  
-  const { jsPDF: JsPDFClass } = window.jspdf || {};
+  // Показуємо overlay перед початком генерації
+  setPdfExportOverlayVisible(true);
   
   try {
-    // Ініціалізуємо шрифт один раз (асинхронно)
-    await ensurePdfFontInitialized(jsPDF || JsPDFClass);
-  } catch (error) {
-    showNotification({
-      type: "error",
-      title: "Помилка завантаження шрифту",
-      message: "Не вдалося завантажити шрифт для PDF. Спробуйте пізніше.",
-      duration: 5000
-    });
-    return;
+    // Перевірка наявності бібліотеки jsPDF
+    // jsPDF може бути доступний як window.jspdf.jsPDF або window.jsPDF
+    let jsPDF;
+    if (typeof window.jspdf !== "undefined" && window.jspdf.jsPDF) {
+      jsPDF = window.jspdf.jsPDF;
+    } else if (typeof window.jsPDF !== "undefined") {
+      jsPDF = window.jsPDF;
+    } else {
+      showNotification({
+        type: "error",
+        title: "Помилка",
+        message: "Бібліотека PDF не завантажена. Будь ласка, оновіть сторінку.",
+        duration: 5000
+      });
+      return;
+    }
+    
+    const { jsPDF: JsPDFClass } = window.jspdf || {};
+    
+    try {
+      // Ініціалізуємо шрифт один раз (асинхронно)
+      await ensurePdfFontInitialized(jsPDF || JsPDFClass);
+    } catch (error) {
+      showNotification({
+        type: "error",
+        title: "Помилка завантаження шрифту",
+        message: "Не вдалося завантажити шрифт для PDF. Спробуйте пізніше.",
+        duration: 5000
+      });
+      return;
+    }
+    
+    const doc = new jsPDF();
+    
+    // Додаємо шрифт до документа, якщо він ще не доданий
+    if (loadedFontBase64) {
+      try {
+        const fontFileName = "DejaVuSans.ttf";
+        const fontName = "DejaVuSans";
+        
+        // Додаємо шрифт до віртуальної файлової системи документа
+        doc.addFileToVFS(fontFileName, loadedFontBase64);
+        
+        // Реєструємо шрифт
+        doc.addFont(fontFileName, fontName, "normal");
+        
+      } catch (error) {
+      }
+    }
+    
+    // Перевіряємо доступність шрифту
+    const fontList = doc.getFontList ? doc.getFontList() : {};
+    
+    // Встановлюємо DejaVuSans як основний шрифт для всього документа
+    if (fontList['DejaVuSans']) {
+      doc.setFont("DejaVuSans", "normal");
+    } else {
+      showNotification({
+        type: "error",
+        title: "Помилка",
+        message: "Шрифт DejaVuSans не доступний. PDF може не відображати кирилицю коректно.",
+        duration: 5000
+      });
+      // Не продовжуємо генерацію без правильного шрифту
+      return;
+    }
+    
+    // Кольорова палітра
+    const colors = {
+      primary: [76, 111, 255],      // #4C6FFF - індиго-синій
+      accent: [255, 107, 129],      // #FF6B81 - рожево-червоний
+      low: [0, 184, 148],           // #00B894 - зелений
+      medium: [241, 196, 15],        // #F1C40F - жовтий
+      high: [231, 76, 60],          // #E74C3C - червоний
+      background: [245, 246, 250],  // #F5F6FA - світло-сірий
+      text: [44, 62, 80],           // #2C3E50 - темно-сірий
+      textMuted: [127, 140, 141]    // #7F8C8D - приглушений сірий
+    };
+    
+    // Розміри сторінки A4 (в мм)
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 15;
+    const contentWidth = pageWidth - (margin * 2);
+    
+    // Обчислюємо дані (зберігаємо існуючу логіку)
+    const targetLabel = TARGET_LABELS[data.target] || data.target;
+    const probability = data.probability || 0;
+    const probabilityPercent = (probability * 100).toFixed(1);
+    
+    // Визначаємо рівень ризику
+    let riskLevel, riskBucket, riskLevelText;
+    if (data.risk_bucket) {
+      riskBucket = data.risk_bucket;
+      riskLevelText = riskLabels[riskBucket] || riskBucket;
+    } else if (data.riskLevel) {
+      riskLevelText = data.riskLevel;
+      // Конвертуємо текстовий рівень в bucket
+      if (riskLevelText.toLowerCase().includes("низьк")) {
+        riskBucket = "low";
+      } else if (riskLevelText.toLowerCase().includes("серед") || riskLevelText.toLowerCase().includes("помір")) {
+        riskBucket = "medium";
+      } else if (riskLevelText.toLowerCase().includes("висок")) {
+        riskBucket = "high";
+      } else {
+        riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
+      }
+    } else {
+      riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
+      riskLevelText = riskLabels[riskBucket] || riskBucket;
+    }
+    
+    // Дата
+    const date = new Date(data.created_at || new Date());
+    const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    
+    const model = data.model_name || data.model || "Автоматично";
+    
+    // Встановлюємо шрифт для всього документа
+    doc.setFont("DejaVuSans", "normal");
+  
+  // ============================================
+  // Header - Верхній кольоровий хедер
+  // ============================================
+  const headerHeight = 25;
+  doc.setFillColor(...colors.primary);
+  doc.rect(0, 0, pageWidth, headerHeight, "F");
+  
+  // Лого-текст зліва
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.text("HealthRisk.AI", margin, 12);
+  
+  // Текст справа
+  doc.setFontSize(10);
+  const headerText = "Звіт про прогнозування ризиків для здоров'я";
+  const headerTextWidth = doc.getTextWidth(headerText);
+  doc.text(headerText, pageWidth - margin - headerTextWidth, 8);
+  doc.setFontSize(8);
+  const dateText = `Дата: ${dateStr}`;
+  const dateTextWidth = doc.getTextWidth(dateText);
+  doc.text(dateText, pageWidth - margin - dateTextWidth, 16);
+  
+  // ============================================
+  // Main content frame - Рамка основного контенту
+  // ============================================
+  const contentStartY = headerHeight + 10;
+  const contentHeight = pageHeight - contentStartY - 30; // Залишаємо місце для футера
+  const borderRadius = 5;
+  
+  // Фон контенту
+  doc.setFillColor(...colors.background);
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.5);
+  // Використовуємо roundedRect з двома параметрами радіуса (rx, ry)
+  doc.roundedRect(margin, contentStartY, contentWidth, contentHeight, borderRadius, borderRadius, "FD");
+  
+  // Внутрішні відступи
+  const innerMargin = 10;
+  let y = contentStartY + innerMargin + 5;
+  
+  // ============================================
+  // Main risk card - Карточка основного результату
+  // ============================================
+  const cardX = margin + innerMargin;
+  const cardY = y;
+  const cardWidth = contentWidth - (innerMargin * 2);
+  const cardHeight = 35;
+  
+  // Білий фон карточки
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.3);
+  // Використовуємо roundedRect з двома параметрами радіуса (rx, ry)
+  doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 3, 3, "FD");
+  
+  // Текст "Рівень ризику" з конкретизацією типу
+  // Прибираємо "Ризик " з початку targetLabel, якщо воно там є
+  const riskType = targetLabel.replace(/^Ризик\s+/i, "").toLowerCase();
+  doc.setFontSize(10);
+  doc.setTextColor(...colors.textMuted);
+  doc.text(`Рівень ризику ${riskType}`, cardX + 8, cardY + 8);
+  
+  // Великий текст рівня ризику
+  const riskColor = colors[riskBucket] || colors.medium;
+  doc.setFontSize(20);
+  doc.setTextColor(...riskColor);
+  const riskText = riskLevelText.toUpperCase();
+  doc.text(riskText, cardX + 8, cardY + 20);
+  
+  // Ймовірність справа
+  doc.setFontSize(14);
+  doc.setTextColor(...colors.text);
+  const probText = `${probabilityPercent}%`;
+  const probTextWidth = doc.getTextWidth(probText);
+  doc.text(probText, cardX + cardWidth - probTextWidth - 8, cardY + 20);
+  
+  doc.setFontSize(10);
+  doc.text("Ймовірність", cardX + cardWidth - probTextWidth - 8, cardY + 8);
+  
+  y += cardHeight + 12;
+  
+  // ============================================
+  // Risk scale - Кольорова шкала ризику
+  // ============================================
+  const scaleY = y;
+  const scaleHeight = 20;
+  const scaleWidth = contentWidth - (innerMargin * 2);
+  const segmentWidth = scaleWidth / 3;
+  
+  // Сегмент "Низький" (зелений)
+  doc.setFillColor(...colors.low);
+  doc.rect(cardX, scaleY, segmentWidth, scaleHeight, "F");
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  const lowText = "НИЗЬКИЙ";
+  const lowTextWidth = doc.getTextWidth(lowText);
+  doc.text(lowText, cardX + (segmentWidth - lowTextWidth) / 2, scaleY + 12);
+  
+  // Сегмент "Помірний" (жовтий)
+  doc.setFillColor(...colors.medium);
+  doc.rect(cardX + segmentWidth, scaleY, segmentWidth, scaleHeight, "F");
+  doc.setTextColor(0, 0, 0);
+  const mediumText = "ПОМІРНИЙ";
+  const mediumTextWidth = doc.getTextWidth(mediumText);
+  doc.text(mediumText, cardX + segmentWidth + (segmentWidth - mediumTextWidth) / 2, scaleY + 12);
+  
+  // Сегмент "Високий" (червоний)
+  doc.setFillColor(...colors.high);
+  doc.rect(cardX + segmentWidth * 2, scaleY, segmentWidth, scaleHeight, "F");
+  doc.setTextColor(255, 255, 255);
+  const highText = "ВИСОКИЙ";
+  const highTextWidth = doc.getTextWidth(highText);
+  doc.text(highText, cardX + segmentWidth * 2 + (segmentWidth - highTextWidth) / 2, scaleY + 12);
+  
+  // Маркер поточного значення
+  let markerX;
+  if (riskBucket === "low") {
+    markerX = cardX + segmentWidth / 2;
+  } else if (riskBucket === "medium") {
+    markerX = cardX + segmentWidth + segmentWidth / 2;
+  } else {
+    markerX = cardX + segmentWidth * 2 + segmentWidth / 2;
   }
   
-  const doc = new jsPDF();
+  // Білий кружечок-маркер
+  doc.setFillColor(255, 255, 255);
+  doc.circle(markerX, scaleY + scaleHeight + 5, 3, "F");
+  doc.setDrawColor(...riskColor);
+  doc.setLineWidth(1);
+  doc.circle(markerX, scaleY + scaleHeight + 5, 3, "D");
   
-  // Додаємо шрифт до документа, якщо він ще не доданий
-  if (loadedFontBase64) {
+  y += scaleHeight + 15;
+  
+  // ============================================
+  // Key factors - Ключові фактори
+  // ============================================
+  doc.setFontSize(11);
+  doc.setTextColor(...colors.text);
+  doc.text("Ключові фактори, що вплинули на ризик: ", cardX, y);
+  y += 8;
+  
+  // Таблиця факторів
+  const factors = data.top_factors || data.inputs?.top_factors || [];
+  const factorsToShow = factors.slice(0, 5); // Топ-5 факторів
+  
+  if (factorsToShow.length > 0) {
+    factorsToShow.forEach((factor, index) => {
+      const factorCode = factor.feature || factor.name || "Невідомий фактор";
+      let factorImpact = factor.impact || 0;
+      
+      // Виправлення для старих даних: якщо impact > 1.0, це означає, що це старі дані
+      // без нормалізації (наприклад, RIAGENDR = 2.0). Нормалізуємо їх.
+      if (factorCode === "RIAGENDR" && factorImpact > 1.0) {
+        factorImpact = factorImpact / 2.0; // Нормалізуємо: 2.0 -> 1.0, 1.0 -> 0.5
+      }
+      
+      // Переконуємося, що impact не перевищує 1.0 (на випадок інших старих даних)
+      if (factorImpact > 1.0) {
+        factorImpact = 1.0;
+      }
+      
+      // Отримуємо читабельну назву з словника
+      const label = FACTOR_LABELS[factorCode] || factorCode;
+      const value = (factorImpact * 100).toFixed(1);
+      
+      // Легка сіра лінія між рядками
+      if (index > 0) {
+        doc.setDrawColor(230, 230, 230);
+        doc.setLineWidth(0.2);
+        doc.line(cardX, y - 2, cardX + scaleWidth, y - 2);
+      }
+      
+      // Назва фактора зліва: "Назва (КОД):"
+      doc.setFontSize(10);
+      doc.setTextColor(...colors.text);
+      const factorLabelText = `${label} (${factorCode}):`;
+      doc.text(factorLabelText, cardX + 5, y + 5);
+      
+      // Значення справа
+      const impactText = `${value}%`;
+      const impactWidth = doc.getTextWidth(impactText);
+      doc.text(impactText, cardX + scaleWidth - impactWidth - 5, y + 5);
+      
+      y += 8;
+    });
+  } else {
+    // Заглушка, якщо факторів немає
+    doc.setFontSize(9);
+    doc.setTextColor(...colors.textMuted);
+    doc.text("Дані про ключові фактори недоступні", cardX + 5, y + 5);
+    y += 8;
+  }
+  
+  y += 5;
+  
+  // ============================================
+  // Recommendations - Рекомендації
+  // ============================================
+  doc.setFontSize(11);
+  doc.setTextColor(...colors.text);
+  doc.text("Рекомендації / наступні кроки", cardX, y);
+  y += 8;
+  
+  // Рекомендації на основі рівня ризику
+  const recommendations = [];
+  if (riskBucket === "low") {
+    recommendations.push("Продовжуйте підтримувати здоровий спосіб життя");
+    recommendations.push("Регулярно проходьте профілактичні обстеження");
+    recommendations.push("Дотримуйтесь збалансованого раціону харчування");
+    recommendations.push("Занимайтеся фізичною активністю");
+  } else if (riskBucket === "medium") {
+    recommendations.push("Рекомендується звернутися до лікаря для консультації");
+    recommendations.push("Пройдіть додаткові обстеження для уточнення стану");
+    recommendations.push("Зверніть увагу на фактори, що впливають на ризик");
+    recommendations.push("Розгляньте можливість корекції способу життя");
+  } else {
+    recommendations.push("Негайно зверніться до лікаря для детального обстеження");
+    recommendations.push("Пройдіть комплексну діагностику");
+    recommendations.push("Обговоріть з лікарем план лікування та профілактики");
+    recommendations.push("Дотримуйтесь всіх рекомендацій медичного персоналу");
+  }
+  
+  recommendations.forEach((rec, index) => {
+    doc.setFontSize(9);
+    doc.setTextColor(...colors.text);
+    // Булет-пункт
+    doc.circle(cardX + 3, y + 3, 1.5, "F");
+    doc.text(rec, cardX + 8, y + 4);
+    y += 7;
+  });
+  
+  // ============================================
+  // Footer - Футер
+  // ============================================
+  const footerY = pageHeight - 20;
+  doc.setFontSize(7);
+  doc.setTextColor(...colors.textMuted);
+  const footerText1 = "HealthRisk.AI — автоматизована система оцінки та прогнозування ризиків для здоров'я з використанням методів штучного інтелекту.";
+  const footerText2 = "Звіт не є медичним діагнозом і не замінює консультацію лікаря.";
+  const footerMaxWidth = contentWidth - (innerMargin * 2);
+  
+  // Використовуємо splitTextToSize для переносу тексту
+  const footerLines1 = doc.splitTextToSize(footerText1, footerMaxWidth);
+  const footerLines2 = doc.splitTextToSize(footerText2, footerMaxWidth);
+  
+  footerLines1.forEach((line, index) => {
+    doc.text(line, margin + innerMargin, footerY + (index * 4));
+  });
+  
+  footerLines2.forEach((line, index) => {
+    doc.text(line, margin + innerMargin, footerY + footerLines1.length * 4 + 3 + (index * 4));
+  });
+  
+  // Додаткова інформація (модель, ціль) внизу
+  doc.setFontSize(8);
+  doc.text(`Ціль: ${targetLabel} | Модель: ${model}`, margin + innerMargin, footerY - 12);
+  
+  // ============================================
+  // Додавання діаграм зі сторінки /diagrams
+  // ============================================
+  
+  // Зберігаємо поточний route для відновлення після експорту
+  const previousPath = window.location.pathname;
+  const wasOnDiagrams = previousPath === "/diagrams";
+  
+  // Переключаємося на сторінку діаграм, якщо ми не вже на ній
+  if (!wasOnDiagrams) {
+    if (typeof showSectionForPath === "function") {
+      showSectionForPath("/diagrams");
+    } else {
+      // Fallback: пряма навігація
+      window.history.pushState({}, "", "/diagrams");
+      const insightsSection = document.getElementById("page-insights");
+      if (insightsSection) {
+        document.querySelectorAll(".page").forEach(page => page.hidden = true);
+        insightsSection.hidden = false;
+      }
+    }
+    
+    // Чекаємо, поки сторінка відобразиться
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    await new Promise(resolve => requestAnimationFrame(resolve));
+  }
+  
+  // Ініціалізуємо діаграми, якщо вони ще не ініціалізовані
+  if (typeof initializeInsightsPage === "function") {
     try {
-      const fontFileName = "DejaVuSans.ttf";
-      const fontName = "DejaVuSans";
-      
-      // Додаємо шрифт до віртуальної файлової системи документа
-      doc.addFileToVFS(fontFileName, loadedFontBase64);
-      
-      // Реєструємо шрифт
-      doc.addFont(fontFileName, fontName, "normal");
-      
-      console.log("[PDF Font] DejaVuSans font registered in document");
+      await initializeInsightsPage();
     } catch (error) {
-      console.error("[PDF Font] Failed to register font in document:", error);
+    }
+  } else {
+  }
+  
+  // Переконуємося, що діаграми оновлені перед експортом
+  if (typeof refreshDashboardCharts === "function") {
+    refreshDashboardCharts();
+  } else {
+  }
+  
+  // Дочекаємося реального перемалювання діаграм через requestAnimationFrame
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  // Додаткова невелика затримка для завершення рендерингу
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  const chartIds = [
+    "profile-overview-chart",
+    "model-risks-chart",
+    "insights-factors-chart",
+    "dataset-bmi-chart",
+    "dataset-bp-chart",
+    "dataset-chol-chart",
+    "dataset-diabetes-age-chart",
+    "dataset-obesity-age-chart",
+    "dataset-correlation-chart",
+    "history-timeline-chart",
+    "history-risk-distribution-chart",
+    "history-models-chart"
+  ];
+  
+  // Отримуємо всі доступні діаграми
+  const chartImages = [];
+  const canvasStates = []; // Зберігаємо початкові стани canvas для відновлення
+  
+  for (const chartId of chartIds) {
+    const canvas = document.getElementById(chartId);
+    const chartInstance = dashboardCharts[chartId];
+    
+    // Перевіряємо, чи Chart.js інстанс має метод toBase64Image
+    if (typeof chartInstance.toBase64Image !== "function") {
+      continue;
+    }
+    
+    // Зберігаємо початковий стан canvas
+    const originalDisplay = canvas.style.display;
+    const originalVisibility = canvas.style.visibility;
+    const originalHidden = canvas.hidden;
+    const parentHidden = canvas.closest(".page")?.hidden || canvas.closest("[hidden]")?.hidden;
+    
+    canvasStates.push({
+      canvas,
+      display: originalDisplay,
+      visibility: originalVisibility,
+      hidden: originalHidden,
+      parentHidden: parentHidden
+    });
+    
+    // Тимчасово показуємо canvas для експорту
+    canvas.style.display = "block";
+    canvas.style.visibility = "visible";
+    canvas.hidden = false;
+    
+    // Показуємо батьківські елементи
+    let parent = canvas.parentElement;
+    const parentsToShow = [];
+    while (parent && parent !== document.body) {
+      if (parent.hidden) {
+        parent.hidden = false;
+        parentsToShow.push({ element: parent, wasHidden: true });
+      }
+      if (parent.style.display === "none") {
+        parent.style.display = "";
+        parentsToShow.push({ element: parent, hadDisplayNone: true });
+      }
+      parent = parent.parentElement;
+    }
+    
+    // Зберігаємо оригінальні кольори для відновлення після експорту
+    const originalColors = {
+      legendLabelColor: chartInstance.options?.plugins?.legend?.labels?.color,
+      titleColor: chartInstance.options?.plugins?.title?.color,
+      scales: {},
+    };
+    
+    // Зберігаємо кольори для всіх scales
+    if (chartInstance.options.scales) {
+      Object.keys(chartInstance.options.scales).forEach(scaleId => {
+        const scale = chartInstance.options.scales[scaleId];
+        originalColors.scales[scaleId] = {
+          ticksColor: scale.ticks?.color,
+          titleColor: scale.title?.color,
+        };
+      });
+    }
+    
+    const pdfColor = "#111827";
+    
+    // Застосовуємо темні кольори для PDF
+    if (chartInstance.options.plugins?.legend?.labels) {
+      chartInstance.options.plugins.legend.labels.color = pdfColor;
+    }
+    if (chartInstance.options.plugins?.title) {
+      chartInstance.options.plugins.title.color = pdfColor;
+    }
+    Object.keys(chartInstance.options.scales || {}).forEach(scaleId => {
+      const scale = chartInstance.options.scales[scaleId];
+      if (scale.ticks) scale.ticks.color = pdfColor;
+      if (scale.title) scale.title.color = pdfColor;
+    });
+    
+    // Оновлюємо діаграму з темними кольорами
+    chartInstance.update("none");
+    
+    // Встановлюємо розміри canvas з підвищеною роздільною здатністю
+    const rect = canvas.getBoundingClientRect();
+    const logicalWidth = rect.width > 0 ? Math.round(rect.width) : 800;
+    const logicalHeight = rect.height > 0 ? Math.round(rect.height) : 400;
+    
+    // Масштаб для підвищення роздільної здатності у 2 рази
+    const scale = 1;
+    
+    // Зберігаємо оригінальні розміри та стилі
+    const originalWidth = canvas.width;
+    const originalHeight = canvas.height;
+    const originalStyleWidth = canvas.style.width;
+    const originalStyleHeight = canvas.style.height;
+    
+    // Встановлюємо логічні розміри (видимі) через CSS
+    canvas.style.width = logicalWidth + "px";
+    canvas.style.height = logicalHeight + "px";
+    
+    // Встановлюємо фізичні розміри (для експорту) з масштабом x2 для підвищення якості
+    canvas.width = logicalWidth * scale;
+    canvas.height = logicalHeight * scale;
+    
+    // Оновлюємо діаграму з новими кольорами та розмірами
+    if (typeof chartInstance.resize === "function") {
+      chartInstance.resize();
+    } else if (typeof chartInstance.update === "function") {
+      chartInstance.update("none");
+    }
+    
+    // Дочекаємося наступного кадру перед експортом
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    
+    // Експортуємо діаграму
+    try {
+      // Викликаємо toBase64Image з підвищеною роздільною здатністю
+      let imageData = chartInstance.toBase64Image();
+      
+      // Якщо не вдалося, спробуємо через canvas.toDataURL
+      if (!imageData || imageData === "data:," || imageData.length < 100) {
+        try {
+          imageData = canvas.toDataURL("image/png");
+        } catch (error) {
+        }
+      }
+      
+      // Перевіряємо результат
+      if (imageData && imageData !== "data:," && imageData.length > 100) {
+        
+        // Отримуємо заголовок діаграми з HTML
+        const card = canvas.closest(".analytics-card") || canvas.closest(".glass-card");
+        let chartTitle = chartId;
+        if (card) {
+          const titleEl = card.querySelector(".glass-card__title");
+          if (titleEl) {
+            const titleText = Array.from(titleEl.childNodes)
+              .filter(node => node.nodeType === Node.TEXT_NODE || (node.tagName && node.tagName === "SPAN"))
+              .map(node => node.textContent || node.innerText || "")
+              .join(" ")
+              .trim();
+            if (titleText) {
+              chartTitle = titleText.replace(/\s+/g, " ");
+            }
+          }
+        }
+        
+        chartImages.push({
+          id: chartId,
+          title: chartTitle,
+          imageData: imageData,
+          logicalWidth: logicalWidth,
+          logicalHeight: logicalHeight,
+          scale: scale
+        });
+      } else {
+      }
+    } catch (error) {
+    } finally {
+      // Відновлюємо оригінальні кольори
+      if (chartInstance.options.plugins?.legend?.labels) {
+        chartInstance.options.plugins.legend.labels.color = originalColors.legendLabelColor;
+      }
+      if (chartInstance.options.plugins?.title) {
+        chartInstance.options.plugins.title.color = originalColors.titleColor;
+      }
+      
+      Object.keys(originalColors.scales).forEach(scaleId => {
+        const scale = chartInstance.options.scales[scaleId];
+        const saved = originalColors.scales[scaleId];
+        if (scale && scale.ticks) scale.ticks.color = saved.ticksColor;
+        if (scale && scale.title) scale.title.color = saved.titleColor;
+      });
+      
+      // Відновлюємо оригінальні розміри canvas
+      canvas.width = originalWidth;
+      canvas.height = originalHeight;
+      canvas.style.width = originalStyleWidth;
+      canvas.style.height = originalStyleHeight;
+      
+      // Оновлюємо діаграму з оригінальними налаштуваннями
+      if (typeof chartInstance.resize === "function") {
+        chartInstance.resize();
+      } else if (typeof chartInstance.update === "function") {
+        chartInstance.update("none");
+      }
+      
+      // Відновлюємо початковий стан
+      canvas.style.display = originalDisplay;
+      canvas.style.visibility = originalVisibility;
+      canvas.hidden = originalHidden;
+      
+      parentsToShow.forEach(({ element, wasHidden, hadDisplayNone }) => {
+        if (wasHidden) element.hidden = true;
+        if (hadDisplayNone) element.style.display = "none";
+      });
     }
   }
   
-  // Перевіряємо доступність шрифту
-  const fontList = doc.getFontList ? doc.getFontList() : {};
-  console.log("[PDF Font] Available fonts:", Object.keys(fontList));
+  // Відновлюємо стани батьківських елементів
+  canvasStates.forEach(state => {
+    const parent = state.canvas.closest(".page") || state.canvas.closest("[hidden]");
+    if (parent && state.parentHidden) {
+      parent.hidden = state.parentHidden;
+    }
+  });
   
-  // Встановлюємо DejaVuSans як основний шрифт для всього документа
-  if (fontList['DejaVuSans']) {
-    doc.setFont("DejaVuSans", "normal");
-    console.log("[PDF Font] Using DejaVuSans font");
-  } else {
+  if (chartImages.length === 0) {
     showNotification({
-      type: "error",
-      title: "Помилка",
-      message: "Шрифт DejaVuSans не доступний. PDF може не відображати кирилицю коректно.",
+      type: "warning",
+      title: "Діаграми не знайдено",
+      message: `Не вдалося експортувати діаграми. Перевірте консоль для деталей. Знайдено діаграм: ${chartImages.length}`,
       duration: 5000
     });
-    // Не продовжуємо генерацію без правильного шрифту
-    return;
   }
   
-  // Заголовок
-  doc.setFontSize(20);
-  doc.text("Звіт про прогнозування ризиків здоров'я", 20, 20);
+  // Додаємо діаграми на нові сторінки (по 4 діаграми на сторінку, сітка 2x2)
+  if (chartImages.length > 0) {
+    const chartMargin = 10;
+    const columnGap = 10;
+    const rowGap = 15;
+    
+    const topTitleY = 25;
+    const topImageY = topTitleY + 10;
+    const bottomTitleY = pageHeight / 2 + 10;
+    const bottomImageY = bottomTitleY + 10;
+    
+    const availableWidth = pageWidth - (margin * 2) - columnGap;
+    const columnWidth = availableWidth / 2;
+    
+    const topChartHeight = (pageHeight / 2) - topImageY - rowGap;
+    const bottomChartHeight = pageHeight - bottomImageY - 20;
+    
+    for (let i = 0; i < chartImages.length; i += 4) {
+      doc.addPage();
+      const chartsOnPage = chartImages.slice(i, i + 4);
+      
+      chartsOnPage.forEach((chart, index) => {
+        if (!chart) return;
+        
+        const row = index < 2 ? 0 : 1;
+        const col = index % 2;
+        
+        const titleY = row === 0 ? topTitleY : bottomTitleY;
+        const imageBaseY = row === 0 ? topImageY : bottomImageY;
+        const areaHeight = row === 0 ? topChartHeight : bottomChartHeight;
+        const areaWidth = columnWidth;
+        const areaX = col === 0 ? margin : margin + columnWidth + columnGap;
+        
+        doc.setFontSize(14);
+        doc.setTextColor(...colors.primary);
+        doc.text(chart.title, areaX, titleY);
+        
+        try {
+          const logicalWidth = chart.logicalWidth || 800;
+          const logicalHeight = chart.logicalHeight || 600;
+          const aspectRatio = logicalWidth / logicalHeight;
+          
+          let imgWidth = areaWidth;
+          let imgHeight = areaHeight;
+          
+          if (aspectRatio > (areaWidth / areaHeight)) {
+            imgHeight = areaWidth / aspectRatio;
+          } else {
+            imgWidth = areaHeight * aspectRatio;
+          }
+          
+          imgWidth = imgWidth * 0.85;
+          imgHeight = imgHeight * 0.85;
+          
+          const imgX = areaX + (areaWidth - imgWidth) / 2;
+          const imgY = imageBaseY + (areaHeight - imgHeight) / 2;
+          
+          doc.addImage(chart.imageData, "PNG", imgX, imgY, imgWidth, imgHeight);
+        } catch (error) {
+          // Якщо не вдалося додати зображення, пропускаємо
+        }
+      });
+    }
+  }
   
-  // Інформація про прогнозування
-  doc.setFontSize(12);
-  let y = 40;
+  // ============================================
+  // Нумерація сторінок на всіх сторінках
+  // ============================================
+  const totalPages = doc.internal.getNumberOfPages();
+  doc.setFontSize(8);
+  doc.setTextColor(...colors.textMuted);
   
-  // Використовуємо оригінальні українські тексти
-  const targetLabel = TARGET_LABELS[data.target] || data.target;
-  doc.text(`Ціль: ${targetLabel}`, 20, y);
-  y += 10;
-  doc.text(`Ймовірність: ${(data.probability * 100).toFixed(2)}%`, 20, y);
-  y += 10;
+  // Оновлюємо нумерацію на всіх сторінках
+  for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+    doc.setPage(pageNum);
+    const pageNumText = `Сторінка ${pageNum} з ${totalPages}`;
+    const pageNumWidth = doc.getTextWidth(pageNumText);
+    doc.text(pageNumText, (pageWidth - pageNumWidth) / 2, pageHeight - 5);
+  }
   
-  // Рівень ризику
-  const riskLevel = data.riskLevel || "N/A";
-  doc.text(`Рівень ризику: ${riskLevel}`, 20, y);
-  y += 10;
+  // ============================================
+  // Відновлення попередньої секції після експорту
+  // ============================================
+  if (!wasOnDiagrams && previousPath) {
+    if (typeof showSectionForPath === "function") {
+      showSectionForPath(previousPath);
+    } else {
+      // Fallback: пряма навігація
+      window.history.pushState({}, "", previousPath);
+      const targetSection = ROUTE_SECTIONS[previousPath];
+      if (targetSection) {
+        document.querySelectorAll(".page").forEach(page => page.hidden = true);
+        const sectionEl = document.getElementById(targetSection);
+        if (sectionEl) {
+          sectionEl.hidden = false;
+        }
+      }
+    }
+  }
   
-  const model = data.model || "N/A";
-  doc.text(`Модель: ${model}`, 20, y);
-  y += 20;
-  
-  // Дата
-  const date = new Date();
-  const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
-  doc.text(`Дата: ${dateStr}`, 20, y);
-  
-  // Збереження
-  const filename = `health_risk_report_${data.target}_${Date.now()}.pdf`;
-  doc.save(filename);
-  
-  showNotification({
-    type: "success",
-    title: "Звіт згенеровано",
-    message: `PDF звіт збережено як ${filename}`,
-    duration: 3000
-  });
+    // ============================================
+    // Збереження файлу та відкриття в новій вкладці
+    // ============================================
+    const filename = `health_risk_report_${data.target}_${Date.now()}.pdf`;
+    
+    // Зберігаємо файл
+    doc.save(filename);
+    
+    // Створюємо Blob для відкриття в новій вкладці
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    
+    // Відкриваємо PDF в новій вкладці
+    window.open(pdfUrl, '_blank');
+    
+    // Звільняємо URL після невеликої затримки
+    setTimeout(() => {
+      URL.revokeObjectURL(pdfUrl);
+    }, 1000);
+    
+    showNotification({
+      type: "success",
+      title: "Звіт згенеровано",
+      message: `PDF звіт збережено як ${filename} та відкрито в новій вкладці`,
+      duration: 3000
+    });
+  } finally {
+    // Приховуємо overlay після завершення генерації (навіть у випадку помилки)
+    setPdfExportOverlayVisible(false);
+  }
 }
 
 // Генерація Excel звіту

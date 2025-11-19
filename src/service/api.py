@@ -351,27 +351,23 @@ def calculate_top_factors_simple(
                 value = X[feat_name].iloc[0]
                 
                 if pd.notna(value):
-                    # Нормалізація значення для числових ознак
+                    # Нормалізуємо значення в межах типових діапазонів
                     if feat_name == "RIAGENDR":
-                        # Для категоріальної ознаки використовуємо просте значення
-                        impact_val = float(value)
+                        impact_val = float(value) / 2.0
+                    elif feat_name == "RIDAGEYR":
+                        impact_val = abs(value) / 100.0
+                    elif feat_name == "BMXBMI":
+                        impact_val = abs(value) / 50.0
+                    elif feat_name == "BPXSY1":
+                        impact_val = abs(value) / 200.0
+                    elif feat_name == "BPXDI1":
+                        impact_val = abs(value) / 150.0
+                    elif feat_name == "LBXGLU":
+                        impact_val = abs(value) / 200.0
+                    elif feat_name == "LBXTC":
+                        impact_val = abs(value) / 300.0
                     else:
-                        # Для числових ознак використовуємо абсолютне значення
-                        # Нормалізуємо до діапазону [0, 1] на основі типових діапазонів
-                        if feat_name == "RIDAGEYR":
-                            impact_val = abs(value) / 100.0  # Нормалізація віку
-                        elif feat_name == "BMXBMI":
-                            impact_val = abs(value) / 50.0  # Нормалізація ІМТ
-                        elif feat_name == "BPXSY1":
-                            impact_val = abs(value) / 200.0  # Нормалізація систолічного тиску
-                        elif feat_name == "BPXDI1":
-                            impact_val = abs(value) / 150.0  # Нормалізація діастолічного тиску
-                        elif feat_name == "LBXGLU":
-                            impact_val = abs(value) / 200.0  # Нормалізація глюкози
-                        elif feat_name == "LBXTC":
-                            impact_val = abs(value) / 300.0  # Нормалізація холестерину
-                        else:
-                            impact_val = abs(value)
+                        impact_val = abs(value)
                     
                     impacts.append(FeatureImpact(feature=feat_name, impact=float(impact_val)))
         

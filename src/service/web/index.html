@@ -114,6 +114,12 @@
       </header>
 
     <main class="main">
+      <!-- Overlay для приховування інтерфейсу під час генерації PDF -->
+      <div class="pdf-export-overlay" id="pdf-export-overlay" aria-hidden="true">
+        <div class="pdf-export-overlay__content">
+          <p>Формуємо PDF-звіт…</p>
+        </div>
+      </div>
       <section id="page-form" class="page page--active" aria-labelledby="page-title">
         <div class="page__grid">
           <section class="glass-card">
@@ -160,7 +166,7 @@
 
           <section class="glass-card" id="result-card" hidden>
             <div class="glass-card__header">
-              <h2 class="glass-card__title">Результат</h2>
+            <h2 class="glass-card__title">Результат</h2>
               <button type="button" class="button button--ghost button--small" id="generate-report-btn" aria-label="Згенерувати Звіт" hidden>
                 <span class="icon" data-lucide="file-text"></span>
                 <span>Згенерувати Звіт</span>

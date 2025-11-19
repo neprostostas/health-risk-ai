@@ -617,6 +617,7 @@ body.theme-dark {
 }
 
 .main {
+  position: relative;
   flex: 1;
   padding: 44px 48px;
   display: flex;
@@ -2588,6 +2589,7 @@ select:focus {
   }
 
   .main {
+    position: relative;
     padding: 38px;
   }
 }
@@ -2622,6 +2624,7 @@ select:focus {
   }
 
   .main {
+    position: relative;
     padding: 28px;
   }
 
@@ -2649,6 +2652,7 @@ select:focus {
   }
 
   .main {
+    position: relative;
     padding: 24px;
   }
 
@@ -4608,4 +4612,39 @@ button[data-tooltip]:focus-visible::after {
   .report-format-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* PDF Export Overlay */
+.pdf-export-overlay {
+  position: absolute;
+  inset: 0;
+  background: #0f172a;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  z-index: 9999;
+  align-content: center;
+  height: calc(100vh - 85px);
+}
+
+.pdf-export-overlay--visible {
+  display: flex;
+}
+
+.pdf-export-lock-scroll {
+  overflow: hidden;
+}
+
+.pdf-export-overlay__content {
+  background: #fff;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  color: #111827;
+}
+
+.theme-dark .pdf-export-overlay__content {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }

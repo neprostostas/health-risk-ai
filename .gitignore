@@ -74,6 +74,8 @@ certs/
 # Local data
 data/avatars/*
 !data/avatars/.gitkeep
+data/app.db
+data/*.db
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -87,6 +89,7 @@ data/avatars/*
 # Logs
 *.log
 logs/
+.dev/
 
 # Temporary files
 *.tmp
