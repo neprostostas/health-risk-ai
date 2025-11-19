@@ -120,3 +120,23 @@ dmypy.json
 node_modules/
 package-lock.json
 yarn.lock
+
+# Python type checking
+.pytype/
+
+# Editor directories and files (детальні налаштування)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Project specific
+to do
+*.md.bak
+
+# Database backups
+*.db-journal
+*.db-wal
+*.db-shm
