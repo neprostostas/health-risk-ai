@@ -772,6 +772,15 @@ async def catch_all_route(
     
     # Логуємо для діагностики
     
+    # Перевіряємо, чи це статичний файл
+    # StaticFiles mount має пріоритет і обробить ці запити
+    # Якщо запит дійшов сюди, це означає, що файл не знайдено
+    # Але спочатку перевіряємо, чи це точно статичний файл
+    if normalized_path.startswith("/app/static/"):
+        # Статичні файли обробляються через StaticFiles mount
+        # Якщо вони дійшли сюди, файл не знайдено
+        raise HTTPException(status_code=404, detail=f"Файл не знайдено: {normalized_path}")
+    
     # Перевіряємо allowlist
     if is_path_allowlisted(normalized_path):
         # Якщо path в allowlist, але дійшов до catch-all - це помилка

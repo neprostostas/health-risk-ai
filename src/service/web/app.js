@@ -1892,12 +1892,10 @@ function isPublicRoute(pathname) {
 function showSectionForPath(pathname) {
   const basePath = pathname.split("?")[0];
   const hasUser = Boolean(authState.user);
-  console.log("[DEBUG ROUTE] showSectionForPath START", { pathname, basePath, hasUser, initialized: authState.initialized });
   
   // 1. ГАРАНТОВАНИЙ guard для незалогіненого - ПЕРШИМ, БЕЗУМОВНО
   // Guard має працювати завжди, незалежно від initialized
   if (!hasUser && !isPublicRoute(basePath)) {
-    console.log("[DEBUG ROUTE] unauthorized guard triggered", { basePath, pathname });
     handleUnauthorized();
     return "/login";
   }
@@ -1907,7 +1905,6 @@ function showSectionForPath(pathname) {
   if (!authState.initialized) {
     // Якщо користувач не залогінений і маршрут не публічний - редірект на /login
     if (!hasUser && !isPublicRoute(basePath)) {
-      console.log("[DEBUG ROUTE] unauthorized guard triggered (not initialized)", { basePath });
       handleUnauthorized();
       return "/login";
     }
@@ -1984,7 +1981,6 @@ function showSectionForPath(pathname) {
   if (protectedSections.includes(section) && !hasUser) {
     // Якщо це не публічний маршрут - редірект на /login
     if (!isPublicRoute(basePath)) {
-      console.log("[DEBUG ROUTE] final check: unauthorized on protected section", { section, basePath });
       handleUnauthorized();
       return "/login";
     }
@@ -1997,7 +1993,6 @@ function showSectionForPath(pathname) {
   
   // Додаткова перевірка: ніколи не показуємо page-form для незалогіненого
   if (section === "page-form" && !hasUser) {
-    console.log("[DEBUG ROUTE] preventing page-form for unauthorized user", { basePath });
     handleUnauthorized();
     return "/login";
   }
@@ -2064,7 +2059,6 @@ function clearAuthState() {
 }
 
 function handleUnauthorized() {
-  console.log("[DEBUG AUTH] handleUnauthorized", { from: window.location.pathname });
   clearAuthState();
   const loginPath = "/login";
   
@@ -2861,7 +2855,6 @@ async function initializeAuth() {
   // Only redirect to /app if we're on /login, /register, or root /
   const currentPath = window.location.pathname;
   const hasUser = Boolean(authState.user);
-  console.log("[DEBUG AUTH] init", { hasUser, pathname: currentPath, initialized: authState.initialized });
   
   const validProtectedRoutes = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant", "/reports"];
   const isOnValidProtectedRoute = validProtectedRoutes.some(route => currentPath.toLowerCase().startsWith(route));
@@ -2870,7 +2863,6 @@ async function initializeAuth() {
   if (!hasUser) {
     // Якщо користувач не залогінений і на непублічному маршруті - редірект на /login
     if (!isPublicRoute(currentPath)) {
-      console.log("[DEBUG AUTH] unauthorized user on protected route", { currentPath });
       // Викликаємо syncRouteFromLocation, який викличе showSectionForPath,
       // а showSectionForPath зробить редірект через handleUnauthorized
       syncRouteFromLocation();
@@ -7159,7 +7151,6 @@ function initializeSidebarToggle() {
     const loginPath = "/login";
     
     if (window.location.pathname !== loginPath) {
-      console.log("[DEBUG EARLY GUARD] redirecting to /login", { pathname, hasToken, isPublic });
       window.location.replace(loginPath);
     }
     
@@ -8694,7 +8685,15 @@ function generateReport() {
   try {
     switch (selectedFormat) {
       case "pdf":
-        generatePDFReport(currentPredictionData);
+        generatePDFReport(currentPredictionData).catch(error => {
+          console.error("PDF generation error:", error);
+          showNotification({
+            type: "error",
+            title: "Помилка генерації PDF",
+            message: error.message || "Не вдалося згенерувати PDF звіт",
+            duration: 4000
+          });
+        });
         break;
       case "excel":
         generateExcelReport(currentPredictionData);
@@ -8723,20 +8722,146 @@ function generateReport() {
   }
 }
 
+// jsPDF font init with Cyrillic support
+let pdfFontInitialized = false;
+let pdfFontInitializing = false;
+
+// Зберігаємо завантажений шрифт для подальшого використання
+let loadedFontBase64 = null;
+
+async function ensurePdfFontInitialized(jsPDF) {
+  if (pdfFontInitialized && loadedFontBase64) return;
+  if (pdfFontInitializing) {
+    // Чекаємо, поки шрифт завантажується
+    while (pdfFontInitializing) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return;
+  }
+
+  pdfFontInitializing = true;
+
+  // Отримуємо jsPDF клас
+  const { jsPDF: JsPDFClass } = window.jspdf || {};
+  const JsPDF = jsPDF || JsPDFClass || window.jsPDF;
+
+  if (!JsPDF) {
+    console.warn("[PDF Font] jsPDF not available");
+    pdfFontInitializing = false;
+    return;
+  }
+
+  const fontName = "DejaVuSans";
+  const fontFileName = "DejaVuSans.ttf";
+
+  try {
+    // Завантажуємо TTF-шрифт з локального файлу
+    const fontUrl = "/app/static/fonts/DejaVuSans.ttf";
+    
+    const response = await fetch(fontUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to load font: ${response.status}`);
+    }
+
+    // Отримуємо шрифт як ArrayBuffer
+    const fontBytes = await response.arrayBuffer();
+    const fontUint8 = new Uint8Array(fontBytes);
+    
+    // Конвертуємо Uint8Array в base64 для jsPDF
+    // Використовуємо більш ефективний спосіб для великих файлів
+    let fontBinary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < fontUint8.length; i += chunkSize) {
+      const chunk = fontUint8.subarray(i, i + chunkSize);
+      fontBinary += String.fromCharCode.apply(null, chunk);
+    }
+    const fontBase64 = btoa(fontBinary);
+    
+    // Зберігаємо base64 для подальшого використання
+    loadedFontBase64 = fontBase64;
+    
+    pdfFontInitialized = true;
+    console.log("[PDF Font] DejaVuSans font loaded successfully");
+  } catch (error) {
+    console.error("[PDF Font] Failed to load font:", error);
+    throw error; // Прокидаємо помилку далі
+  } finally {
+    pdfFontInitializing = false;
+  }
+}
+
 // Генерація PDF звіту
-function generatePDFReport(data) {
-  if (typeof window.jspdf === "undefined") {
+async function generatePDFReport(data) {
+  // Перевірка наявності бібліотеки jsPDF
+  // jsPDF може бути доступний як window.jspdf.jsPDF або window.jsPDF
+  let jsPDF;
+  if (typeof window.jspdf !== "undefined" && window.jspdf.jsPDF) {
+    jsPDF = window.jspdf.jsPDF;
+  } else if (typeof window.jsPDF !== "undefined") {
+    jsPDF = window.jsPDF;
+  } else {
     showNotification({
       type: "error",
       title: "Помилка",
-      message: "Бібліотека PDF не завантажена",
-      duration: 3000
+      message: "Бібліотека PDF не завантажена. Будь ласка, оновіть сторінку.",
+      duration: 5000
     });
     return;
   }
   
-  const { jsPDF } = window.jspdf;
+  const { jsPDF: JsPDFClass } = window.jspdf || {};
+  
+  try {
+    // Ініціалізуємо шрифт один раз (асинхронно)
+    await ensurePdfFontInitialized(jsPDF || JsPDFClass);
+  } catch (error) {
+    showNotification({
+      type: "error",
+      title: "Помилка завантаження шрифту",
+      message: "Не вдалося завантажити шрифт для PDF. Спробуйте пізніше.",
+      duration: 5000
+    });
+    return;
+  }
+  
   const doc = new jsPDF();
+  
+  // Додаємо шрифт до документа, якщо він ще не доданий
+  if (loadedFontBase64) {
+    try {
+      const fontFileName = "DejaVuSans.ttf";
+      const fontName = "DejaVuSans";
+      
+      // Додаємо шрифт до віртуальної файлової системи документа
+      doc.addFileToVFS(fontFileName, loadedFontBase64);
+      
+      // Реєструємо шрифт
+      doc.addFont(fontFileName, fontName, "normal");
+      
+      console.log("[PDF Font] DejaVuSans font registered in document");
+    } catch (error) {
+      console.error("[PDF Font] Failed to register font in document:", error);
+    }
+  }
+  
+  // Перевіряємо доступність шрифту
+  const fontList = doc.getFontList ? doc.getFontList() : {};
+  console.log("[PDF Font] Available fonts:", Object.keys(fontList));
+  
+  // Встановлюємо DejaVuSans як основний шрифт для всього документа
+  if (fontList['DejaVuSans']) {
+    doc.setFont("DejaVuSans", "normal");
+    console.log("[PDF Font] Using DejaVuSans font");
+  } else {
+    showNotification({
+      type: "error",
+      title: "Помилка",
+      message: "Шрифт DejaVuSans не доступний. PDF може не відображати кирилицю коректно.",
+      duration: 5000
+    });
+    // Не продовжуємо генерацію без правильного шрифту
+    return;
+  }
   
   // Заголовок
   doc.setFontSize(20);
@@ -8745,17 +8870,27 @@ function generatePDFReport(data) {
   // Інформація про прогнозування
   doc.setFontSize(12);
   let y = 40;
-  doc.text(`Ціль: ${TARGET_LABELS[data.target] || data.target}`, 20, y);
+  
+  // Використовуємо оригінальні українські тексти
+  const targetLabel = TARGET_LABELS[data.target] || data.target;
+  doc.text(`Ціль: ${targetLabel}`, 20, y);
   y += 10;
   doc.text(`Ймовірність: ${(data.probability * 100).toFixed(2)}%`, 20, y);
   y += 10;
-  doc.text(`Рівень ризику: ${data.riskLevel || "N/A"}`, 20, y);
+  
+  // Рівень ризику
+  const riskLevel = data.riskLevel || "N/A";
+  doc.text(`Рівень ризику: ${riskLevel}`, 20, y);
   y += 10;
-  doc.text(`Модель: ${data.model || "N/A"}`, 20, y);
+  
+  const model = data.model || "N/A";
+  doc.text(`Модель: ${model}`, 20, y);
   y += 20;
   
   // Дата
-  doc.text(`Дата: ${new Date().toLocaleString("uk-UA")}`, 20, y);
+  const date = new Date();
+  const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+  doc.text(`Дата: ${dateStr}`, 20, y);
   
   // Збереження
   const filename = `health_risk_report_${data.target}_${Date.now()}.pdf`;
@@ -8771,12 +8906,13 @@ function generatePDFReport(data) {
 
 // Генерація Excel звіту
 function generateExcelReport(data) {
-  if (typeof XLSX === "undefined") {
+  // Перевірка наявності бібліотеки XLSX
+  if (typeof XLSX === "undefined" || typeof XLSX.utils === "undefined") {
     showNotification({
       type: "error",
       title: "Помилка",
-      message: "Бібліотека Excel не завантажена",
-      duration: 3000
+      message: "Бібліотека Excel не завантажена. Будь ласка, оновіть сторінку.",
+      duration: 5000
     });
     return;
   }
