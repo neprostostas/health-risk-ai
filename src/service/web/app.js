@@ -8717,7 +8717,7 @@ function generateReport() {
         handlePdfReportGeneration();
         break;
       case "excel":
-        generateExcelReport(currentPredictionData);
+        handleExcelReportGeneration();
         break;
       case "csv":
         generateCSVReport(currentPredictionData);
@@ -9083,7 +9083,7 @@ function getActiveSiteTheme() {
   return document.body.classList.contains("theme-dark") ? "dark" : "light";
 }
 
-function showPdfThemeModal(defaultTheme = "light") {
+function showPdfThemeModal(defaultTheme = "light", formatType = "pdf") {
   return new Promise((resolve) => {
     if (pdfThemeModalIsOpen) {
       resolve(defaultTheme);
@@ -9091,6 +9091,7 @@ function showPdfThemeModal(defaultTheme = "light") {
     }
     pdfThemeModalIsOpen = true;
     const initialTheme = PDF_THEME_OPTIONS.includes(defaultTheme) ? defaultTheme : "light";
+    const formatLabel = formatType === "excel" ? "Excel" : "PDF";
     const modal = document.createElement("div");
     modal.className = "modal pdf-theme-modal";
     modal.setAttribute("role", "dialog");
@@ -9101,7 +9102,7 @@ function showPdfThemeModal(defaultTheme = "light") {
         <div class="modal__content">
           <div class="modal__header">
             <div>
-              <h3 class="modal__title" style="color: inherit;">Оберіть тему PDF</h3>
+              <h3 class="modal__title" style="color: inherit;">Оберіть тему ${formatLabel}</h3>
               <p class="pdf-theme-modal__subtitle">За замовчуванням використовуємо активну тему сайту.</p>
             </div>
           </div>
@@ -9175,15 +9176,15 @@ function showPdfThemeModal(defaultTheme = "light") {
   });
 }
 
-async function promptPdfThemeSelection() {
+async function promptPdfThemeSelection(formatType = "pdf") {
   const defaultTheme = getActiveSiteTheme();
-  return showPdfThemeModal(defaultTheme);
+  return showPdfThemeModal(defaultTheme, formatType);
 }
 
 async function handlePdfReportGeneration() {
   if (!currentPredictionData) return;
   try {
-    const selectedTheme = await promptPdfThemeSelection();
+    const selectedTheme = await promptPdfThemeSelection("pdf");
     if (!selectedTheme) return;
     await generatePDFReport(currentPredictionData, { theme: selectedTheme });
   } catch (error) {
@@ -9191,6 +9192,22 @@ async function handlePdfReportGeneration() {
       type: "error",
       title: "Помилка генерації PDF",
       message: error.message || "Не вдалося згенерувати PDF звіт",
+      duration: 4000
+    });
+  }
+}
+
+async function handleExcelReportGeneration() {
+  if (!currentPredictionData) return;
+  try {
+    const selectedTheme = await promptPdfThemeSelection("excel");
+    if (!selectedTheme) return;
+    generateExcelReport(currentPredictionData, { theme: selectedTheme });
+  } catch (error) {
+    showNotification({
+      type: "error",
+      title: "Помилка генерації Excel",
+      message: error.message || "Не вдалося згенерувати Excel звіт",
       duration: 4000
     });
   }
@@ -10280,7 +10297,7 @@ async function generatePDFReport(data, options = {}) {
 }
 
 // Генерація Excel звіту
-function generateExcelReport(data) {
+function generateExcelReport(data, options = {}) {
   // Перевірка наявності бібліотеки XLSX
   if (typeof XLSX === "undefined" || typeof XLSX.utils === "undefined") {
     showNotification({
@@ -10292,17 +10309,434 @@ function generateExcelReport(data) {
     return;
   }
   
-  const worksheet = XLSX.utils.json_to_sheet([{
-    "Ціль": TARGET_LABELS[data.target] || data.target,
-    "Ймовірність (%)": (data.probability * 100).toFixed(2),
-    "Рівень ризику": data.riskLevel || "N/A",
-    "Модель": data.model || "N/A",
-    "Дата": new Date().toLocaleString("uk-UA")
-  }]);
+  const theme = options.theme || "light";
+  const themeColors = PDF_THEME_PRESETS[theme] || PDF_THEME_PRESETS.light;
+  const isDark = theme === "dark";
   
+  // Конвертуємо RGB масиви в hex рядки для Excel
+  const rgbToHex = (rgb) => {
+    return rgb.map(c => c.toString(16).padStart(2, '0')).join('').toUpperCase();
+  };
+  
+  // Кольори бренду (залежно від теми)
+  const colors = {
+    primary: rgbToHex(themeColors.primary),
+    accent: rgbToHex(themeColors.accent),
+    background: rgbToHex(themeColors.background),
+    surface: rgbToHex(themeColors.surface),
+    text: rgbToHex(themeColors.text),
+    textMuted: rgbToHex(themeColors.textMuted),
+    low: rgbToHex(themeColors.low),
+    medium: rgbToHex(themeColors.medium),
+    high: rgbToHex(themeColors.high),
+    border: rgbToHex(themeColors.surfaceBorder),
+    headerBg: rgbToHex(themeColors.headerBackground),
+    headerText: rgbToHex(themeColors.headerText),
+    rowEven: rgbToHex(isDark ? themeColors.surface : [255, 255, 255]),
+    rowOdd: rgbToHex(isDark ? themeColors.background : [248, 249, 255]),
+    sectionBg: rgbToHex(isDark ? themeColors.surface : [235, 239, 255])
+  };
+  
+  // Створюємо нову книгу
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Прогнозування");
   
+  // Створюємо порожній аркуш
+  const worksheet = XLSX.utils.aoa_to_sheet([]);
+  
+  let currentRow = 0;
+  
+  // Функція для додавання стилю до комірки
+  const setCellStyle = (cell, style) => {
+    if (!worksheet[cell]) return;
+    worksheet[cell].s = style;
+  };
+  
+  // Функція для встановлення ширини колонок
+  const setColumnWidth = (col, width) => {
+    if (!worksheet["!cols"]) worksheet["!cols"] = [];
+    worksheet["!cols"][col] = { wch: width };
+  };
+  
+  // Функція для встановлення висоти рядка
+  const setRowHeight = (row, height) => {
+    if (!worksheet["!rows"]) worksheet["!rows"] = [];
+    worksheet["!rows"][row] = { hpt: height };
+  };
+  
+  // Функція для додавання даних зі стилем
+  const addCell = (row, col, value, style = {}) => {
+    const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+    XLSX.utils.sheet_add_aoa(worksheet, [[value]], { origin: cellAddress });
+    if (Object.keys(style).length > 0) {
+      setCellStyle(cellAddress, style);
+    }
+  };
+  
+  // Функція для об'єднання комірок
+  const mergeCells = (range) => {
+    if (!worksheet["!merges"]) worksheet["!merges"] = [];
+    worksheet["!merges"].push(XLSX.utils.decode_range(range));
+  };
+  
+  // ============================================
+  // Заголовок звіту
+  // ============================================
+  addCell(currentRow, 0, "HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я", {
+    font: { name: "Arial", sz: 18, bold: true, color: { rgb: colors.text } },
+    fill: { fgColor: { rgb: colors.surface } },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true }
+  });
+  mergeCells(`A${currentRow + 1}:E${currentRow + 1}`);
+  setRowHeight(currentRow, 30);
+  currentRow++;
+  
+  // Порожній рядок
+  currentRow++;
+  
+  // ============================================
+  // Основна інформація
+  // ============================================
+  addCell(currentRow, 0, "Основна інформація", {
+    font: { name: "Arial", sz: 14, bold: true, color: { rgb: colors.headerText } },
+    fill: { fgColor: { rgb: colors.headerBg } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: {
+      top: { style: "thin", color: { rgb: colors.border } },
+      bottom: { style: "thin", color: { rgb: colors.border } },
+      left: { style: "thin", color: { rgb: colors.border } },
+      right: { style: "thin", color: { rgb: colors.border } }
+    }
+  });
+  mergeCells(`A${currentRow + 1}:B${currentRow + 1}`);
+  setRowHeight(currentRow, 25);
+  currentRow++;
+  
+  // Дані основної інформації
+  const mainInfo = [
+    { label: "Ціль", value: TARGET_LABELS[data.target] || data.target },
+    { label: "Ймовірність", value: `${(data.probability * 100).toFixed(2)}%` },
+    { label: "Рівень ризику", value: data.riskLevel || "N/A" },
+    { label: "Модель", value: data.model || data.model_name || "Автоматично" },
+    { label: "Дата створення", value: new Date(data.created_at || new Date()).toLocaleString("uk-UA") }
+  ];
+  
+  mainInfo.forEach((info, index) => {
+    const isEven = index % 2 === 0;
+    const bgColor = isEven ? colors.rowEven : colors.rowOdd;
+    
+    // Мітка
+    addCell(currentRow, 0, info.label, {
+      font: { name: "Arial", sz: 11, bold: true, color: { rgb: colors.text } },
+      fill: { fgColor: { rgb: bgColor } },
+      alignment: { horizontal: "left", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: colors.border } },
+        bottom: { style: "thin", color: { rgb: colors.border } },
+        left: { style: "thin", color: { rgb: colors.border } },
+        right: { style: "thin", color: { rgb: colors.border } }
+      }
+    });
+    
+    // Значення
+    addCell(currentRow, 1, info.value, {
+      font: { name: "Arial", sz: 11, color: { rgb: colors.text } },
+      fill: { fgColor: { rgb: bgColor } },
+      alignment: { horizontal: "left", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: colors.border } },
+        bottom: { style: "thin", color: { rgb: colors.border } },
+        left: { style: "thin", color: { rgb: colors.border } },
+        right: { style: "thin", color: { rgb: colors.border } }
+      }
+    });
+    
+    setRowHeight(currentRow, 20);
+    currentRow++;
+  });
+  
+  // Порожній рядок
+  currentRow++;
+  
+  // ============================================
+  // Ключові фактори
+  // ============================================
+  const factors = data.top_factors || data.inputs?.top_factors || [];
+  if (factors.length > 0) {
+    addCell(currentRow, 0, "Ключові фактори, що вплинули на ризик", {
+      font: { name: "Arial", sz: 14, bold: true, color: { rgb: colors.headerText } },
+      fill: { fgColor: { rgb: colors.headerBg } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: colors.border } },
+        bottom: { style: "thin", color: { rgb: colors.border } },
+        left: { style: "thin", color: { rgb: colors.border } },
+        right: { style: "thin", color: { rgb: colors.border } }
+      }
+    });
+    mergeCells(`A${currentRow + 1}:D${currentRow + 1}`);
+    setRowHeight(currentRow, 25);
+    currentRow++;
+    
+    // Заголовки таблиці факторів
+    const factorHeaders = ["№", "Фактор", "Код", "Вплив (%)"];
+    factorHeaders.forEach((header, col) => {
+      addCell(currentRow, col, header, {
+        font: { name: "Arial", sz: 11, bold: true, color: { rgb: colors.headerText } },
+        fill: { fgColor: { rgb: colors.sectionBg } },
+        alignment: { horizontal: col === 0 ? "center" : "left", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: colors.border } },
+          bottom: { style: "thin", color: { rgb: colors.border } },
+          left: { style: "thin", color: { rgb: colors.border } },
+          right: { style: "thin", color: { rgb: colors.border } }
+        }
+      });
+    });
+    setRowHeight(currentRow, 22);
+    currentRow++;
+    
+    // Дані факторів (топ-10)
+    const factorsToShow = factors.slice(0, 10);
+    factorsToShow.forEach((factor, index) => {
+      const factorCode = factor.feature || factor.name || "Невідомий фактор";
+      let factorImpact = factor.impact || 0;
+      
+      // Нормалізація для старих даних
+      if (factorCode === "RIAGENDR" && factorImpact > 1.0) {
+        factorImpact = factorImpact / 2.0;
+      }
+      if (factorImpact > 1.0) {
+        factorImpact = 1.0;
+      }
+      
+      const label = FACTOR_LABELS[factorCode] || factorCode;
+      const impactPercent = (factorImpact * 100).toFixed(1);
+      const isEven = index % 2 === 0;
+      const bgColor = isEven ? colors.rowEven : colors.rowOdd;
+      
+      // №
+      addCell(currentRow, 0, index + 1, {
+        font: { name: "Arial", sz: 10, color: { rgb: colors.text } },
+        fill: { fgColor: { rgb: bgColor } },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: colors.border } },
+          bottom: { style: "thin", color: { rgb: colors.border } },
+          left: { style: "thin", color: { rgb: colors.border } },
+          right: { style: "thin", color: { rgb: colors.border } }
+        }
+      });
+      
+      // Фактор
+      addCell(currentRow, 1, label, {
+        font: { name: "Arial", sz: 10, color: { rgb: colors.text } },
+        fill: { fgColor: { rgb: bgColor } },
+        alignment: { horizontal: "left", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: colors.border } },
+          bottom: { style: "thin", color: { rgb: colors.border } },
+          left: { style: "thin", color: { rgb: colors.border } },
+          right: { style: "thin", color: { rgb: colors.border } }
+        }
+      });
+      
+      // Код
+      addCell(currentRow, 2, factorCode, {
+        font: { name: "Arial", sz: 10, color: { rgb: colors.textMuted } },
+        fill: { fgColor: { rgb: bgColor } },
+        alignment: { horizontal: "left", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: colors.border } },
+          bottom: { style: "thin", color: { rgb: colors.border } },
+          left: { style: "thin", color: { rgb: colors.border } },
+          right: { style: "thin", color: { rgb: colors.border } }
+        }
+      });
+      
+      // Вплив
+      addCell(currentRow, 3, impactPercent, {
+        font: { name: "Arial", sz: 10, bold: true, color: { rgb: colors.text } },
+        fill: { fgColor: { rgb: bgColor } },
+        alignment: { horizontal: "right", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: colors.border } },
+          bottom: { style: "thin", color: { rgb: colors.border } },
+          left: { style: "thin", color: { rgb: colors.border } },
+          right: { style: "thin", color: { rgb: colors.border } }
+        }
+      });
+      
+      setRowHeight(currentRow, 18);
+      currentRow++;
+    });
+    
+    // Порожній рядок
+    currentRow++;
+  }
+  
+  // ============================================
+  // Рекомендації
+  // ============================================
+  // Визначаємо рівень ризику для рекомендацій
+  const probability = data.probability || 0;
+  let riskBucket;
+  if (data.risk_bucket) {
+    riskBucket = data.risk_bucket;
+  } else if (data.riskLevel) {
+    const riskLevelText = data.riskLevel.toLowerCase();
+    if (riskLevelText.includes("низьк")) {
+      riskBucket = "low";
+    } else if (riskLevelText.includes("серед") || riskLevelText.includes("помір")) {
+      riskBucket = "medium";
+    } else if (riskLevelText.includes("висок")) {
+      riskBucket = "high";
+    } else {
+      riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
+    }
+  } else {
+    riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
+  }
+  
+  const recommendations = [];
+  if (riskBucket === "low") {
+    recommendations.push("Продовжуйте підтримувати здоровий спосіб життя");
+    recommendations.push("Регулярно проходьте профілактичні обстеження");
+    recommendations.push("Дотримуйтесь збалансованого раціону харчування");
+    recommendations.push("Занимайтеся фізичною активністю");
+  } else if (riskBucket === "medium") {
+    recommendations.push("Рекомендується звернутися до лікаря для консультації");
+    recommendations.push("Пройдіть додаткові обстеження для уточнення стану");
+    recommendations.push("Зверніть увагу на фактори, що впливають на ризик");
+    recommendations.push("Розгляньте можливість зміни способу життя");
+  } else {
+    recommendations.push("Негайно зверніться до лікаря для детального обстеження");
+    recommendations.push("Пройдіть комплексну діагностику");
+    recommendations.push("Обговоріть з лікарем план лікування та профілактики");
+    recommendations.push("Дотримуйтесь всіх рекомендацій медичного персоналу");
+  }
+  
+  if (recommendations.length > 0) {
+    addCell(currentRow, 0, "Рекомендації / наступні кроки", {
+      font: { name: "Arial", sz: 14, bold: true, color: { rgb: colors.headerText } },
+      fill: { fgColor: { rgb: colors.headerBg } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: colors.border } },
+        bottom: { style: "thin", color: { rgb: colors.border } },
+        left: { style: "thin", color: { rgb: colors.border } },
+        right: { style: "thin", color: { rgb: colors.border } }
+      }
+    });
+    mergeCells(`A${currentRow + 1}:D${currentRow + 1}`);
+    setRowHeight(currentRow, 25);
+    currentRow++;
+    
+    recommendations.forEach((rec, index) => {
+      const isEven = index % 2 === 0;
+      const bgColor = isEven ? colors.rowEven : colors.rowOdd;
+      
+      // Номер
+      addCell(currentRow, 0, index + 1, {
+        font: { name: "Arial", sz: 10, bold: true, color: { rgb: colors.text } },
+        fill: { fgColor: { rgb: bgColor } },
+        alignment: { horizontal: "center", vertical: "top" },
+        border: {
+          top: { style: "thin", color: { rgb: colors.border } },
+          bottom: { style: "thin", color: { rgb: colors.border } },
+          left: { style: "thin", color: { rgb: colors.border } },
+          right: { style: "thin", color: { rgb: colors.border } }
+        }
+      });
+      
+      // Рекомендація
+      addCell(currentRow, 1, rec, {
+        font: { name: "Arial", sz: 10, color: { rgb: colors.text } },
+        fill: { fgColor: { rgb: bgColor } },
+        alignment: { horizontal: "left", vertical: "top", wrapText: true },
+        border: {
+          top: { style: "thin", color: { rgb: colors.border } },
+          bottom: { style: "thin", color: { rgb: colors.border } },
+          left: { style: "thin", color: { rgb: colors.border } },
+          right: { style: "thin", color: { rgb: colors.border } }
+        }
+      });
+      mergeCells(`B${currentRow + 1}:D${currentRow + 1}`);
+      setRowHeight(currentRow, 25);
+      currentRow++;
+    });
+    
+    // Порожній рядок
+    currentRow++;
+  }
+  
+  // ============================================
+  // Дані форми (якщо доступні)
+  // ============================================
+  if (data.formData && Object.keys(data.formData).length > 0) {
+    addCell(currentRow, 0, "Введені дані", {
+      font: { name: "Arial", sz: 14, bold: true, color: { rgb: colors.headerText } },
+      fill: { fgColor: { rgb: colors.headerBg } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: colors.border } },
+        bottom: { style: "thin", color: { rgb: colors.border } },
+        left: { style: "thin", color: { rgb: colors.border } },
+        right: { style: "thin", color: { rgb: colors.border } }
+      }
+    });
+    mergeCells(`A${currentRow + 1}:B${currentRow + 1}`);
+    setRowHeight(currentRow, 25);
+    currentRow++;
+    
+    const formDataEntries = Object.entries(data.formData);
+    formDataEntries.forEach(([key, value], index) => {
+      const isEven = index % 2 === 0;
+      const bgColor = isEven ? colors.rowEven : colors.rowOdd;
+      const label = FACTOR_LABELS[key] || key;
+      
+      // Мітка
+      addCell(currentRow, 0, label, {
+        font: { name: "Arial", sz: 10, bold: true, color: { rgb: colors.text } },
+        fill: { fgColor: { rgb: bgColor } },
+        alignment: { horizontal: "left", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: colors.border } },
+          bottom: { style: "thin", color: { rgb: colors.border } },
+          left: { style: "thin", color: { rgb: colors.border } },
+          right: { style: "thin", color: { rgb: colors.border } }
+        }
+      });
+      
+      // Значення
+      addCell(currentRow, 1, value, {
+        font: { name: "Arial", sz: 10, color: { rgb: colors.text } },
+        fill: { fgColor: { rgb: bgColor } },
+        alignment: { horizontal: "left", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: colors.border } },
+          bottom: { style: "thin", color: { rgb: colors.border } },
+          left: { style: "thin", color: { rgb: colors.border } },
+          right: { style: "thin", color: { rgb: colors.border } }
+        }
+      });
+      
+      setRowHeight(currentRow, 18);
+      currentRow++;
+    });
+  }
+  
+  // ============================================
+  // Налаштування колонок (автоматичне розширення)
+  // ============================================
+  setColumnWidth(0, 15);  // Колонка № / Мітки
+  setColumnWidth(1, 40);   // Колонка значень / факторів
+  setColumnWidth(2, 20);   // Колонка кодів
+  setColumnWidth(3, 15);   // Колонка впливу
+  
+  // Додаємо аркуш до книги
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Звіт");
+  
+  // Зберігаємо файл
   const filename = `health_risk_report_${data.target}_${Date.now()}.xlsx`;
   XLSX.writeFile(workbook, filename);
   
