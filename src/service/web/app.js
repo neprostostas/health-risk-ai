@@ -5157,11 +5157,6 @@ async function checkOllamaStatusWithLatency() {
 let dbDotsAnimationInterval = null;
 
 function startDbDotsAnimation() {
-  console.log("[DB DEBUG] startDbDotsAnimation called", {
-    dbDotsAnimationInterval,
-    hasInterval: !!dbDotsAnimationInterval
-  });
-  
   if (dbDotsAnimationInterval) {
     clearInterval(dbDotsAnimationInterval);
     dbDotsAnimationInterval = null;
@@ -5169,20 +5164,17 @@ function startDbDotsAnimation() {
   
   const dbStatusLoader = document.getElementById("db-status-loader");
   if (!dbStatusLoader) {
-    console.log("[DB DEBUG] db-status-loader not found");
     return;
   }
   
   // Перевіряємо, чи таб "Система" активний
   const systemPanel = document.getElementById("api-status-tab-system");
   if (!systemPanel || !systemPanel.classList.contains("api-status-tab-panel--active")) {
-    console.log("[DB DEBUG] System tab not active, skipping animation");
     return;
   }
   
   const dbStatusTextEl = dbStatusLoader.querySelector(".api-status-page__status-text");
   if (!dbStatusTextEl) {
-    console.log("[DB DEBUG] db-status-text not found");
     return;
   }
   
@@ -5193,7 +5185,6 @@ function startDbDotsAnimation() {
   dbDotsAnimationInterval = setInterval(() => {
     const dbStatusLoader = document.getElementById("db-status-loader");
     if (!dbStatusLoader) {
-      console.log("[DB DEBUG] Animation: loader not found, stopping");
       clearInterval(dbDotsAnimationInterval);
       dbDotsAnimationInterval = null;
       return;
@@ -5202,7 +5193,6 @@ function startDbDotsAnimation() {
     // Перевіряємо, чи таб "Система" все ще активний
     const systemPanel = document.getElementById("api-status-tab-system");
     if (!systemPanel || !systemPanel.classList.contains("api-status-tab-panel--active")) {
-      console.log("[DB DEBUG] Animation: System tab not active, stopping");
       clearInterval(dbDotsAnimationInterval);
       dbDotsAnimationInterval = null;
       return;
@@ -5210,7 +5200,6 @@ function startDbDotsAnimation() {
     
     const dbStatusTextEl = dbStatusLoader.querySelector(".api-status-page__status-text");
     if (!dbStatusTextEl) {
-      console.log("[DB DEBUG] Animation: text element not found, stopping");
       clearInterval(dbDotsAnimationInterval);
       dbDotsAnimationInterval = null;
       return;
@@ -5220,7 +5209,6 @@ function startDbDotsAnimation() {
     const computedStyle = window.getComputedStyle(dbStatusLoader);
     if (computedStyle.display === "none" || dbStatusLoader.style.display === "none") {
       // Лоадер прихований - зупиняємо анімацію
-      console.log("[DB DEBUG] Animation: loader hidden, stopping");
       clearInterval(dbDotsAnimationInterval);
       dbDotsAnimationInterval = null;
       return;
@@ -5233,25 +5221,16 @@ function startDbDotsAnimation() {
       dbStatusTextEl.textContent = `Перевірка${dots}`;
     } else {
       // Якщо текст змінився, зупиняємо анімацію
-      console.log("[DB DEBUG] Animation: text changed, stopping");
       clearInterval(dbDotsAnimationInterval);
       dbDotsAnimationInterval = null;
     }
   }, 500); // Оновлюємо кожні 500мс
-  
-  console.log("[DB DEBUG] Animation started successfully");
 }
 
 function stopDbDotsAnimation() {
-  console.log("[DB DEBUG] stopDbDotsAnimation called", {
-    dbDotsAnimationInterval,
-    hasInterval: !!dbDotsAnimationInterval
-  });
-  
   if (dbDotsAnimationInterval) {
     clearInterval(dbDotsAnimationInterval);
     dbDotsAnimationInterval = null;
-    console.log("[DB DEBUG] Animation stopped");
   }
 }
 
@@ -5288,7 +5267,6 @@ function initializeApiStatusTabs() {
       // Якщо відкрили таб "Система", запускаємо перевірку БД
       // ВИПРАВЛЕНО: Викликаємо checkDbStatus(), який сам запустить анімацію
       if (tabName === "system") {
-        console.log("[DB DEBUG] Triggering DB check from System tab");
         if (typeof window.checkDbStatus === "function") {
           window.checkDbStatus();
         }
@@ -5775,7 +5753,6 @@ async function initializeApiStatusPage() {
         }
       }
     } catch (error) {
-      console.error("Помилка завантаження статистики БД:", error);
       // Встановлюємо значення за замовчуванням
       if (dbStatUsers) dbStatUsers.textContent = "—";
       if (dbStatPredictions) dbStatPredictions.textContent = "—";
@@ -5793,11 +5770,6 @@ async function initializeApiStatusPage() {
   // Перевірка БД (спрощена - через спробу отримати health)
   // ВИПРАВЛЕНО: Повністю ізольована функція для БД, не залежить від Ollama
   const checkDbStatus = async () => {
-    console.log("[DB DEBUG] checkDbStatus START", {
-      dbDotsAnimationInterval,
-      hasInterval: !!dbDotsAnimationInterval
-    });
-    
     // Показуємо лоадер, приховуємо результат
     if (dbStatusLoader) dbStatusLoader.style.display = "flex";
     if (dbStatusResult) dbStatusResult.style.display = "none";
@@ -5809,8 +5781,6 @@ async function initializeApiStatusPage() {
     try {
       const response = await fetch(`${API_BASE}/health`);
       if (response.ok) {
-        console.log("[DB DEBUG] checkDbStatus: response OK, stopping animation and showing result");
-        
         // ВИПРАВЛЕНО: Зупиняємо анімацію перед приховуванням лоадера
         stopDbDotsAnimation();
         
@@ -5832,8 +5802,6 @@ async function initializeApiStatusPage() {
         throw new Error("DB check failed");
       }
     } catch (error) {
-      console.log("[DB DEBUG] checkDbStatus: error occurred", error);
-      
       // ВИПРАВЛЕНО: Зупиняємо анімацію перед приховуванням лоадера
       stopDbDotsAnimation();
       
@@ -5850,8 +5818,6 @@ async function initializeApiStatusPage() {
       if (dbConnectionStatus) dbConnectionStatus.textContent = "Помилка підключення";
     }
     refreshIcons();
-    
-    console.log("[DB DEBUG] checkDbStatus END");
   };
   
   // Експортуємо функцію для виклику з обробника табів
@@ -9769,21 +9735,15 @@ async function loadLucideSvgTemplate(iconName) {
     try {
       const response = await fetch(url, { mode: "cors" });
       if (!response.ok) {
-        console.warn(`[PDF] Failed to load Lucide icon "${iconName}" from ${url}: HTTP ${response.status}`);
         continue;
       }
       const svgText = await response.text();
       lucideSvgTemplateCache.set(iconName, svgText);
       return svgText;
     } catch (error) {
-      console.warn(`[PDF] Failed to load Lucide icon "${iconName}" from ${url}:`, error);
+      // Продовжуємо спробу з наступним URL
     }
   }
-  
-  console.error(`[PDF] Unable to load Lucide icon "${iconName}" from any CDN`, {
-    iconName,
-    triedUrls
-  });
   lucideSvgTemplateCache.set(iconName, null);
   throw new Error(`Unable to load Lucide icon "${iconName}" from provided CDNs`);
 }
@@ -9807,7 +9767,6 @@ function normalizeLucideSvg(svgString, {
     svgEl.setAttribute("stroke-linejoin", svgEl.getAttribute("stroke-linejoin") || "round");
     return new XMLSerializer().serializeToString(svgEl);
   } catch (error) {
-    console.warn("Не вдалося нормалізувати SVG Lucide", error);
     return svgString;
   }
 }
@@ -9825,7 +9784,7 @@ async function getLucideSvgMarkup(iconName, options) {
         "stroke-linejoin": "round"
       });
     } catch (error) {
-      console.warn(`Не вдалося створити SVG через window.lucide для "${iconName}"`, error);
+      // Продовжуємо з альтернативним методом
     }
   }
   
@@ -9836,7 +9795,6 @@ async function getLucideSvgMarkup(iconName, options) {
     }
     return normalizeLucideSvg(template, options);
   } catch (error) {
-    console.warn(`[PDF] Falling back without icon "${iconName}" due to load error`, error);
     return null;
   }
 }
@@ -9881,7 +9839,6 @@ async function renderLucideIconForPdf(iconName, {
     lucidePdfIconCache.set(cacheKey, asset);
     return asset;
   } catch (error) {
-    console.warn(`Не вдалося згенерувати ікону "${iconName}" для PDF`, error);
     return null;
   } finally {
     URL.revokeObjectURL(url);
@@ -9913,7 +9870,6 @@ async function preparePdfIconAssets({ colors, riskColor, theme = "light" }) {
     
     return { header, risk, factors, recommendations, cover, closing };
   } catch (error) {
-    console.warn("Не вдалося підготувати ікони для PDF", error);
     return {};
   }
 }
