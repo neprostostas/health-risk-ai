@@ -970,13 +970,20 @@
                   <span>База даних</span>
                 </h2>
                 <div class="api-status-page__status" id="db-status-page-status">
-                  <div class="api-status-page__status-indicator">
-                    <span class="status-dot" id="db-status-page-dot"></span>
-                    <span class="api-status-page__status-text" id="db-status-page-status-text">Перевірка...</span>
-                    <span class="status-badge" id="db-status-badge"></span>
+                  <div class="api-status-page__status-indicator" id="db-status-indicator">
+                    <!-- Лоадер, який показується під час перевірки -->
+                    <div class="db-status-loader" id="db-status-loader">
+                      <span class="api-status-page__status-text">Перевірка</span>
+                    </div>
+                    <!-- Фінальний статус (прихований до отримання результату) -->
+                    <div class="db-status-result" id="db-status-result" style="display: none;">
+                      <span class="status-dot" id="db-status-page-dot"></span>
+                      <span class="api-status-page__status-text" id="db-status-page-status-text"></span>
+                      <span class="status-badge" id="db-status-badge"></span>
+                    </div>
                   </div>
                 </div>
-                <div class="api-status-page__info" id="db-status-page-info">
+                <div class="api-status-page__info bd-status-cont" id="db-status-page-info">
                   <div class="api-status-page__info-item">
                     <span class="api-status-page__info-label">Тип БД</span>
                     <span class="api-status-page__info-value">SQLite</span>
@@ -984,6 +991,85 @@
                   <div class="api-status-page__info-item">
                     <span class="api-status-page__info-label">Підключення</span>
                     <span class="api-status-page__info-value" id="db-connection-status">—</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="database"></span>
+                  <span>Статистика бази даних</span>
+                </h2>
+                <div class="api-status-page__db-stats" id="db-stats">
+                  <div class="api-status-page__db-stats-grid" id="db-stats-grid">
+                    <div class="api-status-page__db-stat-card">
+                      <div class="api-status-page__db-stat-icon">
+                        <span class="icon" data-lucide="users"></span>
+                      </div>
+                      <div class="api-status-page__db-stat-content">
+                        <span class="api-status-page__db-stat-label">Користувачі</span>
+                        <span class="api-status-page__db-stat-value" id="db-stat-users">—</span>
+                      </div>
+                    </div>
+                    <div class="api-status-page__db-stat-card">
+                      <div class="api-status-page__db-stat-icon">
+                        <span class="icon" data-lucide="trending-up"></span>
+                      </div>
+                      <div class="api-status-page__db-stat-content">
+                        <span class="api-status-page__db-stat-label">Прогнози</span>
+                        <span class="api-status-page__db-stat-value" id="db-stat-predictions">—</span>
+                      </div>
+                    </div>
+                    <div class="api-status-page__db-stat-card">
+                      <div class="api-status-page__db-stat-icon">
+                        <span class="icon" data-lucide="message-square"></span>
+                      </div>
+                      <div class="api-status-page__db-stat-content">
+                        <span class="api-status-page__db-stat-label">Повідомлення</span>
+                        <span class="api-status-page__db-stat-value" id="db-stat-messages">—</span>
+                      </div>
+                    </div>
+                    <div class="api-status-page__db-stat-card">
+                      <div class="api-status-page__db-stat-icon">
+                        <span class="icon" data-lucide="message-circle"></span>
+                      </div>
+                      <div class="api-status-page__db-stat-content">
+                        <span class="api-status-page__db-stat-label">Чати</span>
+                        <span class="api-status-page__db-stat-value" id="db-stat-chats">—</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="api-status-page__db-stats-footer">
+                    <div class="api-status-page__db-stats-footer-item">
+                      <span class="api-status-page__db-stats-footer-label">Загалом записів</span>
+                      <span class="api-status-page__db-stats-footer-value" id="db-stat-total">—</span>
+                    </div>
+                    <div class="api-status-page__db-stats-footer-item">
+                      <span class="api-status-page__db-stats-footer-label">Розмір БД</span>
+                      <span class="api-status-page__db-stats-footer-value" id="db-stat-size">—</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="glass-card api-status-card">
+                <h2 class="glass-card__title">
+                  <span class="icon" data-lucide="activity"></span>
+                  <span>Активність за останні 7 днів</span>
+                </h2>
+                <div class="api-status-page__db-activity">
+                  <div class="api-status-page__db-activity-heatmap" id="db-activity-heatmap">
+                    <!-- Heatmap буде додано через JS -->
+                  </div>
+                  <div class="api-status-page__db-activity-legend">
+                    <span class="api-status-page__db-activity-legend-label">Менше</span>
+                    <div class="api-status-page__db-activity-legend-colors">
+                      <div class="api-status-page__db-activity-legend-color" data-level="0"></div>
+                      <div class="api-status-page__db-activity-legend-color" data-level="1"></div>
+                      <div class="api-status-page__db-activity-legend-color" data-level="2"></div>
+                      <div class="api-status-page__db-activity-legend-color" data-level="3"></div>
+                    </div>
+                    <span class="api-status-page__db-activity-legend-label">Більше</span>
                   </div>
                 </div>
               </section>

@@ -412,6 +412,105 @@ async def health_check():
     }
 
 
+@app.get("/system/database/stats")
+async def get_database_stats(session: Session = Depends(get_session)):
+    """
+    Отримання статистики бази даних.
+    
+    Returns:
+        Статистика БД: кількість записів у таблицях, розмір БД, активність
+    """
+    from datetime import datetime, timedelta
+    from sqlalchemy import func, and_
+    from sqlmodel import select
+    from src.service.models import (
+        User,
+        PredictionHistory,
+        AssistantMessage,
+        Chat,
+        ChatMessage,
+        PasswordResetToken,
+        UserBlock,
+    )
+    
+    try:
+        # Отримуємо кількість записів у кожній таблиці
+        # Використовуємо простий підхід - отримуємо всі записи та рахуємо (для невеликих БД це OK)
+        stats = {
+            "users": len(list(session.exec(select(User)))) or 0,
+            "predictions": len(list(session.exec(select(PredictionHistory)))) or 0,
+            "assistant_messages": len(list(session.exec(select(AssistantMessage)))) or 0,
+            "chats": len(list(session.exec(select(Chat)))) or 0,
+            "chat_messages": len(list(session.exec(select(ChatMessage)))) or 0,
+            "password_reset_tokens": len(list(session.exec(select(PasswordResetToken)))) or 0,
+            "user_blocks": len(list(session.exec(select(UserBlock)))) or 0,
+        }
+        
+        # Отримуємо розмір файлу БД
+        from src.service.db import DATA_DIR
+        db_file = DATA_DIR / "app.db"
+        db_size_bytes = db_file.stat().st_size if db_file.exists() else 0
+        db_size_mb = round(db_size_bytes / (1024 * 1024), 2)
+        
+        # Отримуємо активність за останні 7 днів (для heatmap)
+        activity_by_day = {}
+        today = datetime.utcnow().date()
+        
+        for i in range(7):
+            day = today - timedelta(days=6 - i)
+            day_start = datetime.combine(day, datetime.min.time())
+            day_end = datetime.combine(day, datetime.max.time())
+            
+            # Підраховуємо записи, створені в цей день
+            predictions = list(session.exec(
+                select(PredictionHistory).where(
+                    and_(
+                        PredictionHistory.created_at >= day_start,
+                        PredictionHistory.created_at <= day_end
+                    )
+                )
+            ))
+            predictions_count = len(predictions) or 0
+            
+            users = list(session.exec(
+                select(User).where(
+                    and_(
+                        User.created_at >= day_start,
+                        User.created_at <= day_end
+                    )
+                )
+            ))
+            users_count = len(users) or 0
+            
+            messages = list(session.exec(
+                select(AssistantMessage).where(
+                    and_(
+                        AssistantMessage.created_at >= day_start,
+                        AssistantMessage.created_at <= day_end
+                    )
+                )
+            ))
+            messages_count = len(messages) or 0
+            
+            total_activity = predictions_count + users_count + messages_count
+            activity_by_day[day.isoformat()] = total_activity
+        
+        return {
+            "status": "ok",
+            "tables": stats,
+            "total_records": sum(stats.values()),
+            "database_size_mb": db_size_mb,
+            "activity_last_7_days": activity_by_day,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+
 @app.get("/metadata", response_model=MetadataResponse)
 async def get_metadata():
     """

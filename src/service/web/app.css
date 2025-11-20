@@ -2488,6 +2488,30 @@ select:focus {
   gap: 12px;
 }
 
+/* Лоадер для статусу БД */
+.db-status-loader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.db-status-loader .icon {
+  width: 24px;
+  height: 24px;
+  color: var(--accent-color);
+  animation: spin 1s linear infinite;
+}
+
+/* Результат статусу БД */
+.db-status-result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-items: center;
+  gap: 12px;
+}
+
 .api-status-page__status-text {
   font-size: 1.1rem;
   font-weight: 600;
@@ -2504,7 +2528,7 @@ select:focus {
 
 /* Марджіни для конкретних секцій */
 /* Tab API: Технічні характеристики - секція після "Основні маршрути" */
-#api-status-tab-api .api-status-card:nth-of-type(4) {
+#api-status-tab-api .api-status-card:nth-of-type(3) {
   margin-top: 24px;
   margin-bottom: 24px;
 }
@@ -2517,6 +2541,11 @@ select:focus {
 
 /* Tab System: База даних - перша секція */
 #api-status-tab-system .api-status-card:first-of-type {
+  margin-bottom: 24px;
+}
+
+#api-status-tab-system .api-status-card:nth-of-type(3) {
+  margin-top: 24px;
   margin-bottom: 24px;
 }
 
@@ -2555,6 +2584,10 @@ select:focus {
   flex-direction: column;
   gap: 16px;
   padding: 20px 0;
+}
+
+.bd-status-cont {
+  padding-top: 0;
 }
 
 .api-status-page__info-item {
@@ -2642,6 +2675,201 @@ select:focus {
   color: var(--text-secondary);
   line-height: 1.5;
   max-width: 320px;
+}
+
+/* Database Statistics */
+.api-status-page__db-stats {
+  padding: 20px 0;
+}
+
+.api-status-page__db-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.api-status-page__db-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-glass);
+  transition: all var(--transition-medium);
+}
+
+.api-status-page__db-stat-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.api-status-page__db-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(116, 137, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.api-status-page__db-stat-icon .icon {
+  width: 20px;
+  height: 20px;
+  color: rgba(116, 137, 255, 0.9);
+}
+
+.api-status-page__db-stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.api-status-page__db-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.api-status-page__db-stat-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.api-status-page__db-stats-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-top: 1px solid var(--border-glass);
+  gap: 20px;
+}
+
+.api-status-page__db-stats-footer-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.api-status-page__db-stats-footer-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.api-status-page__db-stats-footer-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Database Activity Heatmap */
+.api-status-page__db-activity {
+  padding: 20px 0;
+}
+
+.api-status-page__db-activity-heatmap {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.api-status-page__db-activity-day {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border-glass);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.api-status-page__db-activity-day:hover {
+  border-color: var(--border-strong);
+  transform: scale(1.1);
+  z-index: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.api-status-page__db-activity-day[data-level="0"] {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-glass);
+}
+
+.api-status-page__db-activity-day[data-level="1"] {
+  background: rgba(116, 137, 255, 0.2);
+  border-color: rgba(116, 137, 255, 0.3);
+}
+
+.api-status-page__db-activity-day[data-level="2"] {
+  background: rgba(116, 137, 255, 0.4);
+  border-color: rgba(116, 137, 255, 0.5);
+}
+
+.api-status-page__db-activity-day[data-level="3"] {
+  background: rgba(116, 137, 255, 0.6);
+  border-color: rgba(116, 137, 255, 0.7);
+}
+
+.api-status-page__db-activity-day[data-level="4"] {
+  background: rgba(116, 137, 255, 0.8);
+  border-color: rgba(116, 137, 255, 0.9);
+}
+
+.api-status-page__db-activity-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.api-status-page__db-activity-legend-colors {
+  display: flex;
+  gap: 4px;
+}
+
+.api-status-page__db-activity-legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--border-glass);
+}
+
+.api-status-page__db-activity-legend-color[data-level="0"] {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.api-status-page__db-activity-legend-color[data-level="1"] {
+  background: rgba(116, 137, 255, 0.2);
+}
+
+.api-status-page__db-activity-legend-color[data-level="2"] {
+  background: rgba(116, 137, 255, 0.4);
+}
+
+.api-status-page__db-activity-legend-color[data-level="3"] {
+  background: rgba(116, 137, 255, 0.6);
 }
 
 .api-status-page__route-item {

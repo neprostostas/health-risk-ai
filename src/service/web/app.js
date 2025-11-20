@@ -5151,6 +5151,110 @@ async function checkOllamaStatusWithLatency() {
   }
 }
 
+// Анімація крапочок для тексту "Перевірка..." для БД (працює незалежно)
+// ===== БАЗА ДАНИХ: Ізольований стан для анімації =====
+// ВИПРАВЛЕНО: Повністю ізольований стан для БД, не залежить від Ollama
+let dbDotsAnimationInterval = null;
+
+function startDbDotsAnimation() {
+  console.log("[DB DEBUG] startDbDotsAnimation called", {
+    dbDotsAnimationInterval,
+    hasInterval: !!dbDotsAnimationInterval
+  });
+  
+  if (dbDotsAnimationInterval) {
+    clearInterval(dbDotsAnimationInterval);
+    dbDotsAnimationInterval = null;
+  }
+  
+  const dbStatusLoader = document.getElementById("db-status-loader");
+  if (!dbStatusLoader) {
+    console.log("[DB DEBUG] db-status-loader not found");
+    return;
+  }
+  
+  // Перевіряємо, чи таб "Система" активний
+  const systemPanel = document.getElementById("api-status-tab-system");
+  if (!systemPanel || !systemPanel.classList.contains("api-status-tab-panel--active")) {
+    console.log("[DB DEBUG] System tab not active, skipping animation");
+    return;
+  }
+  
+  const dbStatusTextEl = dbStatusLoader.querySelector(".api-status-page__status-text");
+  if (!dbStatusTextEl) {
+    console.log("[DB DEBUG] db-status-text not found");
+    return;
+  }
+  
+  // Встановлюємо початковий текст з 1 крапкою
+  dbStatusTextEl.textContent = "Перевірка.";
+  
+  let dotCount = 1; // Починаємо з 1 крапки
+  dbDotsAnimationInterval = setInterval(() => {
+    const dbStatusLoader = document.getElementById("db-status-loader");
+    if (!dbStatusLoader) {
+      console.log("[DB DEBUG] Animation: loader not found, stopping");
+      clearInterval(dbDotsAnimationInterval);
+      dbDotsAnimationInterval = null;
+      return;
+    }
+    
+    // Перевіряємо, чи таб "Система" все ще активний
+    const systemPanel = document.getElementById("api-status-tab-system");
+    if (!systemPanel || !systemPanel.classList.contains("api-status-tab-panel--active")) {
+      console.log("[DB DEBUG] Animation: System tab not active, stopping");
+      clearInterval(dbDotsAnimationInterval);
+      dbDotsAnimationInterval = null;
+      return;
+    }
+    
+    const dbStatusTextEl = dbStatusLoader.querySelector(".api-status-page__status-text");
+    if (!dbStatusTextEl) {
+      console.log("[DB DEBUG] Animation: text element not found, stopping");
+      clearInterval(dbDotsAnimationInterval);
+      dbDotsAnimationInterval = null;
+      return;
+    }
+    
+    // Перевіряємо, чи лоадер видимий
+    const computedStyle = window.getComputedStyle(dbStatusLoader);
+    if (computedStyle.display === "none" || dbStatusLoader.style.display === "none") {
+      // Лоадер прихований - зупиняємо анімацію
+      console.log("[DB DEBUG] Animation: loader hidden, stopping");
+      clearInterval(dbDotsAnimationInterval);
+      dbDotsAnimationInterval = null;
+      return;
+    }
+    
+    // Перевіряємо, чи текст все ще містить "Перевірка"
+    if (dbStatusTextEl.textContent.includes("Перевірка")) {
+      dotCount = (dotCount % 3) + 1; // 1, 2, 3 -> ., .., ...
+      const dots = ".".repeat(dotCount);
+      dbStatusTextEl.textContent = `Перевірка${dots}`;
+    } else {
+      // Якщо текст змінився, зупиняємо анімацію
+      console.log("[DB DEBUG] Animation: text changed, stopping");
+      clearInterval(dbDotsAnimationInterval);
+      dbDotsAnimationInterval = null;
+    }
+  }, 500); // Оновлюємо кожні 500мс
+  
+  console.log("[DB DEBUG] Animation started successfully");
+}
+
+function stopDbDotsAnimation() {
+  console.log("[DB DEBUG] stopDbDotsAnimation called", {
+    dbDotsAnimationInterval,
+    hasInterval: !!dbDotsAnimationInterval
+  });
+  
+  if (dbDotsAnimationInterval) {
+    clearInterval(dbDotsAnimationInterval);
+    dbDotsAnimationInterval = null;
+    console.log("[DB DEBUG] Animation stopped");
+  }
+}
+
 // Ініціалізація табів
 function initializeApiStatusTabs() {
   const tabs = document.querySelectorAll(".api-status-tab");
@@ -5179,6 +5283,15 @@ function initializeApiStatusTabs() {
       const targetPanel = document.getElementById(`api-status-tab-${tabName}`);
       if (targetPanel) {
         targetPanel.classList.add("api-status-tab-panel--active");
+      }
+      
+      // Якщо відкрили таб "Система", запускаємо перевірку БД
+      // ВИПРАВЛЕНО: Викликаємо checkDbStatus(), який сам запустить анімацію
+      if (tabName === "system") {
+        console.log("[DB DEBUG] Triggering DB check from System tab");
+        if (typeof window.checkDbStatus === "function") {
+          window.checkDbStatus();
+        }
       }
       
       refreshIcons();
@@ -5470,7 +5583,8 @@ async function initializeApiStatusPage() {
   const ollamaLastCheckEl = document.getElementById("ollama-status-last-check");
   const ollamaRefreshBtn = document.getElementById("ollama-status-refresh-btn");
   
-  // Анімація крапочок для тексту "Перевірка..."
+  // ===== OLLAMA: Ізольований стан для анімації =====
+  // ВИПРАВЛЕНО: Повністю ізольований стан для Ollama, не залежить від БД
   let ollamaDotsAnimationInterval = null;
   
   function startOllamaDotsAnimation() {
@@ -5478,7 +5592,12 @@ async function initializeApiStatusPage() {
       clearInterval(ollamaDotsAnimationInterval);
     }
     
-    let dotCount = 0;
+    // Встановлюємо початковий текст з 1 крапкою
+    if (ollamaStatusText) {
+      ollamaStatusText.textContent = "Перевірка.";
+    }
+    
+    let dotCount = 1; // Починаємо з 1 крапки
     ollamaDotsAnimationInterval = setInterval(() => {
       if (!ollamaStatusText) {
         clearInterval(ollamaDotsAnimationInterval);
@@ -5488,7 +5607,7 @@ async function initializeApiStatusPage() {
       
       // Перевіряємо, чи текст все ще містить "Перевірка"
       if (ollamaStatusText.textContent.includes("Перевірка")) {
-        dotCount = (dotCount + 1) % 4; // 0, 1, 2, 3 -> ., .., ..., (порожньо)
+        dotCount = (dotCount % 3) + 1; // 1, 2, 3 -> ., .., ...
         const dots = ".".repeat(dotCount);
         ollamaStatusText.textContent = `Перевірка${dots}`;
       } else {
@@ -5587,11 +5706,118 @@ async function initializeApiStatusPage() {
   const dbStatusBadge = document.getElementById("db-status-badge");
   const dbConnectionStatus = document.getElementById("db-connection-status");
   
+  // Елементи для статистики БД
+  const dbStatUsers = document.getElementById("db-stat-users");
+  const dbStatPredictions = document.getElementById("db-stat-predictions");
+  const dbStatMessages = document.getElementById("db-stat-messages");
+  const dbStatChats = document.getElementById("db-stat-chats");
+  const dbStatTotal = document.getElementById("db-stat-total");
+  const dbStatSize = document.getElementById("db-stat-size");
+  const dbActivityHeatmap = document.getElementById("db-activity-heatmap");
+  
+  // Функція для відображення heatmap активності
+  function renderDbActivityHeatmap(activityData) {
+    if (!dbActivityHeatmap || !activityData) return;
+    
+    // Отримуємо максимальне значення для нормалізації
+    const maxActivity = Math.max(...Object.values(activityData), 1);
+    
+    // Створюємо квадратики для кожного дня
+    const days = Object.keys(activityData).sort();
+    const dayLabels = ["Неділя", "Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця", "Субота"];
+    
+    dbActivityHeatmap.innerHTML = days.map((day, index) => {
+      const activity = activityData[day] || 0;
+      // Нормалізуємо до 4 рівнів (0-3)
+      const level = maxActivity > 0 ? Math.min(Math.floor((activity / maxActivity) * 4), 3) : 0;
+      const date = new Date(day + "T00:00:00");
+      const dayName = dayLabels[date.getDay()] || "";
+      const formattedDate = date.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
+      
+      return `
+        <div class="api-status-page__db-activity-day" 
+             data-level="${level}" 
+             data-activity="${activity}"
+             data-date="${day}"
+             title="${dayName}, ${formattedDate}: ${activity} ${activity === 1 ? 'запис' : activity < 5 ? 'записи' : 'записів'}">
+        </div>
+      `;
+    }).join("");
+    
+    refreshIcons();
+  }
+  
+  // Функція для завантаження статистики БД
+  async function loadDatabaseStats() {
+    try {
+      const response = await fetch(`${API_BASE}/system/database/stats`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.status === "ok" && data.tables) {
+        // Оновлюємо статистику таблиць
+        if (dbStatUsers) dbStatUsers.textContent = data.tables.users?.toLocaleString() || "0";
+        if (dbStatPredictions) dbStatPredictions.textContent = data.tables.predictions?.toLocaleString() || "0";
+        if (dbStatMessages) {
+          const totalMessages = (data.tables.assistant_messages || 0) + (data.tables.chat_messages || 0);
+          dbStatMessages.textContent = totalMessages.toLocaleString() || "0";
+        }
+        if (dbStatChats) dbStatChats.textContent = data.tables.chats?.toLocaleString() || "0";
+        if (dbStatTotal) dbStatTotal.textContent = data.total_records?.toLocaleString() || "0";
+        if (dbStatSize) dbStatSize.textContent = `${data.database_size_mb} MB`;
+        
+        // Відображаємо heatmap активності
+        if (data.activity_last_7_days) {
+          renderDbActivityHeatmap(data.activity_last_7_days);
+        }
+      }
+    } catch (error) {
+      console.error("Помилка завантаження статистики БД:", error);
+      // Встановлюємо значення за замовчуванням
+      if (dbStatUsers) dbStatUsers.textContent = "—";
+      if (dbStatPredictions) dbStatPredictions.textContent = "—";
+      if (dbStatMessages) dbStatMessages.textContent = "—";
+      if (dbStatChats) dbStatChats.textContent = "—";
+      if (dbStatTotal) dbStatTotal.textContent = "—";
+      if (dbStatSize) dbStatSize.textContent = "—";
+    }
+  }
+  
+  // Елементи для лоадера та результату
+  const dbStatusLoader = document.getElementById("db-status-loader");
+  const dbStatusResult = document.getElementById("db-status-result");
+  
   // Перевірка БД (спрощена - через спробу отримати health)
+  // ВИПРАВЛЕНО: Повністю ізольована функція для БД, не залежить від Ollama
   const checkDbStatus = async () => {
+    console.log("[DB DEBUG] checkDbStatus START", {
+      dbDotsAnimationInterval,
+      hasInterval: !!dbDotsAnimationInterval
+    });
+    
+    // Показуємо лоадер, приховуємо результат
+    if (dbStatusLoader) dbStatusLoader.style.display = "flex";
+    if (dbStatusResult) dbStatusResult.style.display = "none";
+    refreshIcons(); // Оновлюємо іконку лоадера
+    
+    // Запускаємо анімацію крапочок
+    startDbDotsAnimation();
+    
     try {
       const response = await fetch(`${API_BASE}/health`);
       if (response.ok) {
+        console.log("[DB DEBUG] checkDbStatus: response OK, stopping animation and showing result");
+        
+        // ВИПРАВЛЕНО: Зупиняємо анімацію перед приховуванням лоадера
+        stopDbDotsAnimation();
+        
+        // Приховуємо лоадер, показуємо результат
+        if (dbStatusLoader) dbStatusLoader.style.display = "none";
+        if (dbStatusResult) dbStatusResult.style.display = "flex";
+        
         if (dbStatusDot) dbStatusDot.classList.add("status-dot--ok");
         if (dbStatusText) dbStatusText.textContent = "База даних доступна";
         if (dbStatusBadge) {
@@ -5599,10 +5825,22 @@ async function initializeApiStatusPage() {
           dbStatusBadge.textContent = "Online";
         }
         if (dbConnectionStatus) dbConnectionStatus.textContent = "Підключено";
+        
+        // Завантажуємо статистику БД
+        await loadDatabaseStats();
       } else {
         throw new Error("DB check failed");
       }
     } catch (error) {
+      console.log("[DB DEBUG] checkDbStatus: error occurred", error);
+      
+      // ВИПРАВЛЕНО: Зупиняємо анімацію перед приховуванням лоадера
+      stopDbDotsAnimation();
+      
+      // Приховуємо лоадер, показуємо результат
+      if (dbStatusLoader) dbStatusLoader.style.display = "none";
+      if (dbStatusResult) dbStatusResult.style.display = "flex";
+      
       if (dbStatusDot) dbStatusDot.classList.add("status-dot--fail");
       if (dbStatusText) dbStatusText.textContent = "База даних недоступна";
       if (dbStatusBadge) {
@@ -5612,7 +5850,12 @@ async function initializeApiStatusPage() {
       if (dbConnectionStatus) dbConnectionStatus.textContent = "Помилка підключення";
     }
     refreshIcons();
+    
+    console.log("[DB DEBUG] checkDbStatus END");
   };
+  
+  // Експортуємо функцію для виклику з обробника табів
+  window.checkDbStatus = checkDbStatus;
   
   // Виконуємо початкові перевірки
   const apiResult = await checkApiStatusWithLatency();
@@ -5631,7 +5874,14 @@ async function initializeApiStatusPage() {
   const ollamaResult = await checkOllamaStatusWithLatency();
   updateOllamaStatusUI(ollamaResult);
   
-  checkDbStatus();
+  // ДОДАНО: Якщо таб "Система" активний при завантаженні, запускаємо перевірку БД
+  // ВИПРАВЛЕНО: Анімація запускається тільки всередині checkDbStatus(), не окремо
+  const systemTab = document.querySelector('.api-status-tab[data-tab="system"]');
+  const systemPanel = document.getElementById("api-status-tab-system");
+  if ((systemTab && systemTab.classList.contains("api-status-tab--active")) || 
+      (systemPanel && systemPanel.classList.contains("api-status-tab-panel--active"))) {
+    checkDbStatus();
+  }
 }
 
 function initializeApiStatus() {
