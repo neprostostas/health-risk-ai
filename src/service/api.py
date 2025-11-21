@@ -261,6 +261,12 @@ async def serve_api_status_page():
     return serve_frontend()
 
 
+@app.get("/api-status/{subpath:path}", response_class=HTMLResponse)
+async def serve_api_status_subpath(subpath: str):
+    """Повертає сторінку статусу API для підшляхів (наприклад, /api-status/history)."""
+    return serve_frontend()
+
+
 @app.get("/diagrams", response_class=HTMLResponse)
 async def serve_diagrams_page():
     """

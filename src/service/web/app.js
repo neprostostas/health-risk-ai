@@ -1841,15 +1841,31 @@ function normalizePath(pathname) {
   if (normalized.startsWith("/c/")) {
     return normalized; // Зберігаємо повний шлях для чатів
   }
+  
+  // ВАЖЛИВО: Перевіряємо точний матч для /api-status/history ДО toLowerCase
+  // Це гарантує, що /api-status/history правильно мапиться
+  if (normalized === "/api-status/history" && ROUTE_SECTIONS["/api-status/history"]) {
+    return "/api-status/history";
+  }
+  
+  // ВАЖЛИВО: Зберігаємо оригінальний шлях для перевірки
+  const originalNormalized = normalized;
   normalized = normalized.toLowerCase();
+  
+  // Перевіряємо точний матч в ROUTE_SECTIONS перед toLowerCase
+  if (ROUTE_SECTIONS[originalNormalized]) {
+    return originalNormalized;
+  }
+  
   if (ROUTE_ALIASES[normalized]) {
     normalized = ROUTE_ALIASES[normalized];
   }
+  
   // Якщо роут не існує, перенаправляємо на /app (або /login якщо не автентифікований)
   // ВАЖЛИВО: Не робимо редірект для існуючих захищених сторінок - вони мають залишатися як є
   if (!ROUTE_SECTIONS[normalized] && !normalized.startsWith("/c/")) {
     // Перевіряємо, чи це захищений роут (якщо так, перенаправляємо на логін для неавтентифікованих)
-    const protectedPaths = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant", "/reports"];
+    const protectedPaths = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant", "/reports", "/api-status"];
     const isProtectedPath = protectedPaths.some(path => pathname.toLowerCase().startsWith(path));
     if (isProtectedPath && authState.initialized && !authState.user) {
       return "/login";
@@ -1867,6 +1883,15 @@ function getSectionByPath(pathname) {
   return {
     path: normalized,
       section: "page-chats",
+    };
+  }
+  
+  // ВАЖЛИВО: Перевіряємо точний матч для /api-status/history ДО toLowerCase
+  // Це гарантує, що /api-status/history правильно мапиться на page-api-status-history
+  if (pathname === "/api-status/history" && ROUTE_SECTIONS["/api-status/history"]) {
+    return {
+      path: "/api-status/history",
+      section: ROUTE_SECTIONS["/api-status/history"],
     };
   }
   
