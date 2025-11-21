@@ -1555,19 +1555,19 @@
         <div class="modal__header">
           <h2 class="modal__title" id="delete-history-modal-title">
             <span class="icon" data-lucide="trash-2"></span>
-            <span>Видалити прогноз з історії?</span>
+            <span data-i18n="modals.deleteHistory.title">Видалити прогноз з історії?</span>
           </h2>
         </div>
         <div class="modal__body">
-          <p class="modal__message">
+          <p class="modal__message" data-i18n="modals.deleteHistory.message">
             Ви впевнені, що хочете видалити цей прогноз з історії? Ця дія є незворотною, але ви завжди зможете зробити новий прогноз.
           </p>
         </div>
         <div class="modal__actions">
-          <button type="button" class="button button--ghost" id="delete-history-cancel-btn">Скасувати</button>
+          <button type="button" class="button button--ghost" id="delete-history-cancel-btn" data-i18n="modals.confirm.cancel">Скасувати</button>
           <button type="button" class="button button--destructive" id="delete-history-confirm-btn">
             <span class="icon" data-lucide="trash-2"></span>
-            <span>Видалити</span>
+            <span data-i18n="history.bulkDelete.confirm">Видалити</span>
           </button>
         </div>
       </div>
@@ -1582,20 +1582,20 @@
         <div class="modal__header">
           <h2 class="modal__title" id="delete-avatar-modal-title">
             <span class="icon" data-lucide="trash-2"></span>
-            <span>Видалити фото профілю?</span>
+            <span data-i18n="modals.deleteAvatar.title">Видалити фото профілю?</span>
           </h2>
         </div>
         <div class="modal__body">
-          <p class="modal__message">
+          <p class="modal__message" data-i18n="modals.deleteAvatar.message">
             Ви впевнені, що хочете видалити поточне фото профілю? Після видалення буде повернено стандартний аватар з вашим ініціалом.
           </p>
-          <p class="modal__message modal__message--warning">Цю дію можна скасувати, завантаживши нове фото.</p>
+          <p class="modal__message modal__message--warning" data-i18n="modals.deleteAvatar.warning">Цю дію можна скасувати, завантаживши нове фото.</p>
         </div>
         <div class="modal__actions">
-          <button type="button" class="button button--ghost" id="delete-avatar-cancel-btn">Скасувати</button>
+          <button type="button" class="button button--ghost" id="delete-avatar-cancel-btn" data-i18n="modals.confirm.cancel">Скасувати</button>
           <button type="button" class="button button--destructive" id="delete-avatar-confirm-btn">
             <span class="icon" data-lucide="trash-2"></span>
-            <span>Видалити</span>
+            <span data-i18n="history.bulkDelete.confirm">Видалити</span>
           </button>
         </div>
       </div>
@@ -1610,26 +1610,26 @@
         <div class="modal__header">
           <h2 class="modal__title" id="delete-account-modal-title">
             <span class="icon" data-lucide="alert-triangle"></span>
-            <span>Ви впевнені, що хочете видалити обліковий запис?</span>
+            <span data-i18n="modals.deleteAccount.title">Ви впевнені, що хочете видалити обліковий запис?</span>
           </h2>
         </div>
         <div class="modal__body">
-          <p class="modal__message">
+          <p class="modal__message" data-i18n="modals.deleteAccount.message">
             Ця дія є незворотною. Після видалення вашого облікового запису:
           </p>
           <ul class="modal__list">
-            <li>Всі ваші особисті дані будуть видалені</li>
-            <li>Вся історія прогнозів буде втрачена</li>
-            <li>Відновити обліковий запис буде неможливо</li>
+            <li data-i18n="modals.deleteAccount.item1">Всі ваші особисті дані будуть видалені</li>
+            <li data-i18n="modals.deleteAccount.item2">Вся історія прогнозів буде втрачена</li>
+            <li data-i18n="modals.deleteAccount.item3">Відновити обліковий запис буде неможливо</li>
           </ul>
-          <p class="modal__message modal__message--warning">Ви впевнені, що хочете продовжити?</p>
+          <p class="modal__message modal__message--warning" data-i18n="modals.deleteAccount.warning">Ви впевнені, що хочете продовжити?</p>
           <p class="modal__error" id="delete-account-error" hidden role="alert"></p>
         </div>
         <div class="modal__actions">
-          <button type="button" class="button button--ghost" id="delete-account-cancel-btn">Скасувати</button>
+          <button type="button" class="button button--ghost" id="delete-account-cancel-btn" data-i18n="modals.confirm.cancel">Скасувати</button>
           <button type="button" class="button button--destructive" id="delete-account-confirm-btn">
             <span class="icon" data-lucide="trash-2"></span>
-            <span>Так, видалити</span>
+            <span data-i18n="modals.deleteAccount.confirm">Так, видалити обліковий запис</span>
           </button>
         </div>
       </div>

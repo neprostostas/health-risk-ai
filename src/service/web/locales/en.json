@@ -86,6 +86,9 @@
       "successMessageWithLink": "Password reset link copied to clipboard and opened in new tab.",
       "linkCopied": "Link copied",
       "linkCopiedMessage": "Password reset link copied to clipboard.",
+      "linkCopiedWithVersion": "Password reset link copied to clipboard<br>(thesis version).",
+      "linkTitle": "Password reset link (thesis version):",
+      "linkClickToCopy": "Click on the link above to copy it.",
       "linkCopyError": "Error",
       "linkCopyErrorMessage": "Failed to copy link. Try copying manually.",
       "error": "Password recovery error"
@@ -107,7 +110,85 @@
       "success": "Logout successful",
       "successMessage": "You have successfully logged out.",
       "error": "Logout error",
-      "errorMessage": "An error occurred during logout, but the session was cleared."
+      "errorMessage": "An error occurred during logout, but the session was cleared.",
+      "message": "Session ended. See you soon!"
+    },
+    "api": {
+      "register": {
+        "invalidEmailFormat": "Invalid email format.",
+        "emailExists": "User with this email already exists.",
+        "firstNameRequired": "First name is required.",
+        "lastNameRequired": "Last name is required.",
+        "invalidGender": "Gender must be: male or female",
+        "invalidDateOfBirthFormat": "Invalid date of birth format. Use YYYY-MM-DD format.",
+        "dateOfBirthRequired": "Date of birth is required.",
+        "passwordTooShort": "Password must be at least 8 characters.",
+        "passwordTooLong": "Password is too long. Maximum 72 characters.",
+        "passwordHashingError": "Error hashing password. Try a different password.",
+        "userSaveError": "Error saving user. Please try again later.",
+        "userDataSaveError": "Error saving user data. Please try again later.",
+        "registrationError": "An error occurred during registration. Please try again later."
+      },
+      "login": {
+        "emailEmpty": "Email field cannot be empty.",
+        "passwordEmpty": "Password field cannot be empty.",
+        "invalidCredentials": "Invalid email or password.",
+        "accountDeactivated": "Account is deactivated. Contact support.",
+        "validationError": "Data validation error.",
+        "loginError": "An error occurred during login. Please try again later."
+      },
+      "changePassword": {
+        "confirmPasswordRequired": "Password confirmation is required.",
+        "invalidCurrentPassword": "Invalid current password.",
+        "passwordMustDiffer": "New password must differ from the current one.",
+        "passwordTooShort": "Password must be at least 8 characters.",
+        "passwordTooLong": "Password is too long. Maximum 72 characters.",
+        "passwordHashingError": "Error hashing password. Try a different password.",
+        "passwordChanged": "Password successfully changed.",
+        "validationError": "Data validation error.",
+        "changePasswordError": "An error occurred during password change. Please try again later."
+      },
+      "forgotPassword": {
+        "userNotFound": "User with this email is not registered.",
+        "instructionsSent": "If a user with this email exists, we have sent password recovery instructions."
+      },
+      "resetPassword": {
+        "confirmPasswordRequired": "Password confirmation is required.",
+        "invalidToken": "Invalid or incorrect recovery token.",
+        "tokenUsed": "Token already used. Request a new token for password recovery.",
+        "tokenExpired": "Token expired. Request a new token for password recovery.",
+        "userNotFound": "User not found.",
+        "passwordSameAsOld": "New password cannot match the old password.",
+        "passwordTooShort": "Password must be at least 8 characters.",
+        "passwordTooLong": "Password is too long. Maximum 72 characters.",
+        "passwordHashingError": "Error hashing password. Try a different password.",
+        "passwordUpdated": "Password successfully updated. You can now log in with the new password.",
+        "validationError": "Data validation error.",
+        "resetPasswordError": "An error occurred during password recovery. Please try again later."
+      },
+      "profile": {
+        "firstNameRequired": "First name is required.",
+        "invalidDateOfBirthFormat": "Invalid date of birth format. Use YYYY-MM-DD format.",
+        "avatarUploadError": "Failed to upload photo. Please try again later.",
+        "avatarDeleteError": "Failed to delete avatar. Please try again later."
+      },
+      "history": {
+        "entryNotFound": "History entry not found.",
+        "entryDeleted": "Entry successfully deleted."
+      },
+      "users": {
+        "cannotBlockSelf": "Cannot block yourself.",
+        "userNotFound": "User not found.",
+        "userBlocked": "User blocked.",
+        "userAlreadyBlocked": "User is already blocked.",
+        "cannotUnblockSelf": "Cannot unblock yourself.",
+        "userNotBlocked": "User was not blocked.",
+        "userUnblocked": "User unblocked."
+      },
+      "account": {
+        "deleteError": "Failed to delete account. Please try again later.",
+        "deleted": "Account successfully deleted."
+      }
     }
   },
   "forms": {
@@ -151,7 +232,13 @@
       "currentPassword": "Current password",
       "newPassword": "New password",
       "confirmPassword": "Confirm password",
-      "button": "Change password"
+      "button": "Change password",
+      "updating": "Updating password...",
+      "passwordsNotMatch": "Passwords do not match.",
+      "passwordTooShort": "Password must contain at least 8 characters.",
+      "invalidCurrentPassword": "Invalid current password.",
+      "success": "Password successfully changed.",
+      "error": "Failed to change password. Please try again."
     }
   },
   "apiStatus": {
@@ -623,6 +710,8 @@
     "title": "History",
     "empty": "History is empty",
     "emptyLoggedOut": "History is available only after logging in.",
+    "prediction": "prediction",
+    "predictions": "predictions",
     "emptyLoggedIn": "History is empty. Make a prediction to see it here.",
     "updated": "History updated",
     "updatedMessage": "Selected predictions deleted.",
@@ -631,6 +720,7 @@
     "selectFirst": "Nothing selected",
     "selectFirstMessage": "First select at least one prediction.",
     "registered": "Registered: {{date}}",
+    "registeredLabel": "Registered",
     "registeredToday": "today",
     "dataUnavailable": "Data unavailable",
     "dataUnavailableMessage": "Input data is missing for this entry.",
@@ -709,7 +799,13 @@
       "currentPassword": "Current password",
       "newPassword": "New password",
       "confirmPassword": "Confirm password",
-      "button": "Change password"
+      "button": "Change password",
+      "updating": "Updating password...",
+      "passwordsNotMatch": "Passwords do not match.",
+      "passwordTooShort": "Password must contain at least 8 characters.",
+      "invalidCurrentPassword": "Invalid current password.",
+      "success": "Password successfully changed.",
+      "error": "Failed to change password. Please try again."
     }
   },
   "forms": {
@@ -805,6 +901,58 @@
       "assistant": "AI Assistant",
       "chats": "Chats",
       "profile": "Profile"
+    }
+  },
+  "modals": {
+    "confirm": {
+      "title": "Confirmation",
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
+    "alert": {
+      "title": "Message",
+      "ok": "OK"
+    },
+    "deleteHistory": {
+      "title": "Delete prediction?",
+      "message": "Are you sure you want to delete this prediction from history? This action is irreversible, but you can always make a new prediction.",
+      "allConfirm": "Are you sure you want to delete all {{count}} {{predictions}}?",
+      "selectedConfirm": "Are you sure you want to delete {{count}} {{predictions}}?"
+    },
+    "deleteAvatar": {
+      "title": "Delete profile photo?",
+      "message": "Are you sure you want to delete your current profile photo? After deletion, the default avatar with your initial will be restored.",
+      "warning": "This action can be undone by uploading a new photo."
+    },
+    "deleteAccount": {
+      "title": "Delete account?",
+      "message": "This action is irreversible. After deleting your account:",
+      "item1": "All your personal data will be deleted",
+      "item2": "All prediction history will be lost",
+      "item3": "It will be impossible to restore the account",
+      "warning": "Are you sure you want to continue?",
+      "confirm": "Yes, delete account"
+    },
+    "blockUser": {
+      "title": "Block user?",
+      "message": "Are you sure you want to block user \"{{userName}}\"?",
+      "afterBlock": "After blocking:",
+      "afterBlock1": "You will not be able to exchange messages",
+      "afterBlock2": "Chat with this user will be hidden",
+      "afterBlock3": "The user will not be able to send you messages"
+    },
+    "unblockUser": {
+      "title": "Unblock user?",
+      "message": "Are you sure you want to unblock user \"{{userName}}\"?",
+      "afterUnblock": "After unblocking:",
+      "afterUnblock1": "You will be able to exchange messages",
+      "afterUnblock2": "Chat with this user will become available",
+      "afterUnblock3": "The user will be able to send you messages",
+      "blockedTime": "Blocked {{time}}"
+    },
+    "deleteChat": {
+      "title": "Delete chat?",
+      "message": "Are you sure you want to delete this chat? All messages will be deleted."
     }
   }
 }

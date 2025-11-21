@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select, Session
@@ -19,6 +19,7 @@ from .auth_utils import (
     require_current_user,
     verify_password,
 )
+from .i18n import get_accept_language, t
 from .avatar_utils import AVATARS_DIR, delete_avatar, save_avatar, validate_image_file
 from .db import get_session
 from .models import PasswordResetToken, PredictionHistory, User
@@ -96,6 +97,7 @@ def _build_history_response(session: Session, user: User, limit: int) -> Predict
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register_user(
     payload: UserRegisterRequest,
+    request: Request,
     session: Session = Depends(get_session),
 ) -> TokenResponse:
     """
@@ -103,6 +105,8 @@ def register_user(
     
     Валідує дані, перевіряє унікальність email, хешує пароль та створює користувача в БД.
     """
+    lang = get_accept_language(request.headers)
+    
     try:
         # Нормалізація email до нижнього регістру
         email = payload.email.lower().strip()
@@ -111,7 +115,7 @@ def register_user(
         if not email or "@" not in email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Невірний формат електронної пошти.",
+                detail=t("auth.api.register.invalidEmailFormat", lang=lang),
             )
         
         # Перевірка унікальності email
@@ -119,7 +123,7 @@ def register_user(
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Користувач з такою електронною поштою вже існує.",
+                detail=t("auth.api.register.emailExists", lang=lang),
             )
         
         # Валідація імені та прізвища
@@ -128,19 +132,19 @@ def register_user(
         if len(first_name) < 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Ім'я є обов'язковим полем.",
+                detail=t("auth.api.register.firstNameRequired", lang=lang),
             )
         if len(last_name) < 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Прізвище є обов'язковим полем.",
+                detail=t("auth.api.register.lastNameRequired", lang=lang),
             )
         
         # Валідація статі
         if payload.gender not in ["male", "female"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Стать повинна бути: male або female",
+                detail=t("auth.api.register.invalidGender", lang=lang),
             )
         
         # Валідація дати народження
@@ -152,12 +156,12 @@ def register_user(
             except (ValueError, TypeError):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Невірний формат дати народження. Використовуйте формат YYYY-MM-DD.",
+                    detail=t("auth.api.register.invalidDateOfBirthFormat", lang=lang),
                 )
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Дата народження є обов'язковим полем.",
+                detail=t("auth.api.register.dateOfBirthRequired", lang=lang),
             )
         
         # display_name використовуємо з first_name для сумісності
@@ -167,7 +171,7 @@ def register_user(
         if len(payload.password) < 8:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Пароль повинен містити мінімум 8 символів.",
+                detail=t("auth.api.register.passwordTooShort", lang=lang),
             )
         
         # Перевірка максимальної довжини пароля (bcrypt обмеження 72 байти)
@@ -175,7 +179,7 @@ def register_user(
         if len(password_bytes) > 72:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Пароль занадто довгий. Максимум 72 символи.",
+                detail=t("auth.api.register.passwordTooLong", lang=lang),
             )
         
         # Хешування пароля
@@ -187,11 +191,11 @@ def register_user(
             if "cannot be longer than 72" in error_msg or "72 bytes" in error_msg:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Пароль занадто довгий. Максимум 72 символи.",
+                    detail=t("auth.api.register.passwordTooLong", lang=lang),
                 ) from e
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Помилка при хешуванні пароля. Спробуйте інший пароль.",
+                detail=t("auth.api.register.passwordHashingError", lang=lang),
             ) from e
         
         # Створення нового користувача
@@ -218,7 +222,7 @@ def register_user(
             session.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Помилка при збереженні користувача. Спробуйте пізніше.",
+                detail=t("auth.api.register.userSaveError", lang=lang),
             )
         
         # Повернення токену та даних користувача
@@ -234,11 +238,11 @@ def register_user(
         if "unique" in error_msg or "email" in error_msg:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Користувач з такою електронною поштою вже існує.",
+                detail=t("auth.api.register.emailExists", lang=lang),
             ) from e
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Помилка при збереженні даних користувача. Спробуйте пізніше.",
+            detail=t("auth.api.register.userDataSaveError", lang=lang),
         ) from e
     except Exception as e:
         # Загальна обробка неочікуваних помилок
@@ -247,15 +251,18 @@ def register_user(
         traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Сталася помилка під час реєстрації. Спробуйте пізніше.",
+            detail=t("auth.api.register.registrationError", lang=lang),
         ) from e
 
 
 @router.post("/login", response_model=TokenResponse)
 def login_user(
     payload: UserLoginRequest,
+    request: Request,
     session: Session = Depends(get_session),
 ) -> TokenResponse:
+    lang = get_accept_language(request.headers)
+    
     try:
         email = payload.email.lower().strip()
         password = payload.password.strip()
@@ -264,24 +271,24 @@ def login_user(
         if not email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Поле електронної пошти не може бути порожнім.",
+                detail=t("auth.api.login.emailEmpty", lang=lang),
             )
         if not password:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Поле пароля не може бути порожнім.",
+                detail=t("auth.api.login.passwordEmpty", lang=lang),
             )
         
         user = get_user_by_email(session, email)
         if not user or not verify_password(password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Невірний email або пароль.",
+                detail=t("auth.api.login.invalidCredentials", lang=lang),
             )
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Обліковий запис деактивовано. Зверніться до підтримки.",
+                detail=t("auth.api.login.accountDeactivated", lang=lang),
             )
         return _issue_token_for_user(user)
     except HTTPException:
@@ -294,41 +301,43 @@ def login_user(
             msg = error["msg"]
             if "email" in field.lower():
                 if "field required" in msg.lower():
-                    errors.append("Поле електронної пошти обов'язкове.")
+                    errors.append(t("auth.api.login.emailEmpty", lang=lang))
                 elif "value is not a valid email address" in msg.lower():
-                    errors.append("Невірний формат електронної пошти.")
+                    errors.append(t("auth.api.register.invalidEmailFormat", lang=lang))
                 else:
-                    errors.append(f"Помилка поля електронної пошти: {msg}")
+                    errors.append(f"{t('auth.api.login.validationError', lang=lang)}: {msg}")
             elif "password" in field.lower():
                 if "field required" in msg.lower():
-                    errors.append("Поле пароля обов'язкове.")
+                    errors.append(t("auth.api.login.passwordEmpty", lang=lang))
                 elif "string_type" in msg.lower() or "type_error" in msg.lower():
-                    errors.append("Пароль повинен бути текстовим значенням.")
+                    errors.append(f"{t('auth.api.login.validationError', lang=lang)}: {msg}")
                 else:
-                    errors.append(f"Помилка поля пароля: {msg}")
+                    errors.append(f"{t('auth.api.login.validationError', lang=lang)}: {msg}")
             else:
-                errors.append(f"Помилка валідації поля {field}: {msg}")
+                errors.append(f"{t('auth.api.login.validationError', lang=lang)}: {msg}")
         
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="; ".join(errors) if errors else "Помилка валідації даних.",
+            detail="; ".join(errors) if errors else t("auth.api.login.validationError", lang=lang),
         ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Сталася помилка під час входу. Спробуйте пізніше.",
+            detail=t("auth.api.login.loginError", lang=lang),
         ) from e
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-def logout_user():
+def logout_user(request: Request):
     """Логаут реалізується на клієнті. Повертаємо підтвердження."""
-    return {"message": "Сесію завершено. До зустрічі!"}
+    lang = get_accept_language(request.headers)
+    return {"message": t("auth.logout.message", lang=lang)}
 
 
 @router.post("/change-password", status_code=status.HTTP_200_OK)
 async def change_password(
     payload: ChangePasswordRequest,
+    request: Request,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_current_user),
 ) -> dict:
@@ -337,32 +346,34 @@ async def change_password(
     
     Вимогає поточний пароль, новий пароль та підтвердження нового пароля.
     """
+    lang = get_accept_language(request.headers)
+    
     try:
         # Перевірка, що confirm_new_password вказано
         if not payload.confirm_new_password:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Підтвердження пароля обов'язкове.",
+                detail=t("auth.api.changePassword.confirmPasswordRequired", lang=lang),
             )
         # Перевірка поточного пароля
         if not verify_password(payload.current_password, current_user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Невірний поточний пароль.",
+                detail=t("auth.api.changePassword.invalidCurrentPassword", lang=lang),
             )
         
         # Перевірка, що новий пароль відрізняється від поточного
         if verify_password(payload.new_password, current_user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Новий пароль повинен відрізнятися від поточного.",
+                detail=t("auth.api.changePassword.passwordMustDiffer", lang=lang),
             )
         
         # Перевірка мінімальної довжини пароля
         if len(payload.new_password) < 8:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Пароль повинен містити мінімум 8 символів.",
+                detail=t("auth.api.changePassword.passwordTooShort", lang=lang),
             )
         
         # Перевірка максимальної довжини пароля (bcrypt обмеження 72 байти)
@@ -370,7 +381,7 @@ async def change_password(
         if len(password_bytes) > 72:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Пароль занадто довгий. Максимум 72 символи.",
+                detail=t("auth.api.changePassword.passwordTooLong", lang=lang),
             )
         
         # Хешування нового пароля
@@ -381,11 +392,11 @@ async def change_password(
             if "cannot be longer than 72" in error_msg or "72 bytes" in error_msg:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Пароль занадто довгий. Максимум 72 символи.",
+                    detail=t("auth.api.changePassword.passwordTooLong", lang=lang),
                 ) from e
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Помилка при хешуванні пароля. Спробуйте інший пароль.",
+                detail=t("auth.api.changePassword.passwordHashingError", lang=lang),
             ) from e
         
         # Оновлення пароля
@@ -394,7 +405,7 @@ async def change_password(
         session.add(current_user)
         session.commit()
         
-        return {"message": "Пароль успішно змінено."}
+        return {"message": t("auth.api.changePassword.passwordChanged", lang=lang)}
         
     except HTTPException:
         raise
@@ -406,17 +417,17 @@ async def change_password(
             msg = error["msg"]
             if "password" in field.lower():
                 if "min_length" in msg:
-                    errors.append("Пароль повинен містити мінімум 8 символів.")
+                    errors.append(t("auth.api.changePassword.passwordTooShort", lang=lang))
                 elif "Паролі не співпадають" in str(error):
-                    errors.append("Паролі не співпадають.")
+                    errors.append(t("profile.changePassword.passwordsNotMatch", lang=lang))
                 else:
-                    errors.append(f"Помилка валідації пароля: {msg}")
+                    errors.append(f"{t('auth.api.changePassword.validationError', lang=lang)}: {msg}")
             else:
-                errors.append(f"Помилка валідації поля {field}: {msg}")
+                errors.append(f"{t('auth.api.changePassword.validationError', lang=lang)}: {msg}")
         
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="; ".join(errors) if errors else "Помилка валідації даних.",
+            detail="; ".join(errors) if errors else t("auth.api.changePassword.validationError", lang=lang),
         ) from e
     except Exception as e:
         session.rollback()
@@ -424,13 +435,14 @@ async def change_password(
         traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Сталася помилка під час зміни пароля. Спробуйте пізніше.",
+            detail=t("auth.api.changePassword.changePasswordError", lang=lang),
         ) from e
 
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
 async def forgot_password(
     payload: ForgotPasswordRequest,
+    request: Request,
     session: Session = Depends(get_session),
 ) -> dict:
     """
@@ -439,6 +451,8 @@ async def forgot_password(
     Генерує токен для відновлення пароля та симулює відправку інструкцій.
     Не розкриває, чи існує користувач з такою електронною поштою.
     """
+    lang = get_accept_language(request.headers)
+    
     try:
         email = payload.email.lower().strip()
         
@@ -472,7 +486,7 @@ async def forgot_password(
             # Для дипломної версії повертаємо помилку, що користувача не знайдено
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Користувача з такою електронною поштою не зареєстровано.",
+                detail=t("auth.api.forgotPassword.userNotFound", lang=lang),
             )
             
     except Exception as e:
@@ -481,13 +495,14 @@ async def forgot_password(
         traceback.print_exc()
         # Повертаємо generic повідомлення навіть при помилці
         return {
-            "message": "Якщо користувач з такою електронною поштою існує, ми надіслали інструкції для відновлення пароля.",
+            "message": t("auth.api.forgotPassword.instructionsSent", lang=lang),
         }
 
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
 async def reset_password(
     payload: ResetPasswordRequest,
+    request: Request,
     session: Session = Depends(get_session),
 ) -> dict:
     """
@@ -495,12 +510,14 @@ async def reset_password(
     
     Перевіряє токен, валідує новий пароль та оновлює пароль користувача.
     """
+    lang = get_accept_language(request.headers)
+    
     try:
         # Перевірка, що confirm_new_password вказано
         if not payload.confirm_new_password:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Підтвердження пароля обов'язкове.",
+                detail=t("auth.api.resetPassword.confirmPasswordRequired", lang=lang),
             )
         # Знаходимо токен
         statement = select(PasswordResetToken).where(
@@ -511,21 +528,21 @@ async def reset_password(
         if not reset_token:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Недійсний або невірний токен відновлення.",
+                detail=t("auth.api.resetPassword.invalidToken", lang=lang),
             )
         
         # Перевірка, чи токен використано
         if reset_token.used:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Токен вже використано. Запитайте новий токен для відновлення пароля.",
+                detail=t("auth.api.resetPassword.tokenUsed", lang=lang),
             )
         
         # Перевірка, чи токен не прострочений
         if datetime.utcnow() > reset_token.expires_at:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Токен прострочено. Запитайте новий токен для відновлення пароля.",
+                detail=t("auth.api.resetPassword.tokenExpired", lang=lang),
             )
         
         # Знаходимо користувача
@@ -533,21 +550,21 @@ async def reset_password(
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Користувач не знайдено.",
+                detail=t("auth.api.resetPassword.userNotFound", lang=lang),
             )
         
         # Перевірка, що новий пароль відрізняється від поточного
         if verify_password(payload.new_password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Новий пароль не може співпадати зі старим паролем.",
+                detail=t("auth.api.resetPassword.passwordSameAsOld", lang=lang),
             )
         
         # Перевірка мінімальної довжини пароля
         if len(payload.new_password) < 8:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Пароль повинен містити мінімум 8 символів.",
+                detail=t("auth.api.resetPassword.passwordTooShort", lang=lang),
             )
         
         # Перевірка максимальної довжини пароля (bcrypt обмеження 72 байти)
@@ -555,7 +572,7 @@ async def reset_password(
         if len(password_bytes) > 72:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Пароль занадто довгий. Максимум 72 символи.",
+                detail=t("auth.api.resetPassword.passwordTooLong", lang=lang),
             )
         
         # Хешування нового пароля
@@ -566,11 +583,11 @@ async def reset_password(
             if "cannot be longer than 72" in error_msg or "72 bytes" in error_msg:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Пароль занадто довгий. Максимум 72 символи.",
+                    detail=t("auth.api.resetPassword.passwordTooLong", lang=lang),
                 ) from e
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Помилка при хешуванні пароля. Спробуйте інший пароль.",
+                detail=t("auth.api.resetPassword.passwordHashingError", lang=lang),
             ) from e
         
         # Оновлення пароля користувача
@@ -584,7 +601,7 @@ async def reset_password(
         
         session.commit()
         
-        return {"message": "Пароль успішно оновлено. Тепер ви можете увійти з новим паролем."}
+        return {"message": t("auth.api.resetPassword.passwordUpdated", lang=lang)}
         
     except HTTPException:
         raise
@@ -596,17 +613,17 @@ async def reset_password(
             msg = error["msg"]
             if "password" in field.lower():
                 if "min_length" in msg:
-                    errors.append("Пароль повинен містити мінімум 8 символів.")
+                    errors.append(t("auth.api.resetPassword.passwordTooShort", lang=lang))
                 elif "Паролі не співпадають" in str(error):
-                    errors.append("Паролі не співпадають.")
+                    errors.append(t("profile.changePassword.passwordsNotMatch", lang=lang))
                 else:
-                    errors.append(f"Помилка валідації пароля: {msg}")
+                    errors.append(f"{t('auth.api.resetPassword.validationError', lang=lang)}: {msg}")
             else:
-                errors.append(f"Помилка валідації поля {field}: {msg}")
+                errors.append(f"{t('auth.api.resetPassword.validationError', lang=lang)}: {msg}")
         
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="; ".join(errors) if errors else "Помилка валідації даних.",
+            detail="; ".join(errors) if errors else t("auth.api.resetPassword.validationError", lang=lang),
         ) from e
     except Exception as e:
         session.rollback()
@@ -614,7 +631,7 @@ async def reset_password(
         traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Сталася помилка під час відновлення пароля. Спробуйте пізніше.",
+            detail=t("auth.api.resetPassword.resetPasswordError", lang=lang),
         ) from e
 
 
@@ -626,6 +643,7 @@ async def get_profile(current_user: User = Depends(require_current_user)) -> Use
 @users_router.put("/me", response_model=UserProfileResponse)
 async def update_profile(
     payload: UserUpdateRequest,
+    request: Request,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_current_user),
 ) -> UserProfileResponse:
@@ -634,6 +652,7 @@ async def update_profile(
     
     Не змінює avatar_type при оновленні інших полів.
     """
+    lang = get_accept_language(request.headers)
     from datetime import datetime as dt
     
     # Не оновлюємо avatar_url напряму, щоб не перезаписати тип аватару
@@ -646,7 +665,7 @@ async def update_profile(
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ім'я є обов'язковим полем.",
+            detail=t("auth.api.profile.firstNameRequired", lang=lang),
         )
     
     # display_name опційне (для сумісності зі старими користувачами)
@@ -673,7 +692,7 @@ async def update_profile(
             except (ValueError, TypeError):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Невірний формат дати народження. Використовуйте формат YYYY-MM-DD.",
+                    detail=t("auth.api.profile.invalidDateOfBirthFormat", lang=lang),
                 )
         else:
             # Порожня дата означає очищення
@@ -689,6 +708,7 @@ async def update_profile(
 
 @users_router.post("/me/avatar", response_model=UserProfileResponse)
 async def upload_avatar(
+    request: Request,
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
     current_user: User = Depends(require_current_user),
@@ -698,6 +718,8 @@ async def upload_avatar(
     
     Приймає файл зображення (PNG, JPG, JPEG) та зберігає його.
     """
+    lang = get_accept_language(request.headers)
+    
     try:
         # Читаємо вміст файлу
         content = await file.read()
@@ -744,18 +766,21 @@ async def upload_avatar(
         traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Не вдалося завантажити фото. Спробуйте пізніше.",
+            detail=t("auth.api.profile.avatarUploadError", lang=lang),
         ) from e
 
 
 @users_router.delete("/me/avatar", response_model=UserProfileResponse)
 async def delete_user_avatar(
+    request: Request,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_current_user),
 ) -> UserProfileResponse:
     """
     Видаляє завантажений аватар та повертається до згенерованого.
     """
+    lang = get_accept_language(request.headers)
+    
     try:
         # Видаляємо файл аватару, якщо він існує
         if current_user.avatar_type == "uploaded" and current_user.avatar_url:
@@ -777,7 +802,7 @@ async def delete_user_avatar(
         traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Не вдалося видалити аватар. Спробуйте пізніше.",
+            detail=t("auth.api.profile.avatarDeleteError", lang=lang),
         ) from e
 
 
@@ -793,16 +818,18 @@ async def get_history(
 @router.delete("/history/{prediction_id}", status_code=status.HTTP_200_OK)
 async def delete_history_entry(
     prediction_id: int,
+    request: Request,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_current_user),
 ):
+    lang = get_accept_language(request.headers)
     deleted = delete_prediction(session, current_user.id, prediction_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Запис історії не знайдено.",
+            detail=t("auth.api.history.entryNotFound", lang=lang),
         )
-    return {"message": "Запис успішно видалено."}
+    return {"message": t("auth.api.history.entryDeleted", lang=lang)}
 
 
 def save_history_entry(
@@ -856,6 +883,7 @@ async def patch_profile(
 @users_router.patch("/{user_id}/block", response_model=dict)
 async def block_user_endpoint(
     user_id: int,
+    request: Request,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_current_user),
 ) -> dict:
@@ -863,17 +891,19 @@ async def block_user_endpoint(
     Блокує користувача.
     Користувач може блокувати інших користувачів.
     """
+    lang = get_accept_language(request.headers)
+    
     if user_id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Не можна заблокувати самого себе.",
+            detail=t("auth.api.users.cannotBlockSelf", lang=lang),
         )
     
     target_user = session.get(User, user_id)
     if not target_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Користувач не знайдено.",
+            detail=t("auth.api.users.userNotFound", lang=lang),
         )
     
     # Перевіряємо, чи вже заблоковано
@@ -881,7 +911,7 @@ async def block_user_endpoint(
         return {
             "user_id": user_id,
             "is_blocked": True,
-            "message": "Користувач вже заблокований.",
+            "message": t("auth.api.users.userAlreadyBlocked", lang=lang),
         }
     
     # Блокуємо користувача
@@ -890,30 +920,33 @@ async def block_user_endpoint(
     return {
         "user_id": user_id,
         "is_blocked": True,
-        "message": "Користувача заблоковано.",
+        "message": t("auth.api.users.userBlocked", lang=lang),
     }
 
 
 @users_router.patch("/{user_id}/unblock", response_model=dict)
 async def unblock_user_endpoint(
     user_id: int,
+    request: Request,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_current_user),
 ) -> dict:
     """
     Розблоковує користувача.
     """
+    lang = get_accept_language(request.headers)
+    
     if user_id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Не можна розблокувати самого себе.",
+            detail=t("auth.api.users.cannotUnblockSelf", lang=lang),
         )
     
     target_user = session.get(User, user_id)
     if not target_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Користувач не знайдено.",
+            detail=t("auth.api.users.userNotFound", lang=lang),
         )
     
     # Розблоковуємо користувача
@@ -922,13 +955,13 @@ async def unblock_user_endpoint(
     if not unblocked:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Користувач не був заблокований.",
+            detail=t("auth.api.users.userNotBlocked", lang=lang),
         )
     
     return {
         "user_id": user_id,
         "is_blocked": False,
-        "message": "Користувача розблоковано.",
+        "message": t("auth.api.users.userUnblocked", lang=lang),
     }
 
 
@@ -993,20 +1026,23 @@ async def users_history_stats(
 @users_router.delete("/me/history/{prediction_id}", status_code=status.HTTP_200_OK)
 async def users_delete_history_entry(
     prediction_id: int,
+    request: Request,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_current_user),
 ):
+    lang = get_accept_language(request.headers)
     deleted = delete_prediction(session, current_user.id, prediction_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Запис історії не знайдено.",
+            detail=t("auth.api.history.entryNotFound", lang=lang),
         )
-    return {"message": "Запис успішно видалено."}
+    return {"message": t("auth.api.history.entryDeleted", lang=lang)}
 
 
 @users_router.delete("/me", status_code=status.HTTP_200_OK)
 async def delete_account(
+    request: Request,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_current_user),
 ) -> dict:
@@ -1021,6 +1057,8 @@ async def delete_account(
     
     Ця дія незворотна. Тільки автентифікований користувач може видалити свій власний обліковий запис.
     """
+    lang = get_accept_language(request.headers)
+    
     try:
         user_id = current_user.id
         
@@ -1048,7 +1086,7 @@ async def delete_account(
         session.delete(current_user)
         session.commit()
         
-        return {"detail": "Обліковий запис успішно видалено."}
+        return {"detail": t("auth.api.account.deleted", lang=lang)}
         
     except Exception as e:
         session.rollback()
@@ -1057,7 +1095,7 @@ async def delete_account(
         # Не розкриваємо деталі помилки для безпеки
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Не вдалося видалити обліковий запис. Спробуйте пізніше.",
+            detail=t("auth.api.account.deleteError", lang=lang),
         ) from e
 
 

@@ -642,10 +642,22 @@ function openBulkDeleteHistoryModal() {
   // Якщо режим all — беремо всю кількість, інакше — вибрані
   const mode = modal.dataset.mode || "selected";
   const count = mode === "all" ? (authState.history?.length || 0) : historySelectedIds.size;
-  msg.textContent =
-    mode === "all"
-      ? `Ви впевнені, що хочете видалити всі ${count} ${declineUAPredictions(count)}?`
-      : `Ви впевнені, що хочете видалити ${count} ${declineUAPredictions(count)}?`;
+  
+  // Get prediction word in correct form
+  const predictionWord = count === 1 
+    ? (window.i18n ? window.i18n.t('history.prediction') : 'прогноз')
+    : (window.i18n ? window.i18n.t('history.predictions') : 'прогнози');
+  
+  // Use i18n for message
+  if (window.i18n) {
+    const key = mode === "all" ? 'modals.deleteHistory.allConfirm' : 'modals.deleteHistory.selectedConfirm';
+    msg.textContent = window.i18n.t(key, { count, predictions: predictionWord });
+  } else {
+    msg.textContent =
+      mode === "all"
+        ? `Ви впевнені, що хочете видалити всі ${count} ${declineUAPredictions(count)}?`
+        : `Ви впевнені, що хочете видалити ${count} ${declineUAPredictions(count)}?`;
+  }
   modal.removeAttribute("hidden");
   modal.hidden = false;
   lucide.createIcons();
@@ -2189,11 +2201,16 @@ function applyAvatarStyle(element, user) {
 function formatDateTimeLong(timestamp) {
   if (!timestamp) return "";
   try {
-    return new Intl.DateTimeFormat("uk-UA", {
+    // Використовуємо поточну мову з i18n, якщо доступна
+    const locale = window.i18n && window.i18n.getCurrentLanguage ? 
+      (window.i18n.getCurrentLanguage() === 'en' ? 'en-US' : 'uk-UA') : 
+      'uk-UA';
+    return new Intl.DateTimeFormat(locale, {
       dateStyle: "long",
       timeStyle: "short",
     }).format(new Date(timestamp));
   } catch (error) {
+    console.warn("Error formatting date:", error);
     return "";
   }
 }
@@ -2341,8 +2358,19 @@ function updateProfileSection() {
     }
     if (profileEmailEl) profileEmailEl.textContent = user.email;
     if (profileJoinedEl) {
-      const registeredDate = formatDateTimeLong(user.created_at) || (window.i18n ? window.i18n.t('history.registeredToday') : "сьогодні");
-      profileJoinedEl.textContent = window.i18n ? window.i18n.t('history.registered', { date: registeredDate }) : `Зареєстрований: ${registeredDate}`;
+      let registeredDate = "";
+      if (user.created_at) {
+        registeredDate = formatDateTimeLong(user.created_at);
+      }
+      if (!registeredDate) {
+        registeredDate = window.i18n ? window.i18n.t('history.registeredToday') : "сьогодні";
+      }
+      if (window.i18n) {
+        profileJoinedEl.textContent = window.i18n.t('history.registered', { date: registeredDate });
+      } else {
+        const registeredLabel = 'Зареєстрований';
+        profileJoinedEl.textContent = `${registeredLabel}: ${registeredDate}`;
+      }
     }
     
     // Оновлюємо аватари
@@ -3575,16 +3603,19 @@ async function handlePasswordChange(event) {
   
   // Валідація на клієнті
   if (newPassword !== confirmPassword) {
-    setPasswordStatus("Паролі не співпадають.", "error");
+    const message = window.i18n ? window.i18n.t('profile.changePassword.passwordsNotMatch') : "Паролі не співпадають.";
+    setPasswordStatus(message, "error");
     return;
   }
   
   if (newPassword.length < 8) {
-    setPasswordStatus("Пароль повинен містити мінімум 8 символів.", "error");
+    const message = window.i18n ? window.i18n.t('profile.changePassword.passwordTooShort') : "Пароль повинен містити мінімум 8 символів.";
+    setPasswordStatus(message, "error");
     return;
   }
   
-  setPasswordStatus("Оновлення пароля...", "info");
+  const updatingMessage = window.i18n ? window.i18n.t('profile.changePassword.updating') : "Оновлення пароля...";
+  setPasswordStatus(updatingMessage, "info");
   
   const submitButton = profilePasswordForm?.querySelector('button[type="submit"]');
   if (submitButton) {
@@ -3601,7 +3632,7 @@ async function handlePasswordChange(event) {
       }),
     });
     
-    const successMessage = response.message || "Пароль успішно змінено.";
+    const successMessage = response.message || (window.i18n ? window.i18n.t('profile.changePassword.success') : "Пароль успішно змінено.");
     setPasswordStatus(successMessage, "info");
     
     showNotification({
@@ -3616,7 +3647,19 @@ async function handlePasswordChange(event) {
     if (profileNewPasswordInput) profileNewPasswordInput.value = "";
     if (profileConfirmPasswordInput) profileConfirmPasswordInput.value = "";
   } catch (error) {
-    const errorMessage = error.message || "Не вдалося змінити пароль. Спробуйте ще раз.";
+    // Check if error message is about invalid current password
+    let errorMessage = error.message;
+    if (!errorMessage) {
+      errorMessage = window.i18n ? window.i18n.t('profile.changePassword.error') : "Не вдалося змінити пароль. Спробуйте ще раз.";
+    } else {
+      // Try to translate common error messages
+      if (errorMessage.toLowerCase().includes('невірний') || errorMessage.toLowerCase().includes('invalid') || errorMessage.toLowerCase().includes('incorrect')) {
+        errorMessage = window.i18n ? window.i18n.t('profile.changePassword.invalidCurrentPassword') : "Невірний поточний пароль.";
+      } else if (!window.i18n) {
+        // Fallback to default error message if i18n not available
+        errorMessage = "Не вдалося змінити пароль. Спробуйте ще раз.";
+      }
+    }
     setPasswordStatus(errorMessage, "error");
     showNotification({
       type: "error",
@@ -3724,13 +3767,16 @@ async function handleForgotPassword(event) {
       if (forgotPasswordSuccess) {
         if (copied) {
           // Якщо успішно скопійовано - показуємо простий текст
-          forgotPasswordSuccess.innerHTML = "Посилання для скидання пароля скопійовано у буфер обміну<br>(дипломна версія).";
+          const message = window.i18n ? window.i18n.t('auth.forgotPassword.linkCopiedWithVersion') : "Посилання для скидання пароля скопійовано у буфер обміну<br>(дипломна версія).";
+          forgotPasswordSuccess.innerHTML = message;
           forgotPasswordSuccess.hidden = false;
         } else {
           // Якщо не вдалося скопіювати - показуємо URL для ручного копіювання
           const escapedUrl = resetUrl.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
           const escapedUrlForData = resetUrl.replace(/'/g, "&apos;").replace(/"/g, "&quot;");
-          const messageHTML = `<strong>Посилання для скидання пароля (дипломна версія):</strong><br><br><a href="${escapedUrl}" id="reset-password-link-copy" data-url="${escapedUrlForData}" style="color: #15803d; text-decoration: underline; cursor: pointer; font-weight: 600; word-break: break-all;">${resetUrl}</a><br><br>Натисніть на посилання вище, щоб скопіювати його.`;
+          const linkTitle = window.i18n ? window.i18n.t('auth.forgotPassword.linkTitle') : "Посилання для скидання пароля (дипломна версія):";
+          const linkClickToCopy = window.i18n ? window.i18n.t('auth.forgotPassword.linkClickToCopy') : "Натисніть на посилання вище, щоб скопіювати його.";
+          const messageHTML = `<strong>${linkTitle}</strong><br><br><a href="${escapedUrl}" id="reset-password-link-copy" data-url="${escapedUrlForData}" style="color: #15803d; text-decoration: underline; cursor: pointer; font-weight: 600; word-break: break-all;">${resetUrl}</a><br><br>${linkClickToCopy}`;
           forgotPasswordSuccess.innerHTML = messageHTML;
           forgotPasswordSuccess.hidden = false;
           
@@ -4388,7 +4434,11 @@ function escapeHtml(text) {
  * @param {string} type - Тип модалки: 'warning', 'danger', 'info' (за замовчуванням 'warning')
  * @returns {Promise<boolean>} Promise, який резолвиться з true якщо підтверджено, false якщо скасовано
  */
-function showConfirm(message, title = "Підтвердження", type = "warning") {
+function showConfirm(message, title = null, type = "warning") {
+  // Use i18n for default title if not provided
+  if (!title) {
+    title = window.i18n ? window.i18n.t('modals.confirm.title') : "Підтвердження";
+  }
   return new Promise((resolve) => {
     const modalId = `custom-modal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const container = document.getElementById("custom-modal-container");
@@ -4435,9 +4485,9 @@ function showConfirm(message, title = "Підтвердження", type = "warn
             <p class="modal__message">${escapeHtml(message).replace(/\n/g, '<br>')}</p>
           </div>
           <div class="modal__actions">
-            <button type="button" class="button button--ghost custom-modal__cancel-btn">Скасувати</button>
+            <button type="button" class="button button--ghost custom-modal__cancel-btn">${window.i18n ? window.i18n.t('modals.confirm.cancel') : "Скасувати"}</button>
             <button type="button" class="button button--primary custom-modal__confirm-btn" style="background: ${color}; border-color: ${color};">
-              <span>Підтвердити</span>
+              <span>${window.i18n ? window.i18n.t('modals.confirm.confirm') : "Підтвердити"}</span>
             </button>
           </div>
         </div>
@@ -4486,7 +4536,11 @@ function showConfirm(message, title = "Підтвердження", type = "warn
  * @param {string} type - Тип модалки: 'info', 'success', 'warning', 'error' (за замовчуванням 'info')
  * @returns {Promise<void>} Promise, який резолвиться після закриття модалки
  */
-function showAlert(message, title = "Повідомлення", type = "info") {
+function showAlert(message, title = null, type = "info") {
+  // Use i18n for default title if not provided
+  if (!title) {
+    title = window.i18n ? window.i18n.t('modals.alert.title') : "Повідомлення";
+  }
   return new Promise((resolve) => {
     const modalId = `custom-modal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const container = document.getElementById("custom-modal-container");
@@ -4534,7 +4588,7 @@ function showAlert(message, title = "Повідомлення", type = "info") {
           </div>
           <div class="modal__actions">
             <button type="button" class="button button--primary custom-modal__ok-btn" style="background: ${color}; border-color: ${color};">
-              <span>ОК</span>
+              <span>${window.i18n ? window.i18n.t('modals.alert.ok') : "ОК"}</span>
             </button>
           </div>
         </div>
@@ -7014,7 +7068,7 @@ function initializeApiStatus() {
   checkApiStatus();
   apiStatusTimer = setInterval(checkApiStatus, API_STATUS_INTERVAL);
   
-  // Listen for language changes to update API status text
+  // Listen for language changes to update API status text and profile
   window.addEventListener('languageChanged', () => {
     // Re-apply translations to API status text
     if (window.i18n && apiStatusText) {
@@ -7022,6 +7076,10 @@ function initializeApiStatus() {
       if (i18nKey) {
         apiStatusText.textContent = window.i18n.t(i18nKey);
       }
+    }
+    // Update profile section to refresh date formatting with new language
+    if (typeof updateProfileSection === 'function') {
+      updateProfileSection();
     }
   });
 }
@@ -9753,15 +9811,15 @@ function showUnblockConfirmationPopup(chatItem, userId, user) {
   popup.innerHTML = `
     <div class="unblock-confirmation-popup__content">
       <div class="unblock-confirmation-popup__header">
-        <h3>Розблокувати користувача?</h3>
+        <h3>${window.i18n ? window.i18n.t('modals.unblockUser.title') : "Розблокувати користувача?"}</h3>
       </div>
       <div class="unblock-confirmation-popup__body">
-        <p class="unblock-confirmation-popup__text">Ви впевнені, що хочете розблокувати "${user.display_name || user.email}"?</p>
-        <p class="unblock-confirmation-popup__info">Заблокований ${blockedTimeText}</p>
+        <p class="unblock-confirmation-popup__text">${window.i18n ? window.i18n.t('modals.unblockUser.message', { userName: user.display_name || user.email }) : `Ви впевнені, що хочете розблокувати "${user.display_name || user.email}"?`}</p>
+        <p class="unblock-confirmation-popup__info">${window.i18n ? window.i18n.t('modals.unblockUser.blockedTime', { time: blockedTimeText }) : `Заблокований ${blockedTimeText}`}</p>
       </div>
       <div class="unblock-confirmation-popup__actions">
-        <button type="button" class="button button--ghost button--small unblock-confirmation-popup__cancel">Скасувати</button>
-        <button type="button" class="button button--primary button--small unblock-confirmation-popup__confirm">Підтвердити</button>
+        <button type="button" class="button button--ghost button--small unblock-confirmation-popup__cancel">${window.i18n ? window.i18n.t('modals.confirm.cancel') : "Скасувати"}</button>
+        <button type="button" class="button button--primary button--small unblock-confirmation-popup__confirm">${window.i18n ? window.i18n.t('modals.confirm.confirm') : "Підтвердити"}</button>
       </div>
     </div>
   `;
@@ -9874,11 +9932,11 @@ async function toggleUserBlock(userId, isCurrentlyBlocked, userName) {
     // Якщо розблоковуємо, показуємо модалку підтвердження
     if (isCurrentlyBlocked) {
       // Показуємо модалку з підтвердженням розблокування
-      const confirmed = await showConfirm(
-        `Ви впевнені, що хочете розблокувати користувача "${userName}"?\n\nПісля розблокування:\n• Ви зможете обмінюватися повідомленнями\n• Чат з цим користувачем стане доступним\n• Користувач зможе відправляти вам повідомлення`,
-        "Розблокувати користувача?",
-        "info"
-      );
+      const unblockMessage = window.i18n 
+        ? `${window.i18n.t('modals.unblockUser.message', { userName })}\n\n${window.i18n.t('modals.unblockUser.afterUnblock')}:\n• ${window.i18n.t('modals.unblockUser.afterUnblock1')}\n• ${window.i18n.t('modals.unblockUser.afterUnblock2')}\n• ${window.i18n.t('modals.unblockUser.afterUnblock3')}`
+        : `Ви впевнені, що хочете розблокувати користувача "${userName}"?\n\nПісля розблокування:\n• Ви зможете обмінюватися повідомленнями\n• Чат з цим користувачем стане доступним\n• Користувач зможе відправляти вам повідомлення`;
+      const unblockTitle = window.i18n ? window.i18n.t('modals.unblockUser.title') : "Розблокувати користувача?";
+      const confirmed = await showConfirm(unblockMessage, unblockTitle, "info");
       
       if (!confirmed) {
         return; // Користувач скасував розблокування
@@ -9928,11 +9986,11 @@ async function toggleUserBlock(userId, isCurrentlyBlocked, userName) {
     }
     
     // Якщо блокуємо, показуємо модалку з попередженням
-    const confirmed = await showConfirm(
-      `Ви впевнені, що хочете заблокувати користувача "${userName}"?\n\nПісля блокування:\n• Ви не зможете обмінюватися повідомленнями\n• Чат з цим користувачем буде приховано\n• Користувач не зможе відправляти вам повідомлення`,
-      "Заблокувати користувача?",
-      "danger"
-    );
+    const blockMessage = window.i18n 
+      ? `${window.i18n.t('modals.blockUser.message', { userName })}\n\n${window.i18n.t('modals.blockUser.afterBlock')}:\n• ${window.i18n.t('modals.blockUser.afterBlock1')}\n• ${window.i18n.t('modals.blockUser.afterBlock2')}\n• ${window.i18n.t('modals.blockUser.afterBlock3')}`
+      : `Ви впевнені, що хочете заблокувати користувача "${userName}"?\n\nПісля блокування:\n• Ви не зможете обмінюватися повідомленнями\n• Чат з цим користувачем буде приховано\n• Користувач не зможе відправляти вам повідомлення`;
+    const blockTitle = window.i18n ? window.i18n.t('modals.blockUser.title') : "Заблокувати користувача?";
+    const confirmed = await showConfirm(blockMessage, blockTitle, "danger");
     
     if (!confirmed) {
       return; // Користувач скасував блокування
@@ -10163,11 +10221,9 @@ async function togglePinChat(uuid, skipAuthCheck = false) {
 }
 
 async function deleteChat(uuid) {
-  const confirmed = await showConfirm(
-    "Ви впевнені, що хочете видалити цей чат? Всі повідомлення будуть видалені.",
-    "Видалити чат?",
-    "danger"
-  );
+  const deleteChatMessage = window.i18n ? window.i18n.t('modals.deleteChat.message') : "Ви впевнені, що хочете видалити цей чат? Всі повідомлення будуть видалені.";
+  const deleteChatTitle = window.i18n ? window.i18n.t('modals.deleteChat.title') : "Видалити чат?";
+  const confirmed = await showConfirm(deleteChatMessage, deleteChatTitle, "danger");
   if (!confirmed) {
     return;
   }
