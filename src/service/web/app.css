@@ -6205,9 +6205,13 @@ button[data-tooltip]:focus-visible::after {
 }
 
 .api-status-history-page__content {
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 32px;
+}
+
+.api-status-history-page__loader {
+  display: flex;
 }
 
 .api-status-history-page__month {
@@ -6370,4 +6374,44 @@ button[data-tooltip]:focus-visible::after {
   color: var(--text-secondary);
   margin: 0;
   max-width: 400px;
+}
+
+.api-status-history-page__loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 32px;
+  gap: 16px;
+  min-height: 400px;
+}
+
+.api-status-history-page__loader-spinner {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-color);
+  animation: spin 1s linear infinite;
+}
+
+.api-status-history-page__loader-spinner .icon {
+  width: 48px;
+  height: 48px;
+}
+
+.api-status-history-page__loader-text {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

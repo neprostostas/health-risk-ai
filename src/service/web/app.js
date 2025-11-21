@@ -13466,9 +13466,26 @@ function formatHistoryDateRange() {
   return monthStr;
 }
 
+function showHistoryLoader() {
+  const loader = document.getElementById('api-status-history-loader');
+  const content = document.getElementById('api-status-history-content');
+  if (loader) loader.style.display = 'flex';
+  if (content) content.style.display = 'none';
+}
+
+function hideHistoryLoader() {
+  const loader = document.getElementById('api-status-history-loader');
+  const content = document.getElementById('api-status-history-content');
+  if (loader) loader.style.display = 'none';
+  if (content) content.style.display = 'block';
+}
+
 function renderApiStatusHistory() {
   const container = document.getElementById('api-status-history-content');
   if (!container) return;
+  
+  // Показуємо лоадер під час рендерингу
+  showHistoryLoader();
   
   const allIncidents = generateIncidentsFromHistory();
   
@@ -13587,6 +13604,11 @@ function renderApiStatusHistory() {
   
   container.innerHTML = html;
   refreshIcons();
+  
+  // Ховаємо лоадер після рендерингу
+  setTimeout(() => {
+    hideHistoryLoader();
+  }, 100);
 }
 
 function updateHistoryNavButtons() {
@@ -13618,12 +13640,18 @@ function updateHistoryNavButtons() {
 }
 
 function initializeApiStatusHistoryPage() {
+  // Показуємо лоадер одразу
+  showHistoryLoader();
+  
   // Встановлюємо поточний місяць як поточну дату
   const now = new Date();
   historyCurrentMonth = now.getMonth();
   historyCurrentYear = now.getFullYear();
   
-  renderApiStatusHistory();
+  // Невелика затримка для показу лоадера, потім рендеримо
+  setTimeout(() => {
+    renderApiStatusHistory();
+  }, 50);
   
   // Обробники навігації по місяцях
   const prevBtn = document.getElementById('history-nav-prev');
