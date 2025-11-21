@@ -1074,6 +1074,114 @@
                 </div>
               </section>
 
+              <!-- System Status Overview Component -->
+              <section class="glass-card api-status-card system-status-overview">
+                <div class="system-status-overview__loader" id="system-status-overview-loader">
+                  <div class="system-status-overview__loader-spinner" aria-hidden="true"></div>
+                  <div class="system-status-overview__loader-text">
+                    <strong>Оновлюємо статус системи</strong>
+                    <span class="system-status-overview__loader-desc">Чекаємо на відповідь від бази даних та сервісів Health Risk AI.</span>
+                    <div class="system-status-overview__loader-status">
+                      <div>
+                        <span class="icon" data-lucide="server"></span>
+                        <span>API: останні дані отримано</span>
+                      </div>
+                      <div>
+                        <span class="icon" data-lucide="database"></span>
+                        <span>База даних: перевірка виконується...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="system-status-overview__content" id="system-status-overview-content">
+                  <div class="system-status-overview__banner system-status-overview__banner--operational">
+                    <div class="system-status-overview__banner-content">
+                      <span class="icon system-status-overview__banner-icon" data-lucide="check-circle-2"></span>
+                      <div class="system-status-overview__banner-text">
+                        <strong>Всі системи працюють нормально</strong>
+                        <span>Ми не виявили жодних проблем, що впливають на наші системи.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="system-status-overview__header">
+                    <h3 class="system-status-overview__title">Статус системи</h3>
+                    <div class="system-status-overview__controls">
+                      <div class="system-status-overview__date-range-selector">
+                        <button type="button" class="system-status-overview__range-btn" id="status-range-btn">
+                          <span class="icon" data-lucide="calendar"></span>
+                          <span id="status-range-label">3 місяці</span>
+                          <span class="icon" data-lucide="chevron-down"></span>
+                        </button>
+                        <div class="system-status-overview__range-dropdown" id="status-range-dropdown" style="display: none;">
+                          <div class="system-status-overview__range-presets">
+                            <button type="button" class="system-status-overview__range-preset" data-days="1">День</button>
+                            <button type="button" class="system-status-overview__range-preset" data-days="3">3 дні</button>
+                            <button type="button" class="system-status-overview__range-preset" data-days="7">Тиждень</button>
+                            <button type="button" class="system-status-overview__range-preset" data-days="14">2 тижні</button>
+                            <button type="button" class="system-status-overview__range-preset" data-days="30">Місяць</button>
+                            <button type="button" class="system-status-overview__range-preset" data-days="60">2 місяці</button>
+                            <button type="button" class="system-status-overview__range-preset" data-days="90" data-active="true">3 місяці</button>
+                          </div>
+                          <div class="system-status-overview__range-custom">
+                            <button type="button" class="system-status-overview__range-custom-btn" id="status-range-custom-btn">
+                              <span class="icon" data-lucide="calendar-range"></span>
+                              <span>Кастомний діапазон</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="system-status-overview__date-nav">
+                        <button type="button" class="system-status-overview__nav-btn" id="status-nav-prev" aria-label="Попередній період">
+                          <span class="icon" data-lucide="chevron-left"></span>
+                        </button>
+                        <span class="system-status-overview__date-range" id="status-date-range">Сер 2025 - Лист 2025</span>
+                        <button type="button" class="system-status-overview__nav-btn" id="status-nav-next" aria-label="Наступний період">
+                          <span class="icon" data-lucide="chevron-right"></span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Custom Date Range Picker Modal -->
+                  <div class="system-status-overview__date-picker-modal" id="status-date-picker-modal" style="display: none;">
+                    <div class="system-status-overview__date-picker-content">
+                      <div class="system-status-overview__date-picker-header">
+                        <h4>Оберіть діапазон дат</h4>
+                        <button type="button" class="system-status-overview__date-picker-close" id="status-date-picker-close">
+                          <span class="icon" data-lucide="x"></span>
+                        </button>
+                      </div>
+                      <div class="system-status-overview__date-picker-body">
+                        <div class="system-status-overview__date-picker-field">
+                          <label>Від:</label>
+                          <input type="date" id="status-date-picker-from" min="2024-08-01" />
+                        </div>
+                        <div class="system-status-overview__date-picker-field">
+                          <label>До:</label>
+                          <input type="date" id="status-date-picker-to" max="" />
+                        </div>
+                      </div>
+                      <div class="system-status-overview__date-picker-footer">
+                        <button type="button" class="button button--ghost" id="status-date-picker-cancel">Скасувати</button>
+                        <button type="button" class="button button--primary" id="status-date-picker-apply">Застосувати</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="system-status-overview__services" id="system-status-services">
+                    <!-- Services will be rendered here -->
+                  </div>
+
+                  <div class="system-status-overview__footer">
+                    <button type="button" class="button button--ghost system-status-overview__history-btn">
+                      <span class="icon" data-lucide="calendar"></span>
+                      <span>Переглянути історію</span>
+                    </button>
+                  </div>
+                </div>
+              </section>
+
               <section class="glass-card api-status-card">
                 <h2 class="glass-card__title">
                   <span class="icon" data-lucide="info"></span>

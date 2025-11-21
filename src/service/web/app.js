@@ -4274,7 +4274,7 @@ function showNotification({ type = "info", title, message = "", duration = DEFAU
   
   // Оновлюємо іконки
   refreshIcons();
-
+  
   // Зберігаємо інформацію про сповіщення
   const timeoutId = setTimeout(() => {
     hideNotification(notificationId);
@@ -5020,7 +5020,759 @@ async function checkApiStatusWithLatency() {
 // Локальне сховище для статистики API та Ollama
 const apiStatusHistory = [];
 const ollamaStatusHistory = [];
+const dbStatusHistory = [];
 const MAX_HISTORY_ITEMS = 20;
+const STATUS_TIMELINE_DAYS = 90;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const STATISTICS_START_DATE = new Date('2024-08-01T00:00:00');
+
+// ===== System Status Overview Component =====
+// Інтерактивний компонент статусу системи (подібний до status.openai.com)
+
+let currentDateRangeOffset = 0; // Зміщення (у днях) для навігації по датах
+let systemStatusOverviewReady = false;
+let dbStatusLoadingPromise = null;
+let systemStatusOverviewInitialized = false;
+let currentDateRange = {
+  type: 'preset', // 'preset' або 'custom'
+  days: 90, // для preset
+  startDate: null, // для custom
+  endDate: null // для custom
+};
+
+function toggleStatusNavButtons(enabled) {
+  const prevBtn = document.getElementById('status-nav-prev');
+  const nextBtn = document.getElementById('status-nav-next');
+  [prevBtn, nextBtn].forEach((btn) => {
+    if (!btn) return;
+    btn.disabled = !enabled;
+    btn.classList.toggle('system-status-overview__nav-btn--disabled', !enabled);
+  });
+}
+
+function showSystemStatusOverviewContent() {
+  const loader = document.getElementById('system-status-overview-loader');
+  const content = document.getElementById('system-status-overview-content');
+  if (loader) loader.classList.add('system-status-overview__loader--hidden');
+  if (content) {
+    content.classList.add('system-status-overview__content--visible');
+  }
+  toggleStatusNavButtons(true);
+  systemStatusOverviewReady = true;
+  
+  // Ініціалізуємо обробники після того, як контент стає видимим
+  initializeSystemStatusOverview();
+}
+
+function showSystemStatusOverviewLoader() {
+  const loader = document.getElementById('system-status-overview-loader');
+  const content = document.getElementById('system-status-overview-content');
+  if (loader) loader.classList.remove('system-status-overview__loader--hidden');
+  if (content) {
+    content.classList.remove('system-status-overview__content--visible');
+  }
+  toggleStatusNavButtons(false);
+  systemStatusOverviewReady = false;
+}
+
+function getCurrentDateRangeDays() {
+  if (currentDateRange.type === 'custom') {
+    if (!currentDateRange.startDate || !currentDateRange.endDate) {
+      return STATUS_TIMELINE_DAYS;
+    }
+    const diff = Math.ceil((currentDateRange.endDate.getTime() - currentDateRange.startDate.getTime()) / DAY_MS) + 1;
+    return Math.max(1, diff);
+  }
+  return currentDateRange.days || STATUS_TIMELINE_DAYS;
+}
+
+function getMaxDateRangeOffset() {
+  const nowTime = Date.now();
+  const startTime = STATISTICS_START_DATE.getTime();
+  
+  if (nowTime <= startTime) {
+    return 0;
+  }
+  
+  const totalDaysBetween = Math.floor((nowTime - startTime) / DAY_MS);
+  const currentDays = getCurrentDateRangeDays();
+  const availableOffset = totalDaysBetween - (currentDays - 1);
+  return availableOffset > 0 ? availableOffset : 0;
+}
+
+function clampDateRangeOffset() {
+  const maxOffset = getMaxDateRangeOffset();
+  if (currentDateRangeOffset > maxOffset) {
+    currentDateRangeOffset = maxOffset;
+  }
+  return maxOffset;
+}
+
+function updateDateNavButtons(maxOffset) {
+  const prevBtn = document.getElementById('status-nav-prev');
+  const nextBtn = document.getElementById('status-nav-next');
+  
+  if (prevBtn) {
+    const isDisabled = currentDateRangeOffset >= maxOffset || !systemStatusOverviewReady;
+    prevBtn.disabled = isDisabled;
+    prevBtn.classList.toggle('system-status-overview__nav-btn--disabled', isDisabled);
+  }
+  
+  if (nextBtn) {
+    const isDisabled = currentDateRangeOffset <= 0 || !systemStatusOverviewReady;
+    nextBtn.disabled = isDisabled;
+    nextBtn.classList.toggle('system-status-overview__nav-btn--disabled', isDisabled);
+  }
+}
+
+function generateStatusTimeline(history) {
+  const segments = [];
+  const segmentDuration = 24 * 60 * 60 * 1000; // 1 день в мілісекундах
+  
+  let startDate, endDate;
+  
+  if (currentDateRange.type === 'custom' && currentDateRange.startDate && currentDateRange.endDate) {
+    // Кастомний діапазон
+    startDate = new Date(currentDateRange.startDate);
+    endDate = new Date(currentDateRange.endDate);
+    
+    // Враховуємо зміщення для навігації
+    const rangeDuration = endDate.getTime() - startDate.getTime();
+    const offsetMs = currentDateRangeOffset * segmentDuration;
+    startDate = new Date(startDate.getTime() - offsetMs);
+    endDate = new Date(endDate.getTime() - offsetMs);
+    
+    // Обмежуємо мінімальною датою
+    const earliestAllowed = STATISTICS_START_DATE.getTime();
+    if (startDate.getTime() < earliestAllowed) {
+      const diff = earliestAllowed - startDate.getTime();
+      startDate = new Date(earliestAllowed);
+      endDate = new Date(endDate.getTime() + diff);
+    }
+  } else {
+    // Шаблонний діапазон
+    const days = getCurrentDateRangeDays();
+    const now = new Date();
+    let startTime = now.getTime() - (days - 1 + currentDateRangeOffset) * segmentDuration;
+    const earliestAllowed = STATISTICS_START_DATE.getTime();
+    if (startTime < earliestAllowed) {
+      startTime = earliestAllowed;
+    }
+    startDate = new Date(startTime);
+    endDate = new Date(startDate.getTime() + (days - 1) * segmentDuration);
+  }
+  
+  // Генеруємо сегменти для кожного дня в діапазоні
+  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / segmentDuration) + 1;
+  
+  // Обмежуємо кількість сегментів до 30 для стабільності верстки
+  const MAX_SEGMENTS = 90;
+  const daysPerSegment = totalDays > MAX_SEGMENTS ? Math.ceil(totalDays / MAX_SEGMENTS) : 1;
+  const actualSegments = Math.min(totalDays, MAX_SEGMENTS);
+  
+  for (let i = 0; i < actualSegments; i++) {
+    // Розраховуємо діапазон для цього сегмента
+    const segmentStartDay = i * daysPerSegment;
+    const segmentEndDay = Math.min((i + 1) * daysPerSegment, totalDays);
+    
+    const segmentDate = new Date(startDate.getTime() + segmentStartDay * segmentDuration);
+    const segmentEnd = new Date(startDate.getTime() + segmentEndDay * segmentDuration);
+    
+    // Знаходимо всі записи в цьому діапазоні
+    const dayRecords = history.filter(record => {
+      const recordDate = new Date(record.timestamp);
+      return recordDate >= segmentDate && recordDate < segmentEnd;
+    });
+    
+    let status = 'operational'; // operational, degraded, down
+    let statusText = 'Працює нормально';
+    let latency = null;
+    
+    if (dayRecords.length === 0) {
+      status = 'operational';
+      statusText = 'Немає даних';
+    } else {
+      // Визначаємо статус на основі записів
+      const hasErrors = dayRecords.some(r => !r.isOnline || r.error);
+      const hasHighLatency = dayRecords.some(r => r.latency && r.latency > 1000);
+      
+      if (hasErrors) {
+        status = 'down';
+        statusText = 'Недоступно';
+      } else if (hasHighLatency) {
+        status = 'degraded';
+        statusText = 'Погіршена продуктивність';
+      } else {
+        status = 'operational';
+        statusText = 'Працює нормально';
+      }
+      
+      // Середня latency
+      const latencies = dayRecords.filter(r => r.latency !== null && r.latency !== undefined).map(r => r.latency);
+      if (latencies.length > 0) {
+        latency = Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length);
+      }
+    }
+    
+    segments.push({
+      date: segmentDate,
+      status,
+      statusText,
+      latency,
+      recordsCount: dayRecords.length
+    });
+  }
+  
+  return segments;
+}
+
+function calculateUptime(segments) {
+  if (segments.length === 0) return 100;
+  
+  const operational = segments.filter(s => s.status === 'operational').length;
+  const degraded = segments.filter(s => s.status === 'degraded').length;
+  
+  // Operational = 100%, Degraded = 50%, Down = 0%
+  const uptime = ((operational + degraded * 0.5) / segments.length) * 100;
+  return Math.round(uptime * 100) / 100;
+}
+
+function formatDateRange(segments) {
+  if (segments.length === 0) return '';
+  
+  // segments[0] - перший сегмент (найстаріша дата)
+  // segments[segments.length - 1] - останній сегмент (найновіша дата)
+  const first = segments[0].date; // Найстаріша дата
+  const last = segments[segments.length - 1].date; // Найновіша дата
+  
+  const months = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
+  
+  const currentDays = getCurrentDateRangeDays();
+  
+  // Для коротких діапазонів (менше 30 днів) показуємо конкретні дати
+  if (currentDays < 30) {
+    const firstDay = first.getDate();
+    const firstMonth = first.getMonth();
+    const firstYear = first.getFullYear();
+    
+    const lastDay = last.getDate();
+    const lastMonth = last.getMonth();
+    const lastYear = last.getFullYear();
+    
+    const firstStr = `${firstDay} ${months[firstMonth]} ${firstYear}`;
+    const lastStr = `${lastDay} ${months[lastMonth]} ${lastYear}`;
+    
+    // Якщо одна дата, показуємо тільки її
+    if (first.getTime() === last.getTime()) {
+      return firstStr;
+    }
+    
+    return `${firstStr} - ${lastStr}`;
+  }
+  
+  // Для довгих діапазонів (>= 30 днів) показуємо місяці
+  const firstMonth = first.getMonth();
+  const firstYear = first.getFullYear();
+  const lastMonth = last.getMonth();
+  const lastYear = last.getFullYear();
+  
+  const firstStr = `${months[firstMonth]} ${firstYear}`;
+  const lastStr = `${months[lastMonth]} ${lastYear}`;
+  
+  // Якщо всі дати в одному місяці, показуємо тільки один місяць
+  if (firstStr === lastStr) {
+    return firstStr;
+  }
+  
+  // Для діапазонів >= 30 днів, якщо перша дата після 15 числа,
+  // починаємо з наступного місяця (для правильного відображення кількості місяців)
+  let displayFirstMonth = firstMonth;
+  let displayFirstYear = firstYear;
+  
+  if (first.getDate() > 15) {
+    displayFirstMonth++;
+    if (displayFirstMonth > 11) {
+      displayFirstMonth = 0;
+      displayFirstYear++;
+    }
+  }
+  
+  const displayFirstStr = `${months[displayFirstMonth]} ${displayFirstYear}`;
+  
+  // Якщо після корекції місяці співпадають, показуємо тільки один
+  if (displayFirstStr === lastStr) {
+    return displayFirstStr;
+  }
+  
+  return `${displayFirstStr} - ${lastStr}`;
+}
+
+function getRangeLabel() {
+  if (currentDateRange.type === 'custom') {
+    if (!currentDateRange.startDate || !currentDateRange.endDate) {
+      return '3 місяці';
+    }
+    return 'Кастомний';
+  }
+  
+  const days = currentDateRange.days || 90;
+  if (days === 1) return 'День';
+  if (days === 3) return '3 дні';
+  if (days === 7) return 'Тиждень';
+  if (days === 14) return '2 тижні';
+  if (days === 30) return 'Місяць';
+  if (days === 60) return '2 місяці';
+  if (days === 90) return '3 місяці';
+  return `${days} днів`;
+}
+
+function updateRangeLabel() {
+  const label = document.getElementById('status-range-label');
+  if (label) {
+    label.textContent = getRangeLabel();
+  }
+}
+
+function setDateRange(days, type = 'preset') {
+  if (type === 'preset') {
+    currentDateRange = {
+      type: 'preset',
+      days: days,
+      startDate: null,
+      endDate: null
+    };
+  } else {
+    // custom буде встановлюватися через модалку
+    return;
+  }
+  
+  currentDateRangeOffset = 0; // Скидаємо зміщення при зміні діапазону
+  updateRangeLabel();
+  renderSystemStatusOverview();
+}
+
+function setCustomDateRange(startDate, endDate) {
+  let start = new Date(startDate);
+  let end = new Date(endDate);
+  
+  // Обмежуємо мінімальною датою
+  if (start.getTime() < STATISTICS_START_DATE.getTime()) {
+    start = new Date(STATISTICS_START_DATE);
+  }
+  
+  // Обмежуємо максимальною датою (сьогодні)
+  const now = new Date();
+  if (end.getTime() > now.getTime()) {
+    end = new Date(now);
+  }
+  
+  // Переконуємося, що start <= end
+  if (start.getTime() > end.getTime()) {
+    const temp = start;
+    start = end;
+    end = temp;
+  }
+  
+  currentDateRange = {
+    type: 'custom',
+    days: null,
+    startDate: start,
+    endDate: end
+  };
+  
+  currentDateRangeOffset = 0; // Скидаємо зміщення
+  updateRangeLabel();
+  renderSystemStatusOverview();
+}
+
+function getOverallSystemStatus(services) {
+  const hasDown = services.some(s => s.segments.some(seg => seg.status === 'down'));
+  const hasDegraded = services.some(s => s.segments.some(seg => seg.status === 'degraded'));
+  
+  if (hasDown) return 'down';
+  if (hasDegraded) return 'degraded';
+  return 'operational';
+}
+
+function renderSystemStatusOverview() {
+  const container = document.getElementById('system-status-services');
+  if (!container || !systemStatusOverviewReady) return;
+  
+  const maxOffset = clampDateRangeOffset();
+  toggleStatusNavButtons(true);
+  
+  // Генеруємо дані для кожного сервісу
+  const apiSegments = generateStatusTimeline(apiStatusHistory);
+  const ollamaSegments = generateStatusTimeline(ollamaStatusHistory);
+  const dbSegments = generateStatusTimeline(dbStatusHistory);
+  
+  const services = [
+    {
+      name: 'API',
+      icon: 'server',
+      components: 12,
+      segments: apiSegments,
+      uptime: calculateUptime(apiSegments),
+      componentList: [
+        'REST API',
+        'Health Check',
+        'Authentication',
+        'User Management',
+        'Prediction Engine',
+        'Model Metadata',
+        'History Service',
+        'Statistics API',
+        'Chat API',
+        'File Upload',
+        'Avatar Service',
+        'Password Reset'
+      ]
+    },
+    {
+      name: 'Ollama',
+      icon: 'brain',
+      components: 13,
+      segments: ollamaSegments,
+      uptime: calculateUptime(ollamaSegments),
+      componentList: [
+        'Ollama Server',
+        'Model Loading',
+        'Text Generation',
+        'Chat Completion',
+        'Streaming API',
+        'Context Management',
+        'Token Processing',
+        'Response Parsing',
+        'Error Handling',
+        'Health Monitoring',
+        'Connection Pool',
+        'Request Queue',
+        'Model Cache'
+      ]
+    },
+    {
+      name: 'База даних',
+      icon: 'database',
+      components: 5,
+      segments: dbSegments,
+      uptime: calculateUptime(dbSegments),
+      componentList: [
+        'SQLite Database',
+        'Connection Pool',
+        'Query Engine',
+        'Transaction Manager',
+        'Backup Service'
+      ]
+    }
+  ];
+  
+  // Оновлюємо банер на основі загального статусу
+  const banner = document.querySelector('.system-status-overview__banner');
+  const bannerIcon = document.querySelector('.system-status-overview__banner-icon');
+  const bannerText = document.querySelector('.system-status-overview__banner-text');
+  const overallStatus = getOverallSystemStatus(services);
+  
+  if (banner && bannerText) {
+    banner.className = `system-status-overview__banner system-status-overview__banner--${overallStatus}`;
+    
+    if (overallStatus === 'operational') {
+      bannerText.innerHTML = '<strong>Всі системи працюють нормально</strong><span>Ми не виявили жодних проблем, що впливають на наші системи.</span>';
+      if (bannerIcon) bannerIcon.setAttribute('data-lucide', 'check-circle-2');
+    } else if (overallStatus === 'degraded') {
+      bannerText.innerHTML = '<strong>Деякі системи працюють з обмеженнями</strong><span>Ми виявили проблеми з продуктивністю в деяких системах.</span>';
+      if (bannerIcon) bannerIcon.setAttribute('data-lucide', 'alert-triangle');
+    } else {
+      bannerText.innerHTML = '<strong>Деякі системи недоступні</strong><span>Ми виявили проблеми, що впливають на наші системи.</span>';
+      if (bannerIcon) bannerIcon.setAttribute('data-lucide', 'x-circle');
+    }
+    
+    if (bannerIcon) refreshIcons();
+  }
+  
+  // Оновлюємо діапазон дат
+  const dateRangeEl = document.getElementById('status-date-range');
+  if (dateRangeEl && apiSegments.length > 0) {
+    dateRangeEl.textContent = formatDateRange(apiSegments);
+  }
+  
+  // Рендеримо сервіси
+  container.innerHTML = services.map(service => {
+    const segmentsHtml = service.segments.map((segment, index) => {
+      const dateStr = segment.date.toLocaleDateString('uk-UA', { 
+        day: 'numeric', 
+        month: 'short',
+        year: 'numeric'
+      });
+      
+      return `
+        <div class="system-status-segment system-status-segment--${segment.status}" 
+             data-index="${index}"
+             data-date="${dateStr}"
+             data-status="${segment.statusText}"
+             data-latency="${segment.latency || '—'}"
+             data-records="${segment.recordsCount}">
+          <div class="system-status-tooltip">
+            <div class="system-status-tooltip__date">${dateStr}</div>
+            <div class="system-status-tooltip__status">${segment.statusText}</div>
+            ${segment.latency ? `<div class="system-status-tooltip__status">Latency: ${segment.latency}ms</div>` : ''}
+            ${segment.recordsCount > 0 ? `<div class="system-status-tooltip__status">Записів: ${segment.recordsCount}</div>` : ''}
+            <div class="system-status-tooltip__arrow"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    const componentsListHtml = service.componentList.map(component => `
+      <div class="system-status-component-item">
+        <span class="system-status-component-item__icon icon" data-lucide="circle"></span>
+        <span class="system-status-component-item__name">${component}</span>
+      </div>
+    `).join('');
+    
+    return `
+      <div class="system-status-service">
+        <div class="system-status-service__header">
+          <div class="system-status-service__info">
+            <span class="system-status-service__icon icon" data-lucide="${service.icon}"></span>
+            <span class="system-status-service__name">${service.name}</span>
+            <span class="system-status-service__components" data-service-id="${service.name.toLowerCase().replace(/\s+/g, '-')}">
+              <span class="icon system-status-service__components-icon" data-lucide="info"></span>
+              <span>${service.components} компонентів</span>
+              <span class="icon system-status-service__chevron" data-lucide="chevron-down" style="width: 14px; height: 14px;"></span>
+            </span>
+          </div>
+          <span class="system-status-service__uptime">${service.uptime}% uptime</span>
+        </div>
+        <div class="system-status-service__components-list" data-service-id="${service.name.toLowerCase().replace(/\s+/g, '-')}" style="display: none;">
+          ${componentsListHtml}
+        </div>
+        <div class="system-status-service__timeline">
+          ${segmentsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  // Оновлюємо іконки
+  refreshIcons();
+  
+  // Оновлюємо навігаційні кнопки (maxOffset вже обчислено вище)
+  updateDateNavButtons(maxOffset);
+  
+  // Додаємо обробники кліку для розгортання/згортання списку компонентів
+  const componentsElements = document.querySelectorAll('.system-status-service__components');
+  componentsElements.forEach(element => {
+    element.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const serviceId = element.getAttribute('data-service-id');
+      const componentsList = document.querySelector(`.system-status-service__components-list[data-service-id="${serviceId}"]`);
+      const chevron = element.querySelector('.system-status-service__chevron');
+      
+      if (componentsList) {
+        const isExpanded = componentsList.style.display !== 'none';
+        
+        if (isExpanded) {
+          componentsList.style.display = 'none';
+          if (chevron) {
+            chevron.style.transform = 'rotate(0deg)';
+          }
+          element.classList.remove('system-status-service__components--expanded');
+        } else {
+          componentsList.style.display = 'block';
+          if (chevron) {
+            chevron.style.transform = 'rotate(180deg)';
+          }
+          element.classList.add('system-status-service__components--expanded');
+        }
+        
+        // Оновлюємо іконки після зміни
+        refreshIcons();
+      }
+    });
+  });
+}
+
+// Ініціалізація компонента статусу системи
+function initializeSystemStatusOverview() {
+  updateRangeLabel();
+  renderSystemStatusOverview();
+  
+  // Ініціалізуємо обробники тільки один раз
+  if (systemStatusOverviewInitialized) return;
+  
+  // Обробники навігації по датах
+  const prevBtn = document.getElementById('status-nav-prev');
+  const nextBtn = document.getElementById('status-nav-next');
+  
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      const maxOffset = clampDateRangeOffset();
+      if (currentDateRangeOffset >= maxOffset) return;
+      const currentDays = getCurrentDateRangeDays();
+      currentDateRangeOffset = Math.min(
+        maxOffset,
+        currentDateRangeOffset + currentDays
+      );
+      renderSystemStatusOverview();
+      // Оновлюємо кнопки після зміни
+      updateDateNavButtons(maxOffset);
+    });
+  }
+  
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      if (currentDateRangeOffset === 0) return;
+      const currentDays = getCurrentDateRangeDays();
+      currentDateRangeOffset = Math.max(0, currentDateRangeOffset - currentDays);
+      renderSystemStatusOverview();
+      // Оновлюємо кнопки після зміни
+      const maxOffset = clampDateRangeOffset();
+      updateDateNavButtons(maxOffset);
+    });
+  }
+  
+  // Обробник вибору діапазону
+  const rangeBtn = document.getElementById('status-range-btn');
+  const rangeDropdown = document.getElementById('status-range-dropdown');
+  
+  if (rangeBtn && rangeDropdown) {
+    // Використовуємо делегування подій для закриття dropdown
+    let clickOutsideHandler = null;
+    
+    rangeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = rangeDropdown.style.display !== 'none';
+      
+      if (isVisible) {
+        rangeDropdown.style.display = 'none';
+        if (clickOutsideHandler) {
+          document.removeEventListener('click', clickOutsideHandler);
+          clickOutsideHandler = null;
+        }
+      } else {
+        rangeDropdown.style.display = 'block';
+        // Додаємо обробник для закриття при кліку поза dropdown
+        clickOutsideHandler = (e) => {
+          if (!rangeBtn.contains(e.target) && !rangeDropdown.contains(e.target)) {
+            rangeDropdown.style.display = 'none';
+            document.removeEventListener('click', clickOutsideHandler);
+            clickOutsideHandler = null;
+          }
+        };
+        // Використовуємо setTimeout, щоб не спрацював одразу
+        setTimeout(() => {
+          document.addEventListener('click', clickOutsideHandler);
+        }, 0);
+      }
+    });
+    
+    // Обробники для шаблонних діапазонів
+    const presetButtons = rangeDropdown.querySelectorAll('.system-status-overview__range-preset');
+    presetButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const days = parseInt(btn.getAttribute('data-days'));
+        setDateRange(days, 'preset');
+        rangeDropdown.style.display = 'none';
+        
+        // Оновлюємо активний стан
+        presetButtons.forEach(b => b.removeAttribute('data-active'));
+        btn.setAttribute('data-active', 'true');
+      });
+    });
+    
+    // Обробник для кастомного діапазону
+    const customBtn = document.getElementById('status-range-custom-btn');
+    const datePickerModal = document.getElementById('status-date-picker-modal');
+    const datePickerFrom = document.getElementById('status-date-picker-from');
+    const datePickerTo = document.getElementById('status-date-picker-to');
+    const datePickerClose = document.getElementById('status-date-picker-close');
+    const datePickerCancel = document.getElementById('status-date-picker-cancel');
+    const datePickerApply = document.getElementById('status-date-picker-apply');
+    
+    if (customBtn && datePickerModal) {
+      customBtn.addEventListener('click', () => {
+        rangeDropdown.style.display = 'none';
+        
+        // Встановлюємо мінімальну та максимальну дати
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        datePickerTo.setAttribute('max', todayStr);
+        datePickerFrom.setAttribute('max', todayStr);
+        datePickerFrom.setAttribute('min', '2024-08-01');
+        
+        // Встановлюємо поточні значення, якщо є кастомний діапазон
+        if (currentDateRange.type === 'custom' && currentDateRange.startDate && currentDateRange.endDate) {
+          datePickerFrom.value = currentDateRange.startDate.toISOString().split('T')[0];
+          datePickerTo.value = currentDateRange.endDate.toISOString().split('T')[0];
+        } else {
+          // За замовчуванням - останні 30 днів
+          const defaultStart = new Date(now.getTime() - 29 * DAY_MS);
+          datePickerFrom.value = defaultStart.toISOString().split('T')[0];
+          datePickerTo.value = todayStr;
+        }
+        
+        datePickerModal.style.display = 'flex';
+      });
+      
+      // Закриття модалки
+      const closeModal = () => {
+        datePickerModal.style.display = 'none';
+      };
+      
+      if (datePickerClose) datePickerClose.addEventListener('click', closeModal);
+      if (datePickerCancel) datePickerCancel.addEventListener('click', closeModal);
+      
+      // Застосування кастомного діапазону
+      if (datePickerApply) {
+        datePickerApply.addEventListener('click', () => {
+          const fromValue = datePickerFrom.value;
+          const toValue = datePickerTo.value;
+          
+          if (!fromValue || !toValue) {
+            alert('Будь ласка, оберіть обидві дати');
+            return;
+          }
+          
+          const fromDate = new Date(fromValue);
+          const toDate = new Date(toValue);
+          
+          if (fromDate.getTime() > toDate.getTime()) {
+            alert('Дата "Від" повинна бути раніше дати "До"');
+            return;
+          }
+          
+          setCustomDateRange(fromDate, toDate);
+          
+          // Оновлюємо активний стан (прибираємо з усіх preset)
+          presetButtons.forEach(b => b.removeAttribute('data-active'));
+          
+          closeModal();
+        });
+      }
+      
+      // Закриваємо модалку при кліку поза нею
+      datePickerModal.addEventListener('click', (e) => {
+        if (e.target === datePickerModal) {
+          closeModal();
+        }
+      });
+    }
+  }
+  
+  // Обробник кнопки історії
+  const historyBtn = document.querySelector('.system-status-overview__history-btn');
+  if (historyBtn) {
+    historyBtn.addEventListener('click', () => {
+      // Прокручуємо до початку компонента
+      const container = document.querySelector('.system-status-overview');
+      if (container) {
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  }
+  
+  systemStatusOverviewInitialized = true;
+}
 
 // Опис маршрутів для таблиці
 const ROUTE_DESCRIPTIONS = {
@@ -5264,7 +6016,7 @@ function initializeApiStatusTabs() {
         targetPanel.classList.add("api-status-tab-panel--active");
       }
       
-      // Якщо відкрили таб "Система", запускаємо перевірку БД
+      // Якщо відкрили таб "Система", запускаємо перевірку БД та оновлюємо компонент статусу
       // ВИПРАВЛЕНО: Викликаємо checkDbStatus(), який сам запустить анімацію
       if (tabName === "system") {
         if (typeof window.checkDbStatus === "function") {
@@ -5414,6 +6166,7 @@ function updateOllamaResponseTimeChart() {
 }
 
 async function initializeApiStatusPage() {
+  showSystemStatusOverviewLoader();
   // Ініціалізація табів
   initializeApiStatusTabs();
   
@@ -5448,11 +6201,17 @@ async function initializeApiStatusPage() {
     
     // Додаємо до історії
     if (result.latency !== null && result.latency !== undefined) {
-      apiStatusHistory.push({ latency: result.latency, timestamp: result.timestamp });
+      apiStatusHistory.push({ 
+        latency: result.latency, 
+        timestamp: result.timestamp,
+        isOnline: result.isOnline !== false,
+        error: result.error
+      });
       if (apiStatusHistory.length > MAX_HISTORY_ITEMS) {
         apiStatusHistory.shift();
       }
       updateApiResponseTimeChart();
+      renderSystemStatusOverview();
     }
     
     if (result.isOnline) {
@@ -5616,11 +6375,17 @@ async function initializeApiStatusPage() {
     
     // Додаємо до історії
     if (result.latency !== null && result.latency !== undefined) {
-      ollamaStatusHistory.push({ latency: result.latency, timestamp: result.timestamp });
+      ollamaStatusHistory.push({ 
+        latency: result.latency, 
+        timestamp: result.timestamp,
+        isOnline: result.isOnline !== false,
+        error: result.error
+      });
       if (ollamaStatusHistory.length > MAX_HISTORY_ITEMS) {
         ollamaStatusHistory.shift();
       }
       updateOllamaResponseTimeChart();
+      renderSystemStatusOverview();
     }
     
     if (result.isOnline) {
@@ -5726,14 +6491,16 @@ async function initializeApiStatusPage() {
   }
   
   // Функція для завантаження статистики БД
-  async function loadDatabaseStats() {
+  async function loadDatabaseStats(prefetchedData) {
     try {
-      const response = await fetch(`${API_BASE}/system/database/stats`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      let data = prefetchedData;
+      if (!data) {
+        const response = await fetch(`${API_BASE}/system/database/stats`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        data = await response.json();
       }
-      
-      const data = await response.json();
       
       if (data.status === "ok" && data.tables) {
         // Оновлюємо статистику таблиць
@@ -5767,57 +6534,102 @@ async function initializeApiStatusPage() {
   const dbStatusLoader = document.getElementById("db-status-loader");
   const dbStatusResult = document.getElementById("db-status-result");
   
-  // Перевірка БД (спрощена - через спробу отримати health)
+  // Перевірка БД через реальний запит до /system/database/stats
   // ВИПРАВЛЕНО: Повністю ізольована функція для БД, не залежить від Ollama
   const checkDbStatus = async () => {
-    // Показуємо лоадер, приховуємо результат
+    // Одразу показуємо лоадер при вході на таб
+    showSystemStatusOverviewLoader();
     if (dbStatusLoader) dbStatusLoader.style.display = "flex";
     if (dbStatusResult) dbStatusResult.style.display = "none";
     refreshIcons(); // Оновлюємо іконку лоадера
-    
-    // Запускаємо анімацію крапочок
     startDbDotsAnimation();
-    
-    try {
-      const response = await fetch(`${API_BASE}/health`);
-      if (response.ok) {
-        // ВИПРАВЛЕНО: Зупиняємо анімацію перед приховуванням лоадера
+
+    if (dbStatusLoadingPromise) {
+      return dbStatusLoadingPromise;
+    }
+
+    dbStatusLoadingPromise = (async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const startTime = performance.now();
+      
+      try {
+        const response = await fetch(`${API_BASE}/system/database/stats`, { signal: controller.signal });
+        const endTime = performance.now();
+        const latency = Math.round(endTime - startTime);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        dbStatusHistory.push({
+          isOnline: true,
+          latency,
+          timestamp: new Date()
+        });
+        if (dbStatusHistory.length > MAX_HISTORY_ITEMS) {
+          dbStatusHistory.shift();
+        }
+        
+        if (dbStatusDot) {
+          dbStatusDot.classList.remove("status-dot--ok", "status-dot--fail");
+          dbStatusDot.classList.add("status-dot--ok");
+        }
+        if (dbStatusText) dbStatusText.textContent = "База даних доступна";
+        if (dbStatusBadge) {
+          dbStatusBadge.classList.remove("status-badge--online", "status-badge--offline", "status-badge--degraded");
+          dbStatusBadge.classList.add("status-badge--online");
+          dbStatusBadge.textContent = "Online";
+        }
+        if (dbConnectionStatus) dbConnectionStatus.textContent = "Підключено";
+        
+        // Завантажуємо статистику БД (використовуємо вже отримані дані)
+        await loadDatabaseStats(data);
+      } catch (error) {
+        const endTime = performance.now();
+        const latency = error.name === "AbortError" ? null : Math.round(endTime - startTime);
+        
+        // Додаємо запис про помилку до історії БД
+        dbStatusHistory.push({
+          isOnline: false,
+          latency,
+          error: error.message,
+          timestamp: new Date()
+        });
+        if (dbStatusHistory.length > MAX_HISTORY_ITEMS) {
+          dbStatusHistory.shift();
+        }
+        
+        if (dbStatusDot) {
+          dbStatusDot.classList.remove("status-dot--ok", "status-dot--fail");
+          dbStatusDot.classList.add("status-dot--fail");
+        }
+        if (dbStatusText) dbStatusText.textContent = "База даних недоступна";
+        if (dbStatusBadge) {
+          dbStatusBadge.classList.remove("status-badge--online", "status-badge--offline", "status-badge--degraded");
+          dbStatusBadge.classList.add("status-badge--offline");
+          dbStatusBadge.textContent = "Offline";
+        }
+        if (dbConnectionStatus) dbConnectionStatus.textContent = "Помилка підключення";
+      } finally {
+        clearTimeout(timeoutId);
         stopDbDotsAnimation();
         
         // Приховуємо лоадер, показуємо результат
         if (dbStatusLoader) dbStatusLoader.style.display = "none";
         if (dbStatusResult) dbStatusResult.style.display = "flex";
         
-        if (dbStatusDot) dbStatusDot.classList.add("status-dot--ok");
-        if (dbStatusText) dbStatusText.textContent = "База даних доступна";
-        if (dbStatusBadge) {
-          dbStatusBadge.classList.add("status-badge--online");
-          dbStatusBadge.textContent = "Online";
-        }
-        if (dbConnectionStatus) dbConnectionStatus.textContent = "Підключено";
-        
-        // Завантажуємо статистику БД
-        await loadDatabaseStats();
-      } else {
-        throw new Error("DB check failed");
+        showSystemStatusOverviewContent();
+        // Оновлюємо компонент статусу системи
+        renderSystemStatusOverview();
+        refreshIcons();
+        dbStatusLoadingPromise = null;
       }
-    } catch (error) {
-      // ВИПРАВЛЕНО: Зупиняємо анімацію перед приховуванням лоадера
-      stopDbDotsAnimation();
-      
-      // Приховуємо лоадер, показуємо результат
-      if (dbStatusLoader) dbStatusLoader.style.display = "none";
-      if (dbStatusResult) dbStatusResult.style.display = "flex";
-      
-      if (dbStatusDot) dbStatusDot.classList.add("status-dot--fail");
-      if (dbStatusText) dbStatusText.textContent = "База даних недоступна";
-      if (dbStatusBadge) {
-        dbStatusBadge.classList.add("status-badge--offline");
-        dbStatusBadge.textContent = "Offline";
-      }
-      if (dbConnectionStatus) dbConnectionStatus.textContent = "Помилка підключення";
-    }
-    refreshIcons();
+    })();
+    
+    return dbStatusLoadingPromise;
   };
   
   // Експортуємо функцію для виклику з обробника табів
@@ -5848,6 +6660,9 @@ async function initializeApiStatusPage() {
       (systemPanel && systemPanel.classList.contains("api-status-tab-panel--active"))) {
     checkDbStatus();
   }
+  
+  // Ініціалізуємо компонент статусу системи
+  initializeSystemStatusOverview();
 }
 
 function initializeApiStatus() {
@@ -12533,4 +13348,3 @@ function generateJSONReport(data) {
     duration: 3000
   });
 }
-
