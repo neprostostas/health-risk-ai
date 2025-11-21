@@ -5801,29 +5801,81 @@ function initializeSystemStatusOverview() {
 // Опис маршрутів для таблиці
 const ROUTE_DESCRIPTIONS = {
   "/health": "Перевірка стану сервісу",
+  "/system/database/stats": "Статистика бази даних",
   "/metadata": "Метадані API та моделей",
   "/predict": "Прогнозування ризиків здоров'я",
   "/explain": "Пояснення моделі через permutation importance",
+  "/health-risk/latest": "Останній збережений прогноз ризику",
   "/auth/register": "Реєстрація нового користувача",
   "/auth/login": "Вхід в систему",
   "/auth/logout": "Вихід з системи",
+  "/auth/change-password": "Зміна пароля для залогіненого користувача",
   "/auth/forgot-password": "Запит на відновлення пароля",
   "/auth/reset-password": "Встановлення нового пароля",
   "/auth/me": "Отримання профілю поточного користувача",
+  "/auth/history": "Історія прогнозів користувача (через auth router)",
   "/users/me": "Отримання/оновлення профілю",
   "/users/me/avatar": "Завантаження/видалення аватару",
   "/users/me/password": "Зміна пароля",
   "/users/me/delete": "Видалення облікового запису",
-  "/users/history": "Історія прогнозів користувача",
-  "/users/history/stats": "Статистика прогнозів",
-  "/users/block": "Блокування користувача",
-  "/users/unblock": "Розблокування користувача",
+  "/users/me/history": "Історія прогнозів користувача",
+  "/users/me/history/stats": "Статистика прогнозів",
+  "/users/me/history/{prediction_id}": "Видалення запису історії",
+  "/users/history": "Історія прогнозів користувача (legacy)",
+  "/users/history/stats": "Статистика прогнозів (legacy)",
+  "/users/{user_id}/block": "Блокування користувача",
+  "/users/{user_id}/unblock": "Розблокування користувача",
   "/assistant/chat": "Чат з AI-асистентом",
   "/assistant/history": "Історія повідомлень з асистентом",
+  "/assistant/health": "Перевірка статусу Ollama",
   "/api/chats": "Список чатів між користувачами",
+  "/api/chats/users": "Список всіх користувачів для чатів",
+  "/api/chats/unread-count": "Кількість непрочитаних повідомлень",
   "/api/chats/{chat_uuid}": "Деталі конкретного чату",
   "/api/chats/{chat_uuid}/messages": "Відправка повідомлення в чат",
-  "/health-risk/latest": "Останній збережений прогноз ризику",
+  "/api/chats/{chat_uuid}/read": "Позначення повідомлень як прочитаних",
+  "/api/chats/{chat_uuid}/pin": "Закріплення/відкріплення чату",
+  "/api/chats/reorder": "Зміна порядку чатів",
+};
+
+// Детальні описи для кожного ендпоінта
+const ROUTE_DETAILED_DESCRIPTIONS = {
+  "/health": "Перевірка стану сервісу. Повертає інформацію про статус API, список доступних маршрутів та загальну інформацію про сервіс. Використовується для моніторингу та перевірки доступності API.",
+  "/system/database/stats": "Отримання статистики бази даних. Надає інформацію про кількість записів, активність користувачів, розмір бази даних та інші метрики продуктивності бази даних.",
+  "/metadata": "Метадані API та моделей машинного навчання. Повертає інформацію про доступні цільові змінні, схему параметрів для прогнозування, версії моделей та їх характеристики.",
+  "/predict": "Прогнозування ризиків здоров'я на основі введених параметрів. Приймає дані про здоров'я користувача та цільову змінну, повертає ймовірність ризику та рекомендації. Використовує калібровані чемпіонські моделі машинного навчання.",
+  "/explain": "Пояснення моделі через permutation importance. Аналізує вплив кожного параметра на результат прогнозування, дозволяючи зрозуміти, які фактори найбільше впливають на ризик.",
+  "/health-risk/latest": "Отримання останнього збереженого прогнозу ризику для поточного користувача. Повертає найновіший запис з історії прогнозів з повною інформацією про результати.",
+  "/auth/register": "Реєстрація нового користувача в системі. Створює новий обліковий запис з валідацією email, пароля та персональних даних. Повертає JWT токен для подальшої автентифікації.",
+  "/auth/login": "Вхід в систему. Перевіряє email та пароль користувача, повертає JWT токен доступу та інформацію про профіль користувача для автентифікованих запитів.",
+  "/auth/logout": "Вихід з системи. Завершує поточну сесію користувача. На клієнті видаляється токен доступу з localStorage.",
+  "/auth/change-password": "Зміна пароля для залогіненого користувача. Вимагає поточний пароль та новий пароль з підтвердженням. Забезпечує безпеку через перевірку поточного пароля.",
+  "/auth/forgot-password": "Запит на відновлення пароля. Генерує безпечний токен для скидання пароля та надсилає інструкції на email користувача. Токен дійсний 24 години.",
+  "/auth/reset-password": "Встановлення нового пароля через токен відновлення. Приймає токен з email та новий пароль, оновлює пароль користувача в базі даних.",
+  "/auth/me": "Отримання профілю поточного автентифікованого користувача. Повертає повну інформацію про користувача включаючи email, ім'я, дату народження, аватар та інші персональні дані.",
+  "/auth/history": "Отримання історії прогнозів користувача через auth router. Повертає список останніх прогнозів з детальною інформацією про кожен прогноз.",
+  "/users/me": "Отримання та оновлення профілю користувача. Підтримує GET для отримання та PUT/PATCH для оновлення даних профілю. Дозволяє змінювати ім'я, прізвище, дату народження та інші поля.",
+  "/users/me/avatar": "Завантаження та видалення аватару користувача. POST дозволяє завантажити зображення (PNG, JPG, JPEG), DELETE видаляє завантажений аватар та повертається до згенерованого.",
+  "/users/me/password": "Зміна пароля користувача. Оновлює пароль в обліковому записі з валідацією мінімальної довжини та безпеки.",
+  "/users/me/delete": "Видалення облікового запису користувача. Видаляє всі дані користувача включаючи історію прогнозів, токени відновлення пароля та завантажений аватар. Дія незворотна.",
+  "/users/me/history": "Отримання історії прогнозів користувача. Повертає список прогнозів з детальною інформацією про цільові змінні, моделі, ймовірності та дати створення.",
+  "/users/me/history/stats": "Статистика прогнозів користувача для діаграм. Надає агреговані дані про прогнози: розподіл по цільових змінних, рівнях ризику, моделях та часовій серії для візуалізації.",
+  "/users/me/history/{prediction_id}": "Видалення конкретного запису історії прогнозів. Дозволяє користувачу видалити окремий прогноз зі своєї історії.",
+  "/users/history": "Історія прогнозів користувача (legacy endpoint). Застарілий маршрут, використовується для сумісності зі старими версіями клієнтів.",
+  "/users/history/stats": "Статистика прогнозів (legacy endpoint). Застарілий маршрут для отримання статистики, замінений на /users/me/history/stats.",
+  "/users/{user_id}/block": "Блокування користувача іншим користувачем. Дозволяє заблокувати іншого користувача, що приховує його зі списку чатів та забороняє отримувати повідомлення від нього.",
+  "/users/{user_id}/unblock": "Розблокування користувача. Скасовує попереднє блокування, повертаючи можливість взаємодії з користувачем.",
+  "/assistant/chat": "Чат з AI-асистентом здоров'я. Приймає повідомлення користувача, аналізує контекст з історії прогнозів та надає персоналізовані рекомендації щодо здоров'я через LLM (Ollama).",
+  "/assistant/history": "Історія повідомлень з AI-асистентом. Повертає останні повідомлення з чату з асистентом, дозволяючи відновити контекст розмови.",
+  "/assistant/health": "Перевірка статусу Ollama сервера. Тестує доступність та продуктивність LLM сервісу, вимірює латентність та повертає детальну інформацію про стан сервісу.",
+  "/api/chats": "Список чатів між користувачами. Повертає всі активні чати поточного користувача з інформацією про останні повідомлення, непрочитані повідомлення та статус закріплення.",
+  "/api/chats/users": "Список всіх користувачів для створення чатів. Надає перелік активних користувачів системи з інформацією про їх профілі та статус блокування для вибору співрозмовника.",
+  "/api/chats/unread-count": "Кількість непрочитаних повідомлень. Повертає загальну кількість непрочитаних повідомлень для поточного користувача в усіх чатах.",
+  "/api/chats/{chat_uuid}": "Деталі конкретного чату за UUID. Отримує повну інформацію про чат включаючи всі повідомлення, дані про співрозмовника та автоматично позначає повідомлення як прочитані.",
+  "/api/chats/{chat_uuid}/messages": "Відправка повідомлення в чат. Створює нове повідомлення в чаті між двома користувачами з валідацією доступу та блокувань.",
+  "/api/chats/{chat_uuid}/read": "Позначення повідомлень як прочитаних. Оновлює статус всіх непрочитаних повідомлень в чаті, позначаючи їх як прочитані поточним користувачем.",
+  "/api/chats/{chat_uuid}/pin": "Закріплення або відкріплення чату. Дозволяє закріпити важливі чати вгорі списку для швидкого доступу.",
+  "/api/chats/reorder": "Зміна порядку чатів. Оновлює порядок відображення чатів у списку відповідно до налаштувань користувача.",
 };
 
 function getRouteDescription(path) {
@@ -5854,6 +5906,199 @@ function getMethodBadgeClass(method) {
   if (methodLower === "delete") return "route-method--delete";
   if (methodLower === "patch") return "route-method--patch";
   return "";
+}
+
+// Функція для відображення деталей маршруту
+function showRouteDetails(routeData) {
+  const modal = document.getElementById('api-route-modal');
+  const modalTitle = document.getElementById('api-route-modal-title');
+  const modalBody = document.getElementById('api-route-modal-body');
+  const modalClose = document.getElementById('api-route-modal-close');
+  
+  if (!modal || !modalTitle || !modalBody) return;
+  
+  // Встановлюємо заголовок
+  const methods = routeData.methods.join(', ');
+  modalTitle.textContent = `${methods} ${routeData.path}`;
+  
+  // Формуємо контент модального вікна
+  let html = '';
+  
+  // Опис/Summary - використовуємо детальний опис якщо є, інакше summary або description
+  let detailedDescription = ROUTE_DETAILED_DESCRIPTIONS[routeData.path];
+  
+  // Якщо немає точного збігу, шукаємо по префіксу (для динамічних маршрутів)
+  if (!detailedDescription) {
+    for (const [route, desc] of Object.entries(ROUTE_DETAILED_DESCRIPTIONS)) {
+      if (routeData.path.startsWith(route.replace("{chat_uuid}", "").replace("{user_id}", "").replace("{prediction_id}", ""))) {
+        detailedDescription = desc;
+        break;
+      }
+    }
+  }
+  
+  // Використовуємо детальний опис, якщо є, інакше summary або description
+  const finalDescription = detailedDescription || routeData.summary || routeData.description || "API endpoint";
+  
+  html += `
+    <div class="api-route-detail-section">
+      <h3 class="api-route-detail-section__title">Опис</h3>
+      <p class="api-route-detail-section__content">${finalDescription}</p>
+    </div>
+  `;
+  
+  // Методи
+  if (routeData.methods && routeData.methods.length > 0) {
+    const methodBadges = routeData.methods.map(m => {
+      const methodLower = m.toLowerCase();
+      return `<span class="route-method route-method--${methodLower}">${m}</span>`;
+    }).join(' ');
+    html += `
+      <div class="api-route-detail-section">
+        <h3 class="api-route-detail-section__title">HTTP Методи</h3>
+        <div class="api-route-detail-section__content">${methodBadges}</div>
+      </div>
+    `;
+  }
+  
+  // Шлях
+  html += `
+    <div class="api-route-detail-section">
+      <h3 class="api-route-detail-section__title">Шлях</h3>
+      <div class="api-route-detail-section__content">
+        <code class="api-route-detail-code">${routeData.path}</code>
+      </div>
+    </div>
+  `;
+  
+  // Повний URL
+  const fullUrl = `${window.location.origin}${API_BASE}${routeData.path}`;
+  html += `
+    <div class="api-route-detail-section">
+      <h3 class="api-route-detail-section__title">Повний URL</h3>
+      <div class="api-route-detail-section__content">
+        <code class="api-route-detail-code">${fullUrl}</code>
+      </div>
+    </div>
+  `;
+  
+  // Теги
+  if (routeData.tags && routeData.tags.length > 0) {
+    const tags = routeData.tags.map(tag => `<span class="api-route-tag">${tag}</span>`).join('');
+    html += `
+      <div class="api-route-detail-section">
+        <h3 class="api-route-detail-section__title">Теги</h3>
+        <div class="api-route-detail-section__content">${tags}</div>
+      </div>
+    `;
+  }
+  
+  // Параметри
+  if (routeData.parameters && routeData.parameters.length > 0) {
+    let paramsHtml = '<div class="api-route-params">';
+    routeData.parameters.forEach(param => {
+      paramsHtml += `
+        <div class="api-route-param">
+          <div class="api-route-param__header">
+            <code class="api-route-param__name">${param.name || 'N/A'}</code>
+            <span class="api-route-param__in">${param.in || 'query'}</span>
+            ${param.required ? '<span class="api-route-param__required">Обов\'язковий</span>' : ''}
+          </div>
+          ${param.description ? `<p class="api-route-param__description">${param.description}</p>` : ''}
+          ${param.schema ? `<div class="api-route-param__type">Тип: <code>${param.schema.type || 'string'}</code></div>` : ''}
+        </div>
+      `;
+    });
+    paramsHtml += '</div>';
+    html += `
+      <div class="api-route-detail-section">
+        <h3 class="api-route-detail-section__title">Параметри</h3>
+        <div class="api-route-detail-section__content">${paramsHtml}</div>
+      </div>
+    `;
+  }
+  
+  // Request Body
+  if (routeData.requestBody) {
+    let bodyHtml = '';
+    if (routeData.requestBody.description) {
+      bodyHtml += `<p>${routeData.requestBody.description}</p>`;
+    }
+    if (routeData.requestBody.content) {
+      bodyHtml += '<div class="api-route-request-body">';
+      Object.entries(routeData.requestBody.content).forEach(([contentType, schema]) => {
+        bodyHtml += `
+          <div class="api-route-content-type">
+            <strong>Content-Type:</strong> <code>${contentType}</code>
+            ${schema.schema ? `<div class="api-route-schema">Схема: <pre><code>${JSON.stringify(schema.schema, null, 2)}</code></pre></div>` : ''}
+          </div>
+        `;
+      });
+      bodyHtml += '</div>';
+    }
+    html += `
+      <div class="api-route-detail-section">
+        <h3 class="api-route-detail-section__title">Тіло запиту</h3>
+        <div class="api-route-detail-section__content">${bodyHtml}</div>
+      </div>
+    `;
+  }
+  
+  // Responses
+  if (routeData.responses && Object.keys(routeData.responses).length > 0) {
+    let responsesHtml = '<div class="api-route-responses">';
+    Object.entries(routeData.responses).forEach(([statusCode, response]) => {
+      responsesHtml += `
+        <div class="api-route-response">
+          <div class="api-route-response__header">
+            <span class="api-route-response__status">${statusCode}</span>
+            ${response.description ? `<span class="api-route-response__description">${response.description}</span>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    responsesHtml += '</div>';
+    html += `
+      <div class="api-route-detail-section">
+        <h3 class="api-route-detail-section__title">Відповіді</h3>
+        <div class="api-route-detail-section__content">${responsesHtml}</div>
+      </div>
+    `;
+  }
+  
+  modalBody.innerHTML = html;
+  modal.style.display = 'flex';
+  
+  // Блокуємо скрол сторінки
+  document.body.style.overflow = 'hidden';
+  
+  refreshIcons();
+  
+  // Функція закриття модального вікна
+  const closeModal = () => {
+    modal.style.display = 'none';
+    // Відновлюємо скрол сторінки
+    document.body.style.overflow = '';
+  };
+  
+  // Обробники закриття модального вікна
+  if (modalClose) {
+    modalClose.onclick = closeModal;
+  }
+  
+  const overlay = modal.querySelector('.api-route-modal__overlay');
+  if (overlay) {
+    overlay.onclick = closeModal;
+  }
+  
+  // Закриття по Escape
+  const handleEscape = (e) => {
+    if (e.key === 'Escape' && modal.style.display === 'flex') {
+      closeModal();
+      document.removeEventListener('keydown', handleEscape);
+    }
+  };
+  document.addEventListener('keydown', handleEscape);
 }
 
 // Перевірка статусу Ollama
@@ -6299,8 +6544,19 @@ async function initializeApiStatusPage() {
               return `<span class="route-method route-method--${methodLower} ${getMethodBadgeClass(m)}">${m}</span>`;
             }).join(" ");
             const description = getRouteDescription(r.path);
+            // Зберігаємо дані про маршрут в data-атрибутах
+            const routeData = JSON.stringify({
+              path: r.path,
+              methods: methods,
+              description: description,
+              summary: r.summary || description,
+              tags: r.tags || [],
+              parameters: r.parameters || [],
+              requestBody: r.requestBody || null,
+              responses: r.responses || {}
+            }).replace(/"/g, '&quot;');
             return `
-              <tr>
+              <tr class="api-route-row" data-route='${routeData}' style="cursor: pointer;">
                 <td>${methodBadges}</td>
                 <td><code>${r.path}</code></td>
                 <td>${description}</td>
@@ -6311,6 +6567,22 @@ async function initializeApiStatusPage() {
           .join("");
         routesTableBody.innerHTML = routes || '<tr><td colspan="4" class="api-status-page__empty">Немає доступних маршрутів</td></tr>';
         refreshIcons();
+        
+        // Додаємо обробники кліку на рядки таблиці
+        const routeRows = routesTableBody.querySelectorAll('.api-route-row');
+        routeRows.forEach(row => {
+          row.addEventListener('click', () => {
+            try {
+              const routeDataStr = row.getAttribute('data-route');
+              if (routeDataStr) {
+                const routeData = JSON.parse(routeDataStr.replace(/&quot;/g, '"'));
+                showRouteDetails(routeData);
+              }
+            } catch (e) {
+              console.error('Error parsing route data:', e);
+            }
+          });
+        });
       }
     } else {
       statusDot.classList.add("status-dot--fail");

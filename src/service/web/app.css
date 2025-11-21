@@ -2384,6 +2384,265 @@ select:focus {
   color: rgba(156, 136, 255, 0.95);
 }
 
+/* Route Row Hover */
+.api-route-row {
+  transition: background-color var(--transition-fast);
+}
+
+.api-route-row:hover {
+  background: rgba(116, 137, 255, 0.08) !important;
+}
+
+/* Route Details Modal */
+.api-route-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.api-route-modal__overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  backdrop-filter: blur(4px);
+}
+
+.api-route-modal__content {
+  position: relative;
+  background: #151b2d;
+  border-radius: 16px;
+  border: 1px solid var(--border-glass);
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: 1;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.api-route-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  border-bottom: 1px solid var(--border-glass);
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  z-index: 10;
+}
+
+.api-route-modal__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.api-route-modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.api-route-modal__close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.api-route-modal__body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.api-route-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.api-route-detail-section__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+}
+
+.api-route-detail-section__content {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.api-route-detail-code {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: "SF Mono", "Monaco", "Consolas", monospace;
+  font-size: 0.9rem;
+  color: var(--accent-color);
+  display: inline-block;
+  word-break: break-all;
+}
+
+.api-route-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(116, 137, 255, 0.15);
+  color: var(--accent-color);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+.api-route-params {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.api-route-param {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+}
+
+.api-route-param__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.api-route-param__name {
+  font-family: "SF Mono", "Monaco", "Consolas", monospace;
+  font-size: 0.9rem;
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.api-route-param__in {
+  padding: 2px 8px;
+  background: rgba(116, 137, 255, 0.15);
+  color: var(--accent-color);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.api-route-param__required {
+  padding: 2px 8px;
+  background: rgba(241, 94, 111, 0.15);
+  color: #f15e6f;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.api-route-param__description {
+  margin: 8px 0 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.api-route-param__type {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.api-route-request-body {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+}
+
+.api-route-content-type {
+  margin-bottom: 16px;
+}
+
+.api-route-content-type:last-child {
+  margin-bottom: 0;
+}
+
+.api-route-schema {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.api-route-schema pre {
+  margin: 0;
+  font-family: "SF Mono", "Monaco", "Consolas", monospace;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.api-route-responses {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.api-route-response {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+}
+
+.api-route-response__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.api-route-response__status {
+  padding: 4px 10px;
+  background: rgba(63, 194, 114, 0.15);
+  color: rgba(63, 194, 114, 0.95);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: "SF Mono", "Monaco", "Consolas", monospace;
+}
+
+.api-route-response__description {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
 /* Route Status Icon */
 .route-status {
   display: inline-flex;
