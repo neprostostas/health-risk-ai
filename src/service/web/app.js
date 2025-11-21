@@ -329,28 +329,45 @@ const navProfileItem = document.getElementById("nav-profile");
 const toRegisterLink = document.getElementById("to-register");
 const toLoginLink = document.getElementById("to-login");
 
+// Risk labels - now using i18n
+function getRiskLabel(bucket) {
+  if (!window.i18n) return bucket || "—";
+  return window.i18n.t(`risk.${bucket}`) || bucket || "—";
+}
+
 const riskLabels = {
-  low: "низький",
-  medium: "середній",
-  high: "високий",
+  get low() { return getRiskLabel('low'); },
+  get medium() { return getRiskLabel('medium'); },
+  get high() { return getRiskLabel('high'); },
 };
 
-// Мапа заголовків сторінок
-const pageTitles = {
-  "page-form": "Форма прогнозування",
-  "page-insights": "Діаграми",
-  "page-report": "Звіти",
-  "page-profile": "Профіль",
-  "page-history": "Історія прогнозів",
-  "page-api-status": "Статус API",
-  "page-api-status-history": "Історія інцидентів",
-  "page-login": "Вхід до облікового запису",
-  "page-register": "Створення облікового запису",
-  "page-forgot-password": "Відновлення пароля",
-  "page-reset-password": "Встановлення нового пароля",
-  "page-assistant": "Чат з асистентом",
-  "page-chats": "Чати",
-};
+// Page titles - now using i18n
+function getPageTitle(sectionId) {
+  if (!window.i18n) return sectionId;
+  const keyMap = {
+    "page-form": "pages.form",
+    "page-insights": "pages.insights",
+    "page-report": "pages.report",
+    "page-profile": "pages.profile",
+    "page-history": "pages.history",
+    "page-api-status": "pages.apiStatus",
+    "page-api-status-history": "pages.apiStatusHistory",
+    "page-login": "pages.login",
+    "page-register": "pages.register",
+    "page-forgot-password": "pages.forgotPassword",
+    "page-reset-password": "pages.resetPassword",
+    "page-assistant": "pages.assistant",
+    "page-chats": "pages.chats",
+  };
+  const key = keyMap[sectionId];
+  return key ? window.i18n.t(key) : sectionId;
+}
+
+const pageTitles = new Proxy({}, {
+  get(target, prop) {
+    return getPageTitle(prop);
+  }
+});
 
 const riskClasses = {
   low: "risk-low",
@@ -665,8 +682,8 @@ async function deleteSelectedHistory() {
   renderHistoryTable();
   showNotification({
     type: "success",
-    title: "Історію оновлено",
-    message: "Вибрані прогнози видалено.",
+    title: window.i18n ? window.i18n.t('history.updated') : "Історію оновлено",
+    message: window.i18n ? window.i18n.t('history.updatedMessage') : "Вибрані прогнози видалено.",
     duration: 2500,
   });
 }
@@ -685,8 +702,8 @@ async function deleteAllHistory() {
   renderHistoryTable();
   showNotification({
     type: "success",
-    title: "Історію очищено",
-    message: "Всі прогнози видалено.",
+    title: window.i18n ? window.i18n.t('history.cleared') : "Історію очищено",
+    message: window.i18n ? window.i18n.t('history.clearedMessage') : "Всі прогнози видалено.",
     duration: 2500,
   });
 }
@@ -729,8 +746,8 @@ function initVoiceInput() {
       setAssistantVoiceButton("stop");
       showNotification({
         type: "info",
-        title: "Голосовий ввід",
-        message: "Говоріть... Натисніть квадрат, щоб зупинити.",
+        title: window.i18n ? window.i18n.t('voice.input') : "Голосовий ввід",
+        message: window.i18n ? window.i18n.t('voice.inputMessage') : "Говоріть... Натисніть квадрат, щоб зупинити.",
         duration: 1500,
       });
     };
@@ -743,8 +760,8 @@ function initVoiceInput() {
         setAssistantVoiceButton("mic");
         showNotification({
           type: "error",
-          title: "Помилка мікрофона",
-          message: event.error || "Не вдалося розпізнати голос.",
+          title: window.i18n ? window.i18n.t('voice.error') : "Помилка мікрофона",
+          message: event.error || (window.i18n ? window.i18n.t('voice.errorMessage') : "Не вдалося розпізнати голос."),
           duration: 2500,
         });
       }
@@ -802,8 +819,8 @@ function toggleVoiceRecording() {
   if (!ok) {
     showNotification({
       type: "warning",
-      title: "Немає підтримки",
-      message: "Браузер не підтримує голосовий ввід.",
+      title: window.i18n ? window.i18n.t('voice.notSupported') : "Немає підтримки",
+      message: window.i18n ? window.i18n.t('voice.notSupportedMessage') : "Браузер не підтримує голосовий ввід.",
       duration: 2500,
     });
     return;
@@ -830,8 +847,8 @@ function toggleVoiceRecording() {
             setAssistantVoiceButton("mic");
             showNotification({
               type: "error",
-              title: "Доступ до мікрофона заборонено",
-              message: "Дозвольте доступ у налаштуваннях браузера та спробуйте знову.",
+              title: window.i18n ? window.i18n.t('voice.permissionDenied') : "Доступ до мікрофона заборонено",
+              message: window.i18n ? window.i18n.t('voice.permissionDeniedMessage') : "Дозвольте доступ у налаштуваннях браузера та спробуйте знову.",
               duration: 3500,
             });
           });
@@ -847,7 +864,7 @@ function toggleVoiceRecording() {
       : String(e?.message || e);
     showNotification({
       type: "error",
-      title: "Помилка запуску мікрофона",
+      title: window.i18n ? window.i18n.t('voice.startError') : "Помилка запуску мікрофона",
       message: msg,
       duration: 2500,
     });
@@ -937,8 +954,8 @@ function initHistoryControls() {
       if (historySelectedIds.size === 0) {
         showNotification({
           type: "warning",
-          title: "Нічого не вибрано",
-          message: "Спочатку виберіть хоча б один прогноз.",
+          title: window.i18n ? window.i18n.t('history.selectFirst') : "Нічого не вибрано",
+          message: window.i18n ? window.i18n.t('history.selectFirstMessage') : "Спочатку виберіть хоча б один прогноз.",
           duration: 2000,
         });
         return;
@@ -1115,7 +1132,7 @@ function setAssistantTyping(isTyping) {
     if (!assistantTypingEl) {
       assistantTypingEl = document.createElement("div");
       assistantTypingEl.className = "assistant-msg assistant-msg--assistant";
-      assistantTypingEl.textContent = "Асистент думає.";
+      assistantTypingEl.textContent = window.i18n ? window.i18n.t('assistant.thinking') + "." : "Асистент думає.";
       container.appendChild(assistantTypingEl);
       // Анімація крапок
       if (assistantTypingTimer) clearInterval(assistantTypingTimer);
@@ -1123,7 +1140,7 @@ function setAssistantTyping(isTyping) {
       assistantTypingTimer = setInterval(() => {
         assistantTypingDots = (assistantTypingDots % 3) + 1;
         if (assistantTypingEl) {
-          assistantTypingEl.textContent = `Асистент думає${".".repeat(assistantTypingDots)}`;
+          assistantTypingEl.textContent = window.i18n ? `${window.i18n.t('assistant.thinking')}${".".repeat(assistantTypingDots)}` : `Асистент думає${".".repeat(assistantTypingDots)}`;
         }
       }, 500);
     }
@@ -1196,7 +1213,7 @@ function renderAssistantStateCard(snapshot) {
   if (probEl) probEl.textContent = formatProbability(snapshot.probability);
   if (badgeEl) {
     const bucket = snapshot.risk_bucket || "";
-    badgeEl.textContent = riskLabels[bucket] || bucket || "—";
+    badgeEl.textContent = getRiskLabel(bucket);
     // Застосовуємо класи, сумісні з існуючим CSS (.badge.risk-low|medium|high)
     const bucketClass = bucket ? `risk-${bucket}` : "";
     badgeEl.className = `badge ${bucketClass}`.trim();
@@ -1267,9 +1284,9 @@ async function populateAssistantRiskSelector() {
   const titleSpan = document.getElementById("assistant-state-title-text");
   if (titleSpan) {
     if (assistantSelectedPredictionId && assistantSelectedPredictionId !== assistantLatestPredictionId) {
-      titleSpan.textContent = "Обраний ризик";
+      titleSpan.textContent = window.i18n ? window.i18n.t('risk.selected') : "Обраний ризик";
     } else {
-      titleSpan.textContent = "Мій поточний ризик";
+      titleSpan.textContent = window.i18n ? window.i18n.t('risk.current') : "Мій поточний ризик";
     }
   }
   // Build custom menu
@@ -1294,7 +1311,7 @@ async function populateAssistantRiskSelector() {
     const badge = document.createElement("span");
     const bucket = item.risk_bucket || "";
     badge.className = `badge risk-option__badge ${bucket ? `risk-${bucket}` : ""}`.trim();
-    badge.textContent = riskLabels[bucket] || bucket || "—";
+    badge.textContent = getRiskLabel(bucket);
     row.appendChild(meta);
     row.appendChild(badge);
     const applySelect = () => {
@@ -1305,9 +1322,9 @@ async function populateAssistantRiskSelector() {
       // Update title
       if (titleSpan) {
         if (assistantSelectedPredictionId && assistantSelectedPredictionId !== assistantLatestPredictionId) {
-          titleSpan.textContent = "Обраний ризик";
+          titleSpan.textContent = window.i18n ? window.i18n.t('risk.selected') : "Обраний ризик";
         } else {
-          titleSpan.textContent = "Мій поточний ризик";
+          titleSpan.textContent = window.i18n ? window.i18n.t('risk.current') : "Мій поточний ризик";
         }
       }
       // Update card content
@@ -1377,8 +1394,8 @@ async function sendAssistantMessage(text) {
     // Інформуємо користувача, що відповідь генерується
     showNotification({
       type: "info",
-      title: "Генерація відповіді",
-      message: "Асистент формує відповідь. Ви можете натиснути «Стоп», щоб поставити на паузу.",
+      title: window.i18n ? window.i18n.t('assistant.generating') : "Генерація відповіді",
+      message: window.i18n ? window.i18n.t('assistant.generatingMessage') : "Асистент формує відповідь. Ви можете натиснути «Стоп», щоб поставити на паузу.",
       duration: 2500,
     });
     const data = await apiFetch("/assistant/chat", {
@@ -1406,8 +1423,8 @@ async function sendAssistantMessage(text) {
       setAssistantSendButton("play");
       showNotification({
         type: "info",
-        title: "Поставлено на паузу",
-        message: "Натисніть «Продовжити», щоб відновити відповідь.",
+        title: window.i18n ? window.i18n.t('assistant.paused') : "Поставлено на паузу",
+        message: window.i18n ? window.i18n.t('assistant.pausedMessage') : "Натисніть «Продовжити», щоб відновити відповідь.",
         duration: 2000,
       });
       return;
@@ -1415,8 +1432,8 @@ async function sendAssistantMessage(text) {
     startAssistantStream(data?.answer || "Відповідь відсутня.");
     showNotification({
       type: "success",
-      title: "Відповідь отримано",
-      message: "Асистент друкує повідомлення.",
+      title: window.i18n ? window.i18n.t('assistant.responseReceived') : "Відповідь отримано",
+      message: window.i18n ? window.i18n.t('assistant.responseReceivedMessage') : "Асистент друкує повідомлення.",
       duration: 1800,
     });
   } catch (error) {
@@ -1427,8 +1444,8 @@ async function sendAssistantMessage(text) {
     setAssistantSendButton("send");
     showNotification({
       type: "error",
-      title: "Помилка надсилання",
-      message: error.message || "Не вдалося надіслати повідомлення.",
+      title: window.i18n ? window.i18n.t('assistant.sendError') : "Помилка надсилання",
+      message: error.message || (window.i18n ? window.i18n.t('assistant.sendErrorMessage') : "Не вдалося надіслати повідомлення."),
       duration: 4000,
     });
   }
@@ -1459,8 +1476,8 @@ async function initializeAssistantPage() {
             setAssistantSendButton(assistantStream.paused ? "play" : "stop");
             showNotification({
               type: "info",
-              title: assistantStream.paused ? "Поставлено на паузу" : "Продовжено",
-              message: assistantStream.paused ? "Відповідь призупинено." : "Продовжуємо друк відповіді.",
+              title: assistantStream.paused ? (window.i18n ? window.i18n.t('assistant.paused') : "Поставлено на паузу") : (window.i18n ? window.i18n.t('assistant.resumed') : "Продовжено"),
+              message: assistantStream.paused ? (window.i18n ? window.i18n.t('assistant.pausedMessage2') : "Відповідь призупинено.") : (window.i18n ? window.i18n.t('assistant.resumedMessage') : "Продовжуємо друк відповіді."),
               duration: 1500,
             });
             return;
@@ -1471,8 +1488,8 @@ async function initializeAssistantPage() {
             setAssistantSendButton("play");
             showNotification({
               type: "info",
-              title: "Поставлено на паузу",
-              message: "Відповідь зупинено на поточному місці.",
+              title: window.i18n ? window.i18n.t('assistant.paused') : "Поставлено на паузу",
+              message: window.i18n ? window.i18n.t('assistant.pausedMessage3') : "Відповідь зупинено на поточному місці.",
               duration: 1500,
             });
           } else {
@@ -1495,8 +1512,8 @@ async function initializeAssistantPage() {
               }, 18);
               showNotification({
                 type: "info",
-                title: "Продовжено",
-                message: "Відповідь продовжено.",
+                title: window.i18n ? window.i18n.t('assistant.resumed') : "Продовжено",
+                message: window.i18n ? window.i18n.t('assistant.resumedMessage2') : "Відповідь продовжено.",
                 duration: 1200,
               });
             } else {
@@ -1590,8 +1607,8 @@ async function initializeAssistantPage() {
           renderAssistantHistory([]);
           showNotification({
             type: "success",
-            title: "Чат очищено",
-            message: "Вся переписка з асистентом видалена.",
+            title: window.i18n ? window.i18n.t('assistant.clearSuccess') : "Чат очищено",
+            message: window.i18n ? window.i18n.t('assistant.clearSuccessMessage') : "Вся переписка з асистентом видалена.",
             duration: 3000,
           });
           const warn = document.getElementById("assistant-warning");
@@ -1605,8 +1622,8 @@ async function initializeAssistantPage() {
         } catch (error) {
           showNotification({
             type: "error",
-            title: "Помилка очищення",
-            message: error.message || "Не вдалося очистити чат.",
+            title: window.i18n ? window.i18n.t('assistant.clearError') : "Помилка очищення",
+            message: error.message || (window.i18n ? window.i18n.t('assistant.clearErrorMessage') : "Не вдалося очистити чат."),
             duration: 4000,
           });
         }
@@ -2324,7 +2341,8 @@ function updateProfileSection() {
     }
     if (profileEmailEl) profileEmailEl.textContent = user.email;
     if (profileJoinedEl) {
-      profileJoinedEl.textContent = `Зареєстрований: ${formatDateTimeLong(user.created_at) || "сьогодні"}`;
+      const registeredDate = formatDateTimeLong(user.created_at) || (window.i18n ? window.i18n.t('history.registeredToday') : "сьогодні");
+      profileJoinedEl.textContent = window.i18n ? window.i18n.t('history.registered', { date: registeredDate }) : `Зареєстрований: ${registeredDate}`;
     }
     
     // Оновлюємо аватари
@@ -2555,7 +2573,7 @@ function renderHistoryTable() {
   if (!authState.user) {
     historyTableBody.innerHTML = "";
     if (historyEmpty) {
-    historyEmpty.textContent = "Історія доступна лише після входу до системи.";
+    historyEmpty.textContent = window.i18n ? window.i18n.t('history.emptyLoggedOut') : "Історія доступна лише після входу до системи.";
     historyEmpty.hidden = false;
     }
     if (historyTableWrapper) {
@@ -2564,7 +2582,7 @@ function renderHistoryTable() {
     if (historyContent) {
       // Показуємо посилання на вхід якщо користувач не автентифікований
       historyEmpty.innerHTML = `
-        <p>Історія доступна лише після входу до системи.</p>
+        <p data-i18n="history.emptyLoggedOut">Історія доступна лише після входу до системи.</p>
         <div style="margin-top: 16px; display: flex; gap: 12px; justify-content: center;">
           <button type="button" class="button button--ghost" id="history-login-shortcut">Увійти</button>
           <button type="button" class="button" id="history-register-shortcut">Зареєструватися</button>
@@ -2611,7 +2629,7 @@ function renderHistoryTable() {
       const targetLabel = formatTargetLabel(entry.target);
       const modelLabel = entry.model_name || "Автоматично";
       const probabilityLabel = formatProbability(entry.probability);
-      const riskLabel = riskLabels[entry.risk_bucket] || entry.risk_bucket;
+      const riskLabel = getRiskLabel(entry.risk_bucket);
       const color = getRiskColor(entry.risk_bucket);
       const checkboxCell = historyBulkMode
         ? `<td><input type="checkbox" class="history-select-checkbox" data-id="${entry.id}" ${historySelectedIds.has(entry.id) ? "checked" : ""} aria-label="Вибрати"></td>`
@@ -2693,7 +2711,7 @@ function renderHistoryTable() {
           const targetLabel = formatTargetLabel(entry.target);
           const modelLabel = entry.model_name || "Автоматично";
           const probabilityLabel = formatProbability(entry.probability);
-          const riskLabel = riskLabels[entry.risk_bucket] || entry.risk_bucket;
+          const riskLabel = getRiskLabel(entry.risk_bucket);
           const color = getRiskColor(entry.risk_bucket);
           const checked = historySelectedIds.has(entry.id) ? "checked" : "";
           return `
@@ -2761,8 +2779,8 @@ function renderHistoryTable() {
             } else {
               showNotification({
                 type: "warning",
-                title: "Дані недоступні",
-                message: "Для цього запису відсутні вхідні дані.",
+                title: window.i18n ? window.i18n.t('history.dataUnavailable') : "Дані недоступні",
+                message: window.i18n ? window.i18n.t('history.dataUnavailableMessage') : "Для цього запису відсутні вхідні дані.",
                 duration: 2500,
               });
             }
@@ -2815,8 +2833,8 @@ async function loadHistory(limit = 50) {
     if (currentSection === "/history" || currentSection.includes("history")) {
       showNotification({
         type: "error",
-        title: "Помилка завантаження історії",
-        message: error.message || "Не вдалося завантажити історію прогнозів. Спробуйте оновити сторінку.",
+        title: window.i18n ? window.i18n.t('history.loadError') : "Помилка завантаження історії",
+        message: error.message || (window.i18n ? window.i18n.t('history.loadErrorMessage') : "Не вдалося завантажити історію прогнозів. Спробуйте оновити сторінку."),
         duration: 5000,
       });
     }
@@ -2927,8 +2945,8 @@ function loadPredictionFromHistory(inputs) {
   
   showNotification({
     type: "info",
-    title: "Прогноз завантажено",
-    message: "Дані з історії прогнозів успішно завантажено в форму. Можете розрахувати новий прогноз.",
+    title: window.i18n ? window.i18n.t('history.loadedToForm') : "Прогноз завантажено",
+    message: window.i18n ? window.i18n.t('history.loadedToFormMessage') : "Дані з історії прогнозів успішно завантажено в форму. Можете розрахувати новий прогноз.",
     duration: 4000,
   });
 }
@@ -3019,8 +3037,8 @@ async function handleLoginSubmit(event) {
     handleAuthSuccess(data, { navigateToRoute: "/profile" });
     showNotification({
       type: "success",
-      title: "Вхід успішний",
-      message: "Ви успішно увійшли в систему.",
+      title: window.i18n ? window.i18n.t('auth.login.success') : "Вхід успішний",
+      message: window.i18n ? window.i18n.t('auth.login.successMessage') : "Ви успішно увійшли в систему.",
       duration: 3000,
     });
   } catch (error) {
@@ -3029,8 +3047,8 @@ async function handleLoginSubmit(event) {
     setAuthFormError(loginErrorBox, errorMessage);
     showNotification({
       type: "error",
-      title: "Помилка входу",
-      message: errorMessage,
+      title: window.i18n ? window.i18n.t('auth.login.error') : "Помилка входу",
+      message: errorMessage || (window.i18n ? window.i18n.t('auth.login.errorMessage') : "Не вдалося увійти. Спробуйте ще раз."),
       duration: 5000,
     });
   } finally {
@@ -3097,8 +3115,8 @@ async function handleRegisterSubmit(event) {
     handleAuthSuccess(data, { isRegistration: true });
     showNotification({
       type: "success",
-      title: "Реєстрація успішна",
-      message: "Ваш обліковий запис успішно створено. Ласкаво просимо!",
+      title: window.i18n ? window.i18n.t('auth.register.success') : "Реєстрація успішна",
+      message: window.i18n ? window.i18n.t('auth.register.successMessage') : "Ваш обліковий запис успішно створено. Ласкаво просимо!",
       duration: 4000,
     });
   } catch (error) {
@@ -3106,7 +3124,7 @@ async function handleRegisterSubmit(event) {
     setAuthFormError(registerErrorBox, errorMessage);
     showNotification({
       type: "error",
-      title: "Помилка реєстрації",
+      title: window.i18n ? window.i18n.t('auth.register.error') : "Помилка реєстрації",
       message: errorMessage,
       duration: 5000,
     });
@@ -3210,24 +3228,24 @@ async function handleProfileUpdate(event) {
     if (wasAvatarColorChanged) {
       showNotification({
         type: "success",
-        title: "Колір аватара змінено",
-        message: "Колір аватара успішно оновлено.",
+        title: window.i18n ? window.i18n.t('profile.avatarColorChanged') : "Колір аватара змінено",
+        message: window.i18n ? window.i18n.t('profile.avatarColorChangedMessage') : "Колір аватара успішно оновлено.",
         duration: 4000,
       });
     } else {
       showNotification({
         type: "success",
-        title: "Профіль оновлено",
-        message: "Дані профілю успішно збережено.",
+        title: window.i18n ? window.i18n.t('profile.updated') : "Профіль оновлено",
+        message: window.i18n ? window.i18n.t('profile.updatedMessage') : "Дані профілю успішно збережено.",
         duration: 3000,
       });
     }
   } catch (error) {
-    const errorMessage = error.message || "Не вдалося оновити профіль. Спробуйте ще раз.";
+    const errorMessage = error.message || (window.i18n ? window.i18n.t('profile.updateErrorMessage') : "Не вдалося оновити профіль. Спробуйте ще раз.");
     setProfileStatus(errorMessage, "error");
     showNotification({
       type: "error",
-      title: "Помилка оновлення профілю",
+      title: window.i18n ? window.i18n.t('profile.updateError') : "Помилка оновлення профілю",
       message: errorMessage,
       duration: 5000,
     });
@@ -3336,16 +3354,17 @@ async function handleAvatarUpload(event) {
     // Показуємо нотифікацію про успіх
     showNotification({
       type: "success",
-      title: "Фото завантажено",
-      message: "Фото профілю успішно завантажено та оновлено.",
+      title: window.i18n ? window.i18n.t('profile.photoUploaded') : "Фото завантажено",
+      message: window.i18n ? window.i18n.t('profile.photoUploadedMessage') : "Фото профілю успішно завантажено та оновлено.",
       duration: 4000,
     });
   } catch (error) {
-    setProfileStatus(error.message || "Не вдалося завантажити фото. Спробуйте інший файл.", "error");
+    const errorMsg = error.message || (window.i18n ? window.i18n.t('profile.photoUploadErrorMessage') : "Не вдалося завантажити фото. Спробуйте інший файл.");
+    setProfileStatus(errorMsg, "error");
     showNotification({
       type: "error",
-      title: "Помилка завантаження",
-      message: error.message || "Не вдалося завантажити фото. Спробуйте інший файл.",
+      title: window.i18n ? window.i18n.t('profile.photoUploadError') : "Помилка завантаження",
+      message: errorMsg,
       duration: 5000,
     });
   } finally {
@@ -3439,15 +3458,15 @@ async function confirmDeleteHistory() {
     // Показуємо повідомлення про успіх
     showNotification({
       type: "success",
-      title: "Запис видалено",
-      message: "Запис історії успішно видалено.",
+      title: window.i18n ? window.i18n.t('profile.entryDeleted') : "Запис видалено",
+      message: window.i18n ? window.i18n.t('profile.entryDeletedMessage') : "Запис історії успішно видалено.",
       duration: 3000,
     });
   } catch (error) {
     showNotification({
       type: "error",
-      title: "Помилка",
-      message: error.message || "Не вдалося видалити запис історії.",
+      title: window.i18n ? window.i18n.t('profile.deleteError') : "Помилка",
+      message: error.message || (window.i18n ? window.i18n.t('profile.deleteErrorMessage') : "Не вдалося видалити запис історії."),
       duration: 5000,
     });
   } finally {
@@ -3520,16 +3539,17 @@ async function confirmDeleteAvatar() {
     // Показуємо нотифікацію про успіх
     showNotification({
       type: "success",
-      title: "Фото видалено",
-      message: "Фото профілю успішно видалено. Повернуто стандартний аватар.",
+      title: window.i18n ? window.i18n.t('profile.photoDeleted') : "Фото видалено",
+      message: window.i18n ? window.i18n.t('profile.photoDeletedMessage') : "Фото профілю успішно видалено. Повернуто стандартний аватар.",
       duration: 4000,
     });
   } catch (error) {
-    setProfileStatus(error.message || "Не вдалося скинути аватар. Спробуйте пізніше.", "error");
+    const errorMsg = error.message || (window.i18n ? window.i18n.t('profile.photoDeleteErrorMessage') : "Не вдалося скинути аватар. Спробуйте пізніше.");
+    setProfileStatus(errorMsg, "error");
     showNotification({
       type: "error",
-      title: "Помилка",
-      message: error.message || "Не вдалося видалити фото. Спробуйте пізніше.",
+      title: window.i18n ? window.i18n.t('profile.photoDeleteError') : "Помилка",
+      message: errorMsg,
       duration: 5000,
     });
   } finally {
@@ -3586,7 +3606,7 @@ async function handlePasswordChange(event) {
     
     showNotification({
       type: "success",
-      title: "Пароль змінено",
+      title: window.i18n ? window.i18n.t('profile.passwordChanged') : "Пароль змінено",
       message: successMessage,
       duration: 4000,
     });
@@ -3600,7 +3620,7 @@ async function handlePasswordChange(event) {
     setPasswordStatus(errorMessage, "error");
     showNotification({
       type: "error",
-      title: "Помилка зміни пароля",
+      title: window.i18n ? window.i18n.t('profile.passwordChangeError') : "Помилка зміни пароля",
       message: errorMessage,
       duration: 5000,
     });
@@ -3736,8 +3756,8 @@ async function handleForgotPassword(event) {
                     await navigator.clipboard.writeText(decodedUrl);
                     showNotification({
                       type: "success",
-                      title: "Посилання скопійовано",
-                      message: "Посилання для скидання пароля скопійовано в буфер обміну.",
+                      title: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopied') : "Посилання скопійовано",
+                      message: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopiedMessage') : "Посилання для скидання пароля скопійовано в буфер обміну.",
                       duration: 3000,
                     });
                   } else {
@@ -3763,8 +3783,8 @@ async function handleForgotPassword(event) {
                     } else {
                       showNotification({
                         type: "error",
-                        title: "Помилка",
-                        message: "Не вдалося скопіювати посилання. Спробуйте скопіювати вручну.",
+                        title: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopyError') : "Помилка",
+                        message: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopyErrorMessage') : "Не вдалося скопіювати посилання. Спробуйте скопіювати вручну.",
                         duration: 5000,
                       });
                     }
@@ -3798,10 +3818,10 @@ async function handleForgotPassword(event) {
       
       showNotification({
         type: "success",
-        title: "Інструкції надіслано",
+        title: window.i18n ? window.i18n.t('auth.forgotPassword.success') : "Інструкції надіслано",
         message: copied 
-          ? "Посилання для скидання пароля скопійовано у буфер обміну та відкрито в новій вкладці." 
-          : "Посилання для скидання пароля відкрито в новій вкладці. Натисніть на посилання вище, щоб скопіювати його.",
+          ? (window.i18n ? window.i18n.t('auth.forgotPassword.successMessageWithLink') : "Посилання для скидання пароля скопійовано у буфер обміну та відкрито в новій вкладці.")
+          : (window.i18n ? window.i18n.t('auth.forgotPassword.successMessage') : "Посилання для скидання пароля відкрито в новій вкладці. Натисніть на посилання вище, щоб скопіювати його."),
         duration: 5000,
       });
     } else {
@@ -3812,7 +3832,7 @@ async function handleForgotPassword(event) {
       
       showNotification({
         type: "error",
-        title: "Помилка відновлення пароля",
+        title: window.i18n ? window.i18n.t('auth.forgotPassword.error') : "Помилка відновлення пароля",
         message: errorMessage,
         duration: 5000,
       });
@@ -3979,8 +3999,8 @@ async function handleResetPassword(event) {
     
     showNotification({
       type: "success",
-      title: "Пароль оновлено",
-      message: successMessage,
+      title: window.i18n ? window.i18n.t('auth.resetPassword.success') : "Пароль оновлено",
+      message: successMessage || (window.i18n ? window.i18n.t('auth.resetPassword.successMessage') : "Пароль успішно оновлено. Тепер ви можете увійти з новим паролем."),
       duration: 4000,
     });
     
@@ -4003,7 +4023,7 @@ async function handleResetPassword(event) {
     setResetPasswordError(errorMessage);
     showNotification({
       type: "error",
-      title: "Помилка оновлення пароля",
+      title: window.i18n ? window.i18n.t('auth.resetPassword.error') : "Помилка оновлення пароля",
       message: errorMessage,
       duration: 5000,
     });
@@ -4060,15 +4080,15 @@ async function handleLogout() {
     await apiFetch("/auth/logout", { method: "POST" }, { skipAuth: false });
     showNotification({
       type: "info",
-      title: "Вихід виконано",
-      message: "Ви успішно вийшли з системи.",
+      title: window.i18n ? window.i18n.t('auth.logout.success') : "Вихід виконано",
+      message: window.i18n ? window.i18n.t('auth.logout.successMessage') : "Ви успішно вийшли з системи.",
       duration: 3000,
     });
   } catch (error) {
     showNotification({
       type: "warning",
-      title: "Помилка виходу",
-      message: "Під час виходу сталася помилка, але сесію було очищено.",
+      title: window.i18n ? window.i18n.t('auth.logout.error') : "Помилка виходу",
+      message: window.i18n ? window.i18n.t('auth.logout.errorMessage') : "Під час виходу сталася помилка, але сесію було очищено.",
       duration: 4000,
     });
   } finally {
@@ -4838,7 +4858,7 @@ function updateRiskBar(probability, bucket) {
 
 function renderRisk(probability, bucket) {
   probabilityValue.textContent = `${(probability * 100).toFixed(2)}%`;
-  riskBadge.textContent = riskLabels[bucket] || bucket;
+  riskBadge.textContent = getRiskLabel(bucket);
   riskBadge.className = `badge ${riskClasses[bucket] || ""}`;
   updateRiskBar(probability, bucket);
   // Показуємо кнопку "Згенерувати звіт" після успішного розрахунку
@@ -4965,11 +4985,11 @@ function renderResult(data) {
   
   // Показуємо сповіщення про успішне прогнозування
   const riskPercentage = (data.probability * 100).toFixed(2);
-  const riskLabel = riskLabels[data.risk_bucket] || data.risk_bucket;
+  const riskLabel = getRiskLabel(data.risk_bucket);
   showNotification({
     type: "success",
-    title: "Прогноз розраховано",
-    message: `Ризик: ${riskPercentage}% (${riskLabel}). Результати збережено в історії.`,
+    title: window.i18n ? window.i18n.t('prediction.calculated') : "Прогноз розраховано",
+    message: window.i18n ? window.i18n.t('prediction.calculatedMessage', { risk: riskPercentage, label: riskLabel }) : `Ризик: ${riskPercentage}% (${riskLabel}). Результати збережено в історії.`,
     duration: 5000,
   });
 }
@@ -4983,11 +5003,19 @@ function setApiStatus(isOnline) {
   
   if (isOnline) {
     apiStatusDot.classList.add("status-dot--ok");
-    apiStatusText.textContent = "Підключено до API";
+    // Use i18n for status text - set data-i18n attribute so it updates on language change
+    if (apiStatusText) {
+      apiStatusText.setAttribute('data-i18n', 'apiStatus.status.connected');
+      apiStatusText.textContent = window.i18n ? window.i18n.t('apiStatus.status.connected') : "Підключено до API";
+    }
     
   } else {
     apiStatusDot.classList.add("status-dot--fail");
-    apiStatusText.textContent = "Відключено від API";
+    // Use i18n for status text - set data-i18n attribute so it updates on language change
+    if (apiStatusText) {
+      apiStatusText.setAttribute('data-i18n', 'apiStatus.status.disconnected');
+      apiStatusText.textContent = window.i18n ? window.i18n.t('apiStatus.status.disconnected') : "Відключено від API";
+    }
     
   }
 }
@@ -6985,6 +7013,17 @@ async function initializeApiStatusPage() {
 function initializeApiStatus() {
   checkApiStatus();
   apiStatusTimer = setInterval(checkApiStatus, API_STATUS_INTERVAL);
+  
+  // Listen for language changes to update API status text
+  window.addEventListener('languageChanged', () => {
+    // Re-apply translations to API status text
+    if (window.i18n && apiStatusText) {
+      const i18nKey = apiStatusText.getAttribute('data-i18n');
+      if (i18nKey) {
+        apiStatusText.textContent = window.i18n.t(i18nKey);
+      }
+    }
+  });
 }
 
 function applyTheme(theme) {
@@ -7025,8 +7064,8 @@ function activateSection(sectionId) {
   }
   
   // Оновлюємо заголовок сторінки в хедері
-  if (pageTitle && pageTitles[sectionId]) {
-    pageTitle.textContent = pageTitles[sectionId];
+  if (pageTitle) {
+    pageTitle.textContent = getPageTitle(sectionId);
   }
   
   // Explicitly ensure only one page is active at a time
@@ -7044,6 +7083,15 @@ function activateSection(sectionId) {
       targetPage.hidden = false;
     }
     targetPage.classList.add("page--active");
+    
+    // Apply translations after section becomes visible
+    // This ensures that elements with data-i18n attributes are translated
+    // Use requestAnimationFrame to ensure DOM is fully updated and visible
+    requestAnimationFrame(() => {
+      if (window.i18n && typeof window.i18n.applyTranslations === 'function') {
+        window.i18n.applyTranslations();
+      }
+    });
   }
   
   navItems.forEach((item) => {
@@ -7683,8 +7731,9 @@ function renderRiskComparisonChart() {
               }
               const lines = [];
               lines.push(`${info.label}: ${info.percentage.toFixed(2)}%`);
-              if (info.bucket && riskLabels[info.bucket]) {
-                lines.push(`Категорія: ${riskLabels[info.bucket]}`);
+              if (info.bucket) {
+                const label = getRiskLabel(info.bucket);
+                lines.push(window.i18n ? window.i18n.t('charts.history.riskDistribution.category', { category: label }) : `Категорія: ${label}`);
               }
               if (info.updatedAt) {
                 lines.push(`Оновлено: ${formatDateTime(info.updatedAt)}`);
@@ -9036,11 +9085,37 @@ function initializeSidebarToggle() {
   initializeTheme();
   // Ensure user menu is hidden on initialization
   // Ініціалізація user menu видалена - більше не потрібна
-  initializeAuth().catch(() => {});
-  initializeApiStatus();
-  registerEventListeners();
-  fetchMetadata();
-  initializeChats();
+  
+  // Wait for i18n to be ready before initializing auth (which uses translations)
+  if (window.i18n && window.i18n.init) {
+    window.i18n.init().then(() => {
+      initializeAuth().catch(() => {});
+      initializeApiStatus();
+      registerEventListeners();
+      fetchMetadata();
+      initializeChats();
+    });
+  } else {
+    // Fallback: if i18n is not available, wait a bit and try again
+    setTimeout(() => {
+      if (window.i18n && window.i18n.init) {
+        window.i18n.init().then(() => {
+          initializeAuth().catch(() => {});
+          initializeApiStatus();
+          registerEventListeners();
+          fetchMetadata();
+          initializeChats();
+        });
+      } else {
+        // If i18n still not available, proceed without it
+        initializeAuth().catch(() => {});
+        initializeApiStatus();
+        registerEventListeners();
+        fetchMetadata();
+        initializeChats();
+      }
+    }, 100);
+  }
 })();
 
 // ========== Chats functionality ==========
@@ -10623,8 +10698,8 @@ function generateReport() {
     reportGenerationInProgress = false;
     showNotification({
       type: "warning",
-      title: "Оберіть параметри",
-      message: "Будь ласка, оберіть прогнозування та формат звіту.",
+      title: window.i18n ? window.i18n.t('pdf.report.errors.selectParams') : "Оберіть параметри",
+      message: window.i18n ? window.i18n.t('pdf.report.errors.selectParamsMessage') : "Будь ласка, оберіть прогнозування та формат звіту.",
       duration: 3000
     });
     return;
@@ -10673,8 +10748,8 @@ function generateReport() {
         reportGenerationInProgress = false;
         showNotification({
           type: "error",
-          title: "Помилка",
-          message: "Невідомий формат звіту",
+          title: window.i18n ? window.i18n.t('pdf.report.errors.generationError') : "Помилка",
+          message: window.i18n ? window.i18n.t('pdf.report.errors.unknownFormat') : "Невідомий формат звіту",
           duration: 3000
         });
     }
@@ -10682,8 +10757,8 @@ function generateReport() {
     reportGenerationInProgress = false;
     showNotification({
       type: "error",
-      title: "Помилка генерації",
-      message: error.message || "Не вдалося згенерувати звіт",
+      title: window.i18n ? window.i18n.t('pdf.report.errors.generationError') : "Помилка генерації",
+      message: error.message || (window.i18n ? window.i18n.t('pdf.report.errors.generationErrorMessage') : "Не вдалося згенерувати звіт"),
       duration: 4000
     });
   }
@@ -11038,8 +11113,8 @@ function showPdfThemeModal(defaultTheme = "light", formatType = "pdf") {
         <div class="modal__content">
           <div class="modal__header">
             <div>
-              <h3 class="modal__title" style="color: inherit;">Оберіть тему ${formatLabel}</h3>
-              <p class="pdf-theme-modal__subtitle">За замовчуванням використовуємо активну тему сайту.</p>
+              <h3 class="modal__title" style="color: inherit;">${window.i18n ? window.i18n.t('pdf.report.theme.title', { format: formatLabel }) : `Оберіть тему ${formatLabel}`}</h3>
+              <p class="pdf-theme-modal__subtitle">${window.i18n ? window.i18n.t('pdf.report.theme.subtitle') : "За замовчуванням використовуємо активну тему сайту."}</p>
             </div>
           </div>
           <div class="modal__body">
@@ -11057,8 +11132,8 @@ function showPdfThemeModal(defaultTheme = "light", formatType = "pdf") {
             </div>
           </div>
           <div class="modal__actions">
-            <button type="button" class="button button--ghost btn-pdf-modal-theme" data-action="cancel">Скасувати</button>
-            <button type="button" class="button button--primary btn-pdf-modal-theme" data-action="confirm" disabled>Згенерувати</button>
+            <button type="button" class="button button--ghost btn-pdf-modal-theme" data-action="cancel">${window.i18n ? window.i18n.t('pdf.report.theme.cancel') : "Скасувати"}</button>
+            <button type="button" class="button button--primary btn-pdf-modal-theme" data-action="confirm" disabled>${window.i18n ? window.i18n.t('pdf.report.theme.generate') : "Згенерувати"}</button>
           </div>
         </div>
       </div>
@@ -11126,8 +11201,8 @@ async function handlePdfReportGeneration() {
   } catch (error) {
     showNotification({
       type: "error",
-      title: "Помилка генерації PDF",
-      message: error.message || "Не вдалося згенерувати PDF звіт",
+      title: window.i18n ? window.i18n.t('pdf.report.errors.pdfError') : "Помилка генерації PDF",
+      message: error.message || (window.i18n ? window.i18n.t('pdf.report.errors.pdfErrorMessage') : "Не вдалося згенерувати PDF звіт"),
       duration: 4000
     });
   }
@@ -11142,8 +11217,8 @@ async function handleExcelReportGeneration() {
   } catch (error) {
     showNotification({
       type: "error",
-      title: "Помилка генерації Excel",
-      message: error.message || "Не вдалося згенерувати Excel звіт",
+      title: window.i18n ? window.i18n.t('pdf.report.errors.excelError') : "Помилка генерації Excel",
+      message: error.message || (window.i18n ? window.i18n.t('pdf.report.errors.excelErrorMessage') : "Не вдалося згенерувати Excel звіт"),
       duration: 4000
     });
   }
@@ -11202,7 +11277,7 @@ function renderCoverPage(doc, { colors, pdfIconAssets, dateStr, pdfThemeKey }) {
     doc.setFont("DejaVuSans", "normal");
   }
   doc.setTextColor(...colors.text);
-  const titleText = "Автоматизована система оцінки та прогнозування ризиків для здоров'я з використанням методів штучного інтелекту";
+  const titleText = window.i18n ? window.i18n.t('pdf.report.cover.title') : "Автоматизована система оцінки та прогнозування ризиків для здоров'я з використанням методів штучного інтелекту";
   const titleMaxWidth = pageWidth - 40;
   const titleLines = doc.splitTextToSize(titleText, titleMaxWidth);
   const titleLineHeight = 10;
@@ -11221,7 +11296,7 @@ function renderCoverPage(doc, { colors, pdfIconAssets, dateStr, pdfThemeKey }) {
   const subtitleY = titleStartY + totalTitleHeight + 25;
   doc.setFontSize(14);
   doc.setTextColor(...colors.textMuted);
-  const subtitleText = "Аналітичний звіт";
+  const subtitleText = window.i18n ? window.i18n.t('pdf.report.cover.subtitle') : "Аналітичний звіт";
   const subtitleWidth = doc.getTextWidth(subtitleText);
   doc.text(subtitleText, (pageWidth - subtitleWidth) / 2, subtitleY);
   
@@ -11229,12 +11304,12 @@ function renderCoverPage(doc, { colors, pdfIconAssets, dateStr, pdfThemeKey }) {
   const authorY = pageHeight - 50;
   doc.setFontSize(16);
   doc.setTextColor(...colors.textMuted);
-  const authorText = "Кінаш Станіслав Андрійович";
+  const authorText = window.i18n ? window.i18n.t('pdf.report.cover.author') : "Кінаш Станіслав Андрійович";
   const authorWidth = doc.getTextWidth(authorText);
   doc.text(authorText, (pageWidth - authorWidth) / 2, authorY);
   
   const groupY = authorY + 8;
-  const groupText = "КНУС-23";
+  const groupText = window.i18n ? window.i18n.t('pdf.report.cover.group') : "КНУС-23";
   const groupWidth = doc.getTextWidth(groupText);
   doc.text(groupText, (pageWidth - groupWidth) / 2, groupY);
   
@@ -11282,7 +11357,7 @@ function renderClosingPage(doc, { colors, pdfIconAssets, pdfThemeKey }) {
   doc.setFontSize(16);
   doc.setFont("DejaVuSans", "normal");
   doc.setTextColor(...colors.text);
-  const mainText = "Турбота про здоров'я починається з усвідомлення";
+  const mainText = window.i18n ? window.i18n.t('pdf.report.closing.mainText') : "Турбота про здоров'я починається з усвідомлення";
   const mainTextMaxWidth = pageWidth - 50;
   const mainTextLines = doc.splitTextToSize(mainText, mainTextMaxWidth);
   const mainTextLineHeight = 9;
@@ -11298,7 +11373,7 @@ function renderClosingPage(doc, { colors, pdfIconAssets, pdfThemeKey }) {
   const secondaryTextY = mainTextStartY + totalMainTextHeight + 20;
   doc.setFontSize(11);
   doc.setTextColor(...colors.textMuted);
-  const secondaryText = "Система аналізу та прогнозування створена, щоб допомогти приймати кращі рішення.";
+  const secondaryText = window.i18n ? window.i18n.t('pdf.report.closing.secondaryText') : "Система аналізу та прогнозування створена, щоб допомогти приймати кращі рішення.";
   const secondaryTextMaxWidth = pageWidth - 50;
   const secondaryTextLines = doc.splitTextToSize(secondaryText, secondaryTextMaxWidth);
   const secondaryTextLineHeight = 7;
@@ -11319,7 +11394,7 @@ function renderClosingPage(doc, { colors, pdfIconAssets, pdfThemeKey }) {
     doc.setFont("DejaVuSans", "normal");
   }
   doc.setTextColor(...colors.text);
-  const thanksText = "Дякуємо, що турбуєтесь про своє здоров'я!";
+  const thanksText = window.i18n ? window.i18n.t('pdf.report.closing.thanks') : "Дякуємо, що турбуєтесь про своє здоров'я!";
   const thanksMaxWidth = pageWidth - 50;
   const thanksLines = doc.splitTextToSize(thanksText, thanksMaxWidth);
   const thanksLineHeight = 8;
@@ -11336,7 +11411,7 @@ function renderClosingPage(doc, { colors, pdfIconAssets, pdfThemeKey }) {
   const footerY = pageHeight - 25;
   doc.setFontSize(9);
   doc.setTextColor(...colors.textMuted);
-  const footerText = "Створено за підтримки алгоритмів штучного інтелекту.";
+  const footerText = window.i18n ? window.i18n.t('pdf.report.cover.footer') : "Створено за підтримки алгоритмів штучного інтелекту.";
   const footerWidth = doc.getTextWidth(footerText);
   doc.text(footerText, (pageWidth - footerWidth) / 2, footerY);
 }
@@ -11457,7 +11532,7 @@ async function generatePDFReport(data, options = {}) {
     let riskLevel, riskBucket, riskLevelText;
     if (data.risk_bucket) {
       riskBucket = data.risk_bucket;
-      riskLevelText = riskLabels[riskBucket] || riskBucket;
+      riskLevelText = getRiskLabel(riskBucket);
     } else if (data.riskLevel) {
       riskLevelText = data.riskLevel;
       // Конвертуємо текстовий рівень в bucket
@@ -11472,7 +11547,7 @@ async function generatePDFReport(data, options = {}) {
       }
     } else {
       riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
-      riskLevelText = riskLabels[riskBucket] || riskBucket;
+      riskLevelText = getRiskLabel(riskBucket);
     }
     
     const riskColor = colors[riskBucket] || colors.medium;
@@ -11528,11 +11603,11 @@ async function generatePDFReport(data, options = {}) {
   // Текст справа
   doc.setTextColor(...colors.headerMeta);
   doc.setFontSize(10);
-  const headerText = "Звіт про прогнозування ризиків для здоров'я";
+  const headerText = window.i18n ? window.i18n.t('pdf.report.header.title') : "Звіт про прогнозування ризиків для здоров'я";
   const headerTextWidth = doc.getTextWidth(headerText);
   doc.text(headerText, pageWidth - margin - headerTextWidth, 8);
   doc.setFontSize(8);
-  const dateText = `Дата: ${dateStr}`;
+  const dateText = window.i18n ? window.i18n.t('pdf.report.header.date', { date: dateStr }) : `Дата: ${dateStr}`;
   const dateTextWidth = doc.getTextWidth(dateText);
   doc.text(dateText, pageWidth - margin - dateTextWidth, 16);
   
@@ -11582,7 +11657,8 @@ async function generatePDFReport(data, options = {}) {
     doc.addImage(icon.dataUrl, "PNG", iconX, iconY, icon.widthMm, icon.heightMm);
     riskLabelX = iconX + icon.widthMm + 2;
   }
-  doc.text(`Рівень ризику ${riskType}`, riskLabelX, cardY + 8);
+  const riskLevelLabelText = window.i18n ? window.i18n.t('pdf.report.riskLevelWithType', { type: riskType }) : `Рівень ризику ${riskType}`;
+  doc.text(riskLevelLabelText, riskLabelX, cardY + 8);
   
   // Великий текст рівня ризику
   doc.setFontSize(20);
@@ -11599,7 +11675,8 @@ async function generatePDFReport(data, options = {}) {
   
   doc.setFontSize(10);
   doc.setTextColor(...colors.textMuted);
-  doc.text("Ймовірність", cardX + cardWidth - probTextWidth - 8, cardY + 8);
+  const probabilityLabel = window.i18n ? window.i18n.t('pdf.report.probability') : "Ймовірність";
+  doc.text(probabilityLabel, cardX + cardWidth - probTextWidth - 8, cardY + 8);
   
   y += cardHeight + 12;
   
@@ -11616,7 +11693,7 @@ async function generatePDFReport(data, options = {}) {
   doc.rect(cardX, scaleY, segmentWidth, scaleHeight, "F");
   doc.setFontSize(8);
   doc.setTextColor(255, 255, 255);
-  const lowText = "НИЗЬКИЙ";
+  const lowText = window.i18n ? window.i18n.t('pdf.report.riskScale.low').toUpperCase() : "НИЗЬКИЙ";
   const lowTextWidth = doc.getTextWidth(lowText);
   doc.text(lowText, cardX + (segmentWidth - lowTextWidth) / 2, scaleY + 12);
   
@@ -11624,7 +11701,7 @@ async function generatePDFReport(data, options = {}) {
   doc.setFillColor(...colors.medium);
   doc.rect(cardX + segmentWidth, scaleY, segmentWidth, scaleHeight, "F");
   doc.setTextColor(0, 0, 0);
-  const mediumText = "ПОМІРНИЙ";
+  const mediumText = window.i18n ? window.i18n.t('pdf.report.riskScale.medium').toUpperCase() : "ПОМІРНИЙ";
   const mediumTextWidth = doc.getTextWidth(mediumText);
   doc.text(mediumText, cardX + segmentWidth + (segmentWidth - mediumTextWidth) / 2, scaleY + 12);
   
@@ -11632,7 +11709,7 @@ async function generatePDFReport(data, options = {}) {
   doc.setFillColor(...colors.high);
   doc.rect(cardX + segmentWidth * 2, scaleY, segmentWidth, scaleHeight, "F");
   doc.setTextColor(255, 255, 255);
-  const highText = "ВИСОКИЙ";
+  const highText = window.i18n ? window.i18n.t('pdf.report.riskScale.high').toUpperCase() : "ВИСОКИЙ";
   const highTextWidth = doc.getTextWidth(highText);
   doc.text(highText, cardX + segmentWidth * 2 + (segmentWidth - highTextWidth) / 2, scaleY + 12);
   
@@ -11667,7 +11744,8 @@ async function generatePDFReport(data, options = {}) {
     doc.addImage(icon.dataUrl, "PNG", cardX, iconY, icon.widthMm, icon.heightMm);
     factorsTitleX += icon.widthMm + 2;
   }
-  doc.text("Ключові фактори, що вплинули на ризик: ", factorsTitleX, y);
+  const keyFactorsTitle = window.i18n ? window.i18n.t('pdf.report.keyFactors.title') : "Ключові фактори, що вплинули на ризик: ";
+  doc.text(keyFactorsTitle, factorsTitleX, y);
   y += 8;
   
   // Таблиця факторів
@@ -11718,7 +11796,8 @@ async function generatePDFReport(data, options = {}) {
     // Заглушка, якщо факторів немає
     doc.setFontSize(9);
     doc.setTextColor(...colors.textMuted);
-    doc.text("Дані про ключові фактори недоступні", cardX + 5, y + 5);
+    const factorsUnavailable = window.i18n ? window.i18n.t('pdf.report.keyFactors.unavailable') : "Дані про ключові фактори недоступні";
+    doc.text(factorsUnavailable, cardX + 5, y + 5);
     y += 8;
   }
   
@@ -11736,26 +11815,48 @@ async function generatePDFReport(data, options = {}) {
     doc.addImage(icon.dataUrl, "PNG", cardX, iconY, icon.widthMm, icon.heightMm);
     recommendationsTitleX += icon.widthMm + 2;
   }
-  doc.text("Рекомендації / наступні кроки", recommendationsTitleX, y);
+  const recommendationsTitle = window.i18n ? window.i18n.t('pdf.report.recommendations.title') : "Рекомендації / наступні кроки";
+  doc.text(recommendationsTitle, recommendationsTitleX, y);
   y += 8;
   
   // Рекомендації на основі рівня ризику
   const recommendations = [];
   if (riskBucket === "low") {
-    recommendations.push("Продовжуйте підтримувати здоровий спосіб життя");
-    recommendations.push("Регулярно проходьте профілактичні обстеження");
-    recommendations.push("Дотримуйтесь збалансованого раціону харчування");
-    recommendations.push("Занимайтеся фізичною активністю");
+    if (window.i18n) {
+      recommendations.push(window.i18n.t('pdf.report.recommendations.low.1'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.low.2'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.low.3'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.low.4'));
+    } else {
+      recommendations.push("Продовжуйте підтримувати здоровий спосіб життя");
+      recommendations.push("Регулярно проходьте профілактичні обстеження");
+      recommendations.push("Дотримуйтесь збалансованого раціону харчування");
+      recommendations.push("Занимайтеся фізичною активністю");
+    }
   } else if (riskBucket === "medium") {
-    recommendations.push("Рекомендується звернутися до лікаря для консультації");
-    recommendations.push("Пройдіть додаткові обстеження для уточнення стану");
-    recommendations.push("Зверніть увагу на фактори, що впливають на ризик");
-    recommendations.push("Розгляньте можливість корекції способу життя");
+    if (window.i18n) {
+      recommendations.push(window.i18n.t('pdf.report.recommendations.medium.1'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.medium.2'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.medium.3'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.medium.4'));
+    } else {
+      recommendations.push("Рекомендується звернутися до лікаря для консультації");
+      recommendations.push("Пройдіть додаткові обстеження для уточнення стану");
+      recommendations.push("Зверніть увагу на фактори, що впливають на ризик");
+      recommendations.push("Розгляньте можливість корекції способу життя");
+    }
   } else {
-    recommendations.push("Негайно зверніться до лікаря для детального обстеження");
-    recommendations.push("Пройдіть комплексну діагностику");
-    recommendations.push("Обговоріть з лікарем план лікування та профілактики");
-    recommendations.push("Дотримуйтесь всіх рекомендацій медичного персоналу");
+    if (window.i18n) {
+      recommendations.push(window.i18n.t('pdf.report.recommendations.high.1'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.high.2'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.high.3'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.high.4'));
+    } else {
+      recommendations.push("Негайно зверніться до лікаря для детального обстеження");
+      recommendations.push("Пройдіть комплексну діагностику");
+      recommendations.push("Обговоріть з лікарем план лікування та профілактики");
+      recommendations.push("Дотримуйтесь всіх рекомендацій медичного персоналу");
+    }
   }
   
   const recommendationIcon = pdfIconAssets?.recommendations;
@@ -11782,8 +11883,8 @@ async function generatePDFReport(data, options = {}) {
   const footerY = pageHeight - 20;
   doc.setFontSize(7);
   doc.setTextColor(...colors.textMuted);
-  const footerText1 = "HealthRisk.AI — автоматизована система оцінки та прогнозування ризиків для здоров'я з використанням методів штучного інтелекту.";
-  const footerText2 = "Звіт не є медичним діагнозом і не замінює консультацію лікаря.";
+  const footerText1 = window.i18n ? window.i18n.t('pdf.report.footer.description') : "HealthRisk.AI — автоматизована система оцінки та прогнозування ризиків для здоров'я з використанням методів штучного інтелекту.";
+  const footerText2 = window.i18n ? window.i18n.t('pdf.report.footer.disclaimer') : "Звіт не є медичним діагнозом і не замінює консультацію лікаря.";
   const footerMaxWidth = contentWidth - (innerMargin * 2);
   
   // Використовуємо splitTextToSize для переносу тексту
@@ -11800,7 +11901,8 @@ async function generatePDFReport(data, options = {}) {
   
   // Додаткова інформація (модель, ціль) внизу
   doc.setFontSize(8);
-  doc.text(`Ціль: ${targetLabel} | Модель: ${model}`, margin + innerMargin, footerY - 12);
+  const targetAndModel = window.i18n ? window.i18n.t('pdf.report.footer.targetAndModel', { target: targetLabel, model: model }) : `Ціль: ${targetLabel} | Модель: ${model}`;
+  doc.text(targetAndModel, margin + innerMargin, footerY - 12);
   
   // ============================================
   // Додавання діаграм зі сторінки /diagrams
@@ -12285,7 +12387,7 @@ function generateExcelPreviewHTML(data, options = {}) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HealthRisk.AI - Попередній перегляд Excel звіту</title>
+  <title>${window.i18n ? window.i18n.t('pdf.report.excel.previewTitle') : "HealthRisk.AI - Попередній перегляд Excel звіту"}</title>
   <style>
     * {
       margin: 0;
@@ -12395,33 +12497,33 @@ function generateExcelPreviewHTML(data, options = {}) {
 <body>
   <div class="container">
     <div class="header">
-      <h1>HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я</h1>
+      <h1>${window.i18n ? window.i18n.t('pdf.report.excel.reportTitle') : "HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я"}</h1>
     </div>
     <div class="content">
       <!-- Основна інформація -->
       <div class="section">
-        <div class="section-title">Основна інформація</div>
+        <div class="section-title">${window.i18n ? window.i18n.t('pdf.report.excel.sections.mainInfo') : "Основна інформація"}</div>
         <div class="table-container">
           <table>
             <tbody>
               <tr>
-                <th style="width: 40%;">Параметр</th>
+                <th style="width: 40%;">${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.parameter') : "Параметр"}</th>
                 <td>${TARGET_LABELS[data.target] || data.target}</td>
               </tr>
               <tr>
-                <th>Ймовірність</th>
+                <th>${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.probability') : "Ймовірність"}</th>
                 <td>${(data.probability * 100).toFixed(2)}%</td>
               </tr>
               <tr>
-                <th>Рівень ризику</th>
+                <th>${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.riskLevel') : "Рівень ризику"}</th>
                 <td>${data.riskLevel || "N/A"}</td>
               </tr>
               <tr>
-                <th>Модель</th>
+                <th>${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.model') : "Модель"}</th>
                 <td>${data.model || data.model_name || "Автоматично"}</td>
               </tr>
               <tr>
-                <th>Дата створення</th>
+                <th>${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.createdAt') : "Дата створення"}</th>
                 <td>${new Date(data.created_at || new Date()).toLocaleString("uk-UA")}</td>
               </tr>
             </tbody>
@@ -12432,15 +12534,15 @@ function generateExcelPreviewHTML(data, options = {}) {
       ${factorsToShow.length > 0 ? `
       <!-- Ключові фактори -->
       <div class="section">
-        <div class="section-title">Ключові фактори, що вплинули на ризик</div>
+        <div class="section-title">${window.i18n ? window.i18n.t('pdf.report.excel.sections.keyFactors') : "Ключові фактори, що вплинули на ризик"}</div>
         <div class="table-container">
           <table>
             <thead>
               <tr>
-                <th style="width: 60px;" class="text-center">№</th>
-                <th>Фактор</th>
-                <th style="width: 150px;">Код</th>
-                <th style="width: 120px;" class="text-right">Вплив (%)</th>
+                <th style="width: 60px;" class="text-center">${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.number') : "№"}</th>
+                <th>${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.factor') : "Фактор"}</th>
+                <th style="width: 150px;">${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.code') : "Код"}</th>
+                <th style="width: 120px;" class="text-right">${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.impact') : "Вплив (%)"}</th>
               </tr>
             </thead>
             <tbody>
@@ -12461,7 +12563,7 @@ function generateExcelPreviewHTML(data, options = {}) {
       ${recommendations.length > 0 ? `
       <!-- Рекомендації -->
       <div class="section">
-        <div class="section-title">Рекомендації / наступні кроки</div>
+        <div class="section-title">${window.i18n ? window.i18n.t('pdf.report.excel.sections.recommendations') : "Рекомендації / наступні кроки"}</div>
         <div class="table-container">
           <table>
             <tbody>
@@ -12480,7 +12582,7 @@ function generateExcelPreviewHTML(data, options = {}) {
       ${data.formData && Object.keys(data.formData).length > 0 ? `
       <!-- Введені дані -->
       <div class="section">
-        <div class="section-title">Введені дані</div>
+        <div class="section-title">${window.i18n ? window.i18n.t('pdf.report.excel.sections.formData') : "Введені дані"}</div>
         <div class="table-container">
           <table>
             <tbody>
@@ -12512,8 +12614,8 @@ function generateExcelReport(data, options = {}) {
   if (typeof XLSX === "undefined" || typeof XLSX.utils === "undefined") {
     showNotification({
       type: "error",
-      title: "Помилка",
-      message: "Бібліотека Excel не завантажена. Будь ласка, оновіть сторінку.",
+      title: window.i18n ? window.i18n.t('pdf.report.excel.libraryError') : "Помилка",
+      message: window.i18n ? window.i18n.t('pdf.report.excel.libraryErrorMessage') : "Бібліотека Excel не завантажена. Будь ласка, оновіть сторінку.",
       duration: 5000
     });
     return;
@@ -12591,7 +12693,8 @@ function generateExcelReport(data, options = {}) {
   // ============================================
   // Заголовок звіту
   // ============================================
-  addCell(currentRow, 0, "HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я", {
+  const excelReportTitle = window.i18n ? window.i18n.t('pdf.report.excel.reportTitle') : "HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я";
+  addCell(currentRow, 0, excelReportTitle, {
     font: { name: "Arial", sz: 18, bold: true, color: { rgb: colors.text } },
     fill: { fgColor: { rgb: colors.surface } },
     alignment: { horizontal: "center", vertical: "center", wrapText: true }
@@ -12606,7 +12709,8 @@ function generateExcelReport(data, options = {}) {
   // ============================================
   // Основна інформація
   // ============================================
-  addCell(currentRow, 0, "Основна інформація", {
+  const mainInfoTitle = window.i18n ? window.i18n.t('pdf.report.excel.sections.mainInfo') : "Основна інформація";
+  addCell(currentRow, 0, mainInfoTitle, {
     font: { name: "Arial", sz: 14, bold: true, color: { rgb: colors.headerText } },
     fill: { fgColor: { rgb: colors.headerBg } },
     alignment: { horizontal: "center", vertical: "center" },
@@ -12623,11 +12727,11 @@ function generateExcelReport(data, options = {}) {
   
   // Дані основної інформації
   const mainInfo = [
-    { label: "Ціль", value: TARGET_LABELS[data.target] || data.target },
-    { label: "Ймовірність", value: `${(data.probability * 100).toFixed(2)}%` },
-    { label: "Рівень ризику", value: data.riskLevel || "N/A" },
-    { label: "Модель", value: data.model || data.model_name || "Автоматично" },
-    { label: "Дата створення", value: new Date(data.created_at || new Date()).toLocaleString("uk-UA") }
+    { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.target') : "Ціль", value: TARGET_LABELS[data.target] || data.target },
+    { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.probability') : "Ймовірність", value: `${(data.probability * 100).toFixed(2)}%` },
+    { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.riskLevel') : "Рівень ризику", value: data.riskLevel || "N/A" },
+    { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.model') : "Модель", value: data.model || data.model_name || "Автоматично" },
+    { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.createdAt') : "Дата створення", value: new Date(data.created_at || new Date()).toLocaleString("uk-UA") }
   ];
   
   mainInfo.forEach((info, index) => {
@@ -12672,7 +12776,8 @@ function generateExcelReport(data, options = {}) {
   // ============================================
   const factors = data.top_factors || data.inputs?.top_factors || [];
   if (factors.length > 0) {
-    addCell(currentRow, 0, "Ключові фактори, що вплинули на ризик", {
+    const keyFactorsTitle = window.i18n ? window.i18n.t('pdf.report.excel.sections.keyFactors') : "Ключові фактори, що вплинули на ризик";
+    addCell(currentRow, 0, keyFactorsTitle, {
       font: { name: "Arial", sz: 14, bold: true, color: { rgb: colors.headerText } },
       fill: { fgColor: { rgb: colors.headerBg } },
       alignment: { horizontal: "center", vertical: "center" },
@@ -12688,7 +12793,12 @@ function generateExcelReport(data, options = {}) {
     currentRow++;
     
     // Заголовки таблиці факторів
-    const factorHeaders = ["№", "Фактор", "Код", "Вплив (%)"];
+    const factorHeaders = [
+      window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.number') : "№",
+      window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.factor') : "Фактор",
+      window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.code') : "Код",
+      window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.impact') : "Вплив (%)"
+    ];
     factorHeaders.forEach((header, col) => {
       addCell(currentRow, col, header, {
         font: { name: "Arial", sz: 11, bold: true, color: { rgb: colors.headerText } },
@@ -12847,7 +12957,8 @@ function generateExcelReport(data, options = {}) {
   // Дані форми (якщо доступні)
   // ============================================
   if (data.formData && Object.keys(data.formData).length > 0) {
-    addCell(currentRow, 0, "Введені дані", {
+    const formDataTitle = window.i18n ? window.i18n.t('pdf.report.excel.sections.formData') : "Введені дані";
+    addCell(currentRow, 0, formDataTitle, {
       font: { name: "Arial", sz: 14, bold: true, color: { rgb: colors.headerText } },
       fill: { fgColor: { rgb: colors.headerBg } },
       alignment: { horizontal: "center", vertical: "center" },
@@ -12908,7 +13019,8 @@ function generateExcelReport(data, options = {}) {
   setColumnWidth(3, 15);   // Колонка впливу
   
   // Додаємо аркуш до книги
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Звіт");
+  const sheetName = window.i18n ? window.i18n.t('pdf.report.excel.sheetName') : "Звіт";
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
   
   // Створюємо HTML попередній перегляд
   const previewHtml = generateExcelPreviewHTML(data, options);
@@ -12929,8 +13041,8 @@ function generateExcelReport(data, options = {}) {
   
   showNotification({
     type: "success",
-    title: "Звіт згенеровано",
-    message: `Excel звіт збережено як ${filename} та відкрито попередній перегляд`,
+    title: window.i18n ? window.i18n.t('pdf.report.excel.success.title') : "Звіт згенеровано",
+    message: window.i18n ? window.i18n.t('pdf.report.excel.success.message', { filename: filename }) : `Excel звіт збережено як ${filename} та відкрито попередній перегляд`,
     duration: 3000
   });
 }
@@ -12958,20 +13070,41 @@ function getRecommendations(data) {
   
   const recommendations = [];
   if (riskBucket === "low") {
-    recommendations.push("Продовжуйте підтримувати здоровий спосіб життя");
-    recommendations.push("Регулярно проходьте профілактичні обстеження");
-    recommendations.push("Дотримуйтесь збалансованого раціону харчування");
-    recommendations.push("Занимайтеся фізичною активністю");
+    if (window.i18n) {
+      recommendations.push(window.i18n.t('pdf.report.recommendations.low.1'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.low.2'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.low.3'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.low.4'));
+    } else {
+      recommendations.push("Продовжуйте підтримувати здоровий спосіб життя");
+      recommendations.push("Регулярно проходьте профілактичні обстеження");
+      recommendations.push("Дотримуйтесь збалансованого раціону харчування");
+      recommendations.push("Занимайтеся фізичною активністю");
+    }
   } else if (riskBucket === "medium") {
-    recommendations.push("Рекомендується звернутися до лікаря для консультації");
-    recommendations.push("Пройдіть додаткові обстеження для уточнення стану");
-    recommendations.push("Зверніть увагу на фактори, що впливають на ризик");
-    recommendations.push("Розгляньте можливість зміни способу життя");
+    if (window.i18n) {
+      recommendations.push(window.i18n.t('pdf.report.recommendations.medium.1'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.medium.2'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.medium.3'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.medium.4'));
+    } else {
+      recommendations.push("Рекомендується звернутися до лікаря для консультації");
+      recommendations.push("Пройдіть додаткові обстеження для уточнення стану");
+      recommendations.push("Зверніть увагу на фактори, що впливають на ризик");
+      recommendations.push("Розгляньте можливість зміни способу життя");
+    }
   } else {
-    recommendations.push("Негайно зверніться до лікаря для детального обстеження");
-    recommendations.push("Пройдіть комплексну діагностику");
-    recommendations.push("Обговоріть з лікарем план лікування та профілактики");
-    recommendations.push("Дотримуйтесь всіх рекомендацій медичного персоналу");
+    if (window.i18n) {
+      recommendations.push(window.i18n.t('pdf.report.recommendations.high.1'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.high.2'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.high.3'));
+      recommendations.push(window.i18n.t('pdf.report.recommendations.high.4'));
+    } else {
+      recommendations.push("Негайно зверніться до лікаря для детального обстеження");
+      recommendations.push("Пройдіть комплексну діагностику");
+      recommendations.push("Обговоріть з лікарем план лікування та профілактики");
+      recommendations.push("Дотримуйтесь всіх рекомендацій медичного персоналу");
+    }
   }
   
   return recommendations;
@@ -12982,28 +13115,28 @@ function generateCSVPreviewHTML(data) {
   const lines = [];
   
   // Заголовок звіту
-  lines.push("HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я");
+  lines.push(window.i18n ? window.i18n.t('pdf.report.csv.reportTitle') : "HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я");
   lines.push("");
   
   // Основна інформація
-  lines.push("=== ОСНОВНА ІНФОРМАЦІЯ ===");
-  lines.push("Параметр,Значення");
-  lines.push(`Ціль,"${TARGET_LABELS[data.target] || data.target}"`);
-  lines.push(`Ймовірність (%),${(data.probability * 100).toFixed(2)}`);
-  lines.push(`Рівень ризику,"${data.riskLevel || "N/A"}"`);
-  lines.push(`Модель,"${data.model || data.model_name || "Автоматично"}"`);
-  lines.push(`Дата створення,"${new Date(data.created_at || new Date()).toLocaleString("uk-UA")}"`);
+  lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.mainInfo') : "=== ОСНОВНА ІНФОРМАЦІЯ ===");
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.parameter') : "Параметр"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.value') : "Значення"}`);
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.target') : "Ціль"},"${TARGET_LABELS[data.target] || data.target}"`);
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.probability') : "Ймовірність (%)"},${(data.probability * 100).toFixed(2)}`);
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.riskLevel') : "Рівень ризику"},"${data.riskLevel || "N/A"}"`);
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.model') : "Модель"},"${data.model || data.model_name || "Автоматично"}"`);
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.createdAt') : "Дата створення"},"${new Date(data.created_at || new Date()).toLocaleString("uk-UA")}"`);
   lines.push("");
   
   // Ключові фактори
   const factors = data.top_factors || data.inputs?.top_factors || [];
   if (factors.length > 0) {
-    lines.push("=== КЛЮЧОВІ ФАКТОРИ, ЩО ВПЛИНУЛИ НА РИЗИК ===");
-    lines.push("№,Фактор,Код,Вплив (%)");
+    lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.keyFactors') : "=== КЛЮЧОВІ ФАКТОРИ, ЩО ВПЛИНУЛИ НА РИЗИК ===");
+    lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.number') : "№"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.factor') : "Фактор"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.code') : "Код"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.impact') : "Вплив (%)"}`);
     
     const factorsToShow = factors.slice(0, 10);
     factorsToShow.forEach((factor, index) => {
-      const factorCode = factor.feature || factor.name || "Невідомий фактор";
+      const factorCode = factor.feature || factor.name || (window.i18n ? window.i18n.t('pdf.report.keyFactors.unknownFactor') : "Невідомий фактор");
       let factorImpact = factor.impact || 0;
       
       if (factorCode === "RIAGENDR" && factorImpact > 1.0) {
@@ -13024,7 +13157,7 @@ function generateCSVPreviewHTML(data) {
   // Рекомендації
   const recommendations = getRecommendations(data);
   if (recommendations.length > 0) {
-    lines.push("=== РЕКОМЕНДАЦІЇ / НАСТУПНІ КРОКИ ===");
+    lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.recommendations') : "=== РЕКОМЕНДАЦІЇ / НАСТУПНІ КРОКИ ===");
     recommendations.forEach((rec, index) => {
       lines.push(`${index + 1},"${rec}"`);
     });
@@ -13033,8 +13166,8 @@ function generateCSVPreviewHTML(data) {
   
   // Дані форми
   if (data.formData && Object.keys(data.formData).length > 0) {
-    lines.push("=== ВВЕДЕНІ ДАНІ ===");
-    lines.push("Параметр,Значення");
+    lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.formData') : "=== ВВЕДЕНІ ДАНІ ===");
+    lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.parameter') : "Параметр"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.value') : "Значення"}`);
     Object.entries(data.formData).forEach(([key, value]) => {
       const label = FACTOR_LABELS[key] || key;
       lines.push(`"${label}","${value}"`);
@@ -13043,8 +13176,9 @@ function generateCSVPreviewHTML(data) {
   }
   
   // Футер
-  lines.push("=== КІНЕЦЬ ЗВІТУ ===");
-  lines.push(`Згенеровано: ${new Date().toLocaleString("uk-UA")}`);
+  lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.end') : "=== КІНЕЦЬ ЗВІТУ ===");
+  const generatedText = window.i18n ? window.i18n.t('pdf.report.csv.generated') : "Згенеровано";
+  lines.push(`${generatedText}: ${new Date().toLocaleString("uk-UA")}`);
   
   const csvContent = lines.join("\n");
   
@@ -13053,7 +13187,7 @@ function generateCSVPreviewHTML(data) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HealthRisk.AI - Попередній перегляд CSV звіту</title>
+  <title>${window.i18n ? window.i18n.t('pdf.report.csv.previewTitle') : "HealthRisk.AI - Попередній перегляд CSV звіту"}</title>
   <style>
     * {
       margin: 0;
@@ -13140,8 +13274,8 @@ function generateCSVPreviewHTML(data) {
 <body>
   <div class="container">
     <div class="header">
-      <h1>HealthRisk.AI - Попередній перегляд CSV звіту</h1>
-      <p>Згенеровано: ${new Date().toLocaleString("uk-UA")}</p>
+      <h1>${window.i18n ? window.i18n.t('pdf.report.csv.previewTitle') : "HealthRisk.AI - Попередній перегляд CSV звіту"}</h1>
+      <p>${window.i18n ? window.i18n.t('pdf.report.csv.generated') : "Згенеровано"}: ${new Date().toLocaleString("uk-UA")}</p>
     </div>
     <div class="content">
       <pre>${csvContent.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
@@ -13251,8 +13385,8 @@ function generateCSVReport(data) {
   
   showNotification({
     type: "success",
-    title: "Звіт згенеровано",
-    message: "CSV звіт завантажено та відкрито попередній перегляд",
+    title: window.i18n ? window.i18n.t('pdf.report.csv.success.title') : "Звіт згенеровано",
+    message: window.i18n ? window.i18n.t('pdf.report.csv.success.message') : "CSV звіт завантажено та відкрито попередній перегляд",
     duration: 3000
   });
 }
@@ -13290,7 +13424,7 @@ function generateJSONPreviewHTML(jsonData) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HealthRisk.AI - Попередній перегляд JSON звіту</title>
+  <title>${window.i18n ? window.i18n.t('pdf.report.json.previewTitle') : "HealthRisk.AI - Попередній перегляд JSON звіту"}</title>
   <style>
     * {
       margin: 0;
@@ -13393,12 +13527,12 @@ function generateJSONPreviewHTML(jsonData) {
   <div class="container">
     <div class="header">
       <div>
-        <h1>HealthRisk.AI - Попередній перегляд JSON звіту</h1>
-        <p>Згенеровано: ${new Date().toLocaleString("uk-UA")}</p>
+        <h1>${window.i18n ? window.i18n.t('pdf.report.json.previewTitle') : "HealthRisk.AI - Попередній перегляд JSON звіту"}</h1>
+        <p>${window.i18n ? window.i18n.t('pdf.report.json.generated') : "Згенеровано"}: ${new Date().toLocaleString("uk-UA")}</p>
       </div>
       <div class="header-actions">
-        <button class="btn" id="copy-btn">Копіювати JSON</button>
-        <button class="btn" onclick="window.print()">Друкувати</button>
+        <button class="btn" id="copy-btn">${window.i18n ? window.i18n.t('pdf.report.json.copyButton') : "Копіювати JSON"}</button>
+        <button class="btn" onclick="window.print()">${window.i18n ? window.i18n.t('pdf.report.json.printButton') : "Друкувати"}</button>
       </div>
     </div>
     <div class="content">
@@ -13449,7 +13583,7 @@ function generateJSONPreviewHTML(jsonData) {
         navigator.clipboard.writeText(jsonText).then(() => {
           btn.textContent = "Скопійовано!";
           btn.style.background = "#0e7c0e";
-          showToast("JSON скопійовано в буфер обміну");
+          showToast(window.i18n ? window.i18n.t('pdf.report.json.copySuccess') : "JSON скопійовано в буфер обміну");
           setTimeout(() => {
             btn.textContent = originalText;
             btn.style.background = "#0e639c";
@@ -13480,13 +13614,13 @@ function generateJSONPreviewHTML(jsonData) {
           const originalText = btn.textContent;
           btn.textContent = "Скопійовано!";
           btn.style.background = "#0e7c0e";
-          showToast("JSON скопійовано в буфер обміну");
+          showToast(window.i18n ? window.i18n.t('pdf.report.json.copySuccess') : "JSON скопійовано в буфер обміну");
           setTimeout(() => {
             btn.textContent = originalText;
             btn.style.background = "#0e639c";
           }, 2000);
         } else {
-          showToast("Не вдалося скопіювати. Спробуйте виділити текст вручну.", true);
+          showToast(window.i18n ? window.i18n.t('pdf.report.json.copyError') : "Не вдалося скопіювати. Спробуйте виділити текст вручну.", true);
         }
       } catch (err) {
         showToast("Не вдалося скопіювати. Спробуйте виділити текст вручну.", true);
@@ -13604,7 +13738,7 @@ function generateJSONReport(data) {
   
   const jsonData = {
     metadata: {
-      title: "HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я",
+      title: window.i18n ? window.i18n.t('pdf.report.title') : "HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я",
       generatedAt: new Date().toISOString(),
       generatedAtFormatted: new Date().toLocaleString("uk-UA"),
       version: "1.0"

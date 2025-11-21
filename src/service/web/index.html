@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="uk" id="html-root">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Health Risk AI</title>
+  <title data-i18n="layout.header.title">Health Risk AI</title>
   <link rel="shortcut icon" href="/app/static/images/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="/app/static/app.css" />
   <!-- Automatic URL fragment removal -->
@@ -37,61 +37,63 @@
   <!-- Бібліотеки для генерації звітів -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js" crossorigin="anonymous"></script>
+  <!-- i18n module - must be loaded before app.js -->
+  <script src="/app/static/i18n.js" defer></script>
 </head>
 <body class="theme-light preload">
   <div class="layout">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar__header">
         <div class="sidebar__logo-row">
-          <div class="sidebar__logo" title="Автоматизована система оцінки та прогнозування ризиків для здоров'я з використанням методів штучного інтелекту">
+          <div class="sidebar__logo" data-i18n-title="sidebar.logo" title="Автоматизована система оцінки та прогнозування ризиків для здоров'я з використанням методів штучного інтелекту">
             <span class="icon" data-lucide="activity"></span>
             <span class="sidebar__logo-text">Health Risk AI</span>
           </div>
-          <button type="button" class="sidebar__toggle" id="sidebar-toggle" aria-label="Згорнути/розгорнути бокову панель" title="Згорнути/розгорнути бокову панель">
+          <button type="button" class="sidebar__toggle" id="sidebar-toggle" data-i18n-aria-label="aria.sidebarToggle" data-i18n-title="aria.sidebarToggle" aria-label="Згорнути/розгорнути бокову панель" title="Згорнути/розгорнути бокову панель">
             <span class="icon" data-lucide="panel-left-close"></span>
           </button>
         </div>
         <div class="sidebar__controls">
-          <div class="api-status" id="api-status" role="tooltip" aria-label="Статус підключення до API">
+          <div class="api-status" id="api-status" role="tooltip" data-i18n-aria-label="aria.apiStatus" aria-label="Статус підключення до API">
             <span class="status-dot" id="api-status-dot"></span>
             <div class="api-status__info">
-              <span class="api-status__label">Статус API</span>
-              <span class="api-status__text" id="api-status-text">Перевірка...</span>
+              <span class="api-status__label" data-i18n="apiStatus.title">Статус API</span>
+              <span class="api-status__text" id="api-status-text" data-i18n="apiStatus.status.checking">Перевірка...</span>
             </div>
           </div>
-          <button type="button" class="theme-toggle" aria-label="Перемикач теми">
+          <button type="button" class="theme-toggle" data-i18n-aria-label="aria.themeToggle" aria-label="Перемикач теми">
             <span class="theme-icon" aria-hidden="true"></span>
           </button>
         </div>
       </div>
-      <nav class="sidebar__nav" aria-label="Основна навігація">
+      <nav class="sidebar__nav" data-i18n-aria-label="aria.mainNavigation" aria-label="Основна навігація">
         <button type="button" class="nav-item" data-section="page-profile" id="nav-profile" hidden>
           <span class="icon" data-lucide="user"></span>
-          <span class="nav-item__text">Профіль</span>
+          <span class="nav-item__text" data-i18n="sidebar.nav.profile">Профіль</span>
         </button>
         <button type="button" class="nav-item nav-item--active" data-section="page-form">
           <span class="icon" data-lucide="clipboard-list"></span>
-          <span class="nav-item__text">Форма прогнозування</span>
+          <span class="nav-item__text" data-i18n="sidebar.nav.form">Форма прогнозування</span>
         </button>
         <button type="button" class="nav-item" data-section="page-history" id="nav-history" hidden>
           <span class="icon" data-lucide="history"></span>
-          <span class="nav-item__text">Історія прогнозів</span>
+          <span class="nav-item__text" data-i18n="sidebar.nav.history">Історія прогнозів</span>
         </button>
         <button type="button" class="nav-item" data-section="page-insights">
           <span class="icon" data-lucide="chart-bar"></span>
-          <span class="nav-item__text">Діаграми</span>
+          <span class="nav-item__text" data-i18n="sidebar.nav.diagrams">Діаграми</span>
         </button>
         <button type="button" class="nav-item" data-section="page-report" id="nav-report" hidden>
           <span class="icon" data-lucide="file-text"></span>
-          <span class="nav-item__text">Звіти</span>
+          <span class="nav-item__text" data-i18n="sidebar.nav.reports">Звіти</span>
         </button>
         <button type="button" class="nav-item" data-section="page-assistant" id="nav-assistant">
           <span class="icon" data-lucide="messages-square"></span>
-          <span class="nav-item__text">AI Асистент</span>
+          <span class="nav-item__text" data-i18n="sidebar.nav.assistant">AI Асистент</span>
         </button>
         <button type="button" class="nav-item" data-section="page-chats" id="nav-chats" hidden>
           <span class="icon" data-lucide="message-circle"></span>
-          <span class="nav-item__text">Чати</span>
+          <span class="nav-item__text" data-i18n="sidebar.nav.chats">Чати</span>
           <span class="nav-item__badge" id="nav-chats-badge" hidden>0</span>
         </button>
       </nav>
@@ -99,14 +101,25 @@
 
     <div class="main-wrapper">
       <header class="app-header">
-        <h1 id="page-title" class="app-header__title">Форма прогнозування</h1>
+        <h1 id="page-title" class="app-header__title" data-i18n="forms.prediction.title">Форма прогнозування</h1>
         <div class="app-header__user" id="user-panel">
+          <!-- Language switcher - visible for all users -->
+          <div class="language-switcher" id="language-switcher">
+            <button type="button" class="language-switcher__trigger" id="language-switcher-trigger" aria-label="Select language" aria-haspopup="true" aria-expanded="false">
+              <span class="language-switcher__flag" id="language-switcher-flag">🇺🇦</span>
+              <span class="language-switcher__code" id="language-switcher-code">UA</span>
+              <span class="icon language-switcher__chevron" data-lucide="chevron-down" aria-hidden="true"></span>
+            </button>
+            <div class="language-switcher__dropdown" id="language-switcher-dropdown" role="menu" aria-hidden="true">
+              <!-- Options will be generated dynamically by i18n.js -->
+            </div>
+          </div>
           <div class="user-panel__guest" id="user-panel-guest" hidden></div>
           <div class="user-panel__auth" id="user-panel-auth" hidden>
-            <button type="button" class="user-avatar-btn" id="user-avatar-btn" aria-label="Відкрити профіль">
+            <button type="button" class="user-avatar-btn" id="user-avatar-btn" data-i18n-aria-label="layout.userMenu.profile" aria-label="Відкрити профіль">
               <span class="user-avatar" id="user-avatar" aria-hidden="true">?</span>
             </button>
-            <button type="button" class="user-logout-btn" id="user-logout-btn" aria-label="Вийти з акаунту">
+            <button type="button" class="user-logout-btn" id="user-logout-btn" data-i18n-aria-label="layout.userMenu.logout" aria-label="Вийти з акаунту">
               <span class="icon" data-lucide="log-out" aria-hidden="true"></span>
             </button>
           </div>
@@ -119,42 +132,42 @@
         <div class="pdf-export-overlay__backdrop"></div>
         <div class="pdf-export-overlay__content">
           <span class="icon pdf-export-overlay__spinner" data-lucide="loader-2" aria-hidden="true"></span>
-          <p>Формуємо PDF-звіт…</p>
+          <p data-i18n="prediction.generatingReport">Формуємо PDF-звіт…</p>
         </div>
       </div>
       <section id="page-form" class="page page--active" aria-labelledby="page-title">
         <div class="page__grid">
           <section class="glass-card">
-            <h2 class="glass-card__title">Параметри користувача</h2>
+            <h2 class="glass-card__title" data-i18n="forms.prediction.title">Параметри користувача</h2>
             <form id="predict-form" class="form" novalidate>
               <div class="form__field">
                 <label for="target-select">
-                  <span>Ціль прогнозування</span>
-                  <button type="button" class="tooltip-trigger" data-tooltip="Оберіть ризик, який потрібно оцінити.">
+                  <span data-i18n="forms.prediction.target">Ціль прогнозування</span>
+                  <button type="button" class="tooltip-trigger" data-i18n-data-tooltip="tooltips.targetHelp" data-tooltip="Оберіть ризик, який потрібно оцінити.">
                     <span class="icon" data-lucide="help-circle"></span>
                   </button>
                 </label>
                 <select id="target-select" required>
-                  <option value="" disabled selected>Оберіть ціль</option>
-                  <option value="diabetes_present">Ризик діабету</option>
-                  <option value="obesity_present">Ризик ожиріння</option>
+                  <option value="" disabled selected data-i18n="forms.prediction.targetSelect">Оберіть ціль</option>
+                  <option value="diabetes_present" data-i18n="forms.prediction.targetDiabetes">Ризик діабету</option>
+                  <option value="obesity_present" data-i18n="forms.prediction.targetObesity">Ризик ожиріння</option>
                 </select>
               </div>
               <div class="form__field">
                 <label for="model-select">
-                  <span>Модель</span>
-                  <button type="button" class="tooltip-trigger" data-tooltip-id="model-help">
+                  <span data-i18n="forms.prediction.model">Модель</span>
+                  <button type="button" class="tooltip-trigger" data-tooltip-id="model-help" data-i18n-data-tooltip="tooltips.modelHelp">
                     <span class="icon" data-lucide="help-circle"></span>
                   </button>
                 </label>
                 <select id="model-select">
-                  <option value="auto" selected>Найкраща модель (чемпіон)</option>
-                  <option value="logreg">Логістична регресія</option>
-                  <option value="random_forest">Random Forest</option>
-                  <option value="xgb">XGBoost</option>
-                  <option value="svm">SVM (опорні вектори)</option>
-                  <option value="knn">K-Nearest Neighbors</option>
-                  <option value="mlp">Нейромережа (MLP)</option>
+                  <option value="auto" selected data-i18n="forms.prediction.modelAuto">Найкраща модель (чемпіон)</option>
+                  <option value="logreg" data-i18n="forms.prediction.modelLogreg">Логістична регресія</option>
+                  <option value="random_forest" data-i18n="forms.prediction.modelRandomForest">Random Forest</option>
+                  <option value="xgb" data-i18n="forms.prediction.modelXGBoost">XGBoost</option>
+                  <option value="svm" data-i18n="forms.prediction.modelSVM">SVM (опорні вектори)</option>
+                  <option value="knn" data-i18n="forms.prediction.modelKNN">K-Nearest Neighbors</option>
+                  <option value="mlp" data-i18n="forms.prediction.modelMLP">Нейромережа (MLP)</option>
                 </select>
               </div>
               <div id="features-container" class="form__grid"></div>
@@ -169,7 +182,7 @@
           <section class="glass-card" id="result-card" hidden>
             <div class="glass-card__header">
             <h2 class="glass-card__title">Результат</h2>
-              <button type="button" class="button button--ghost button--small" id="generate-report-btn" aria-label="Згенерувати звіт" hidden>
+              <button type="button" class="button button--ghost button--small" id="generate-report-btn" data-i18n-aria-label="aria.generateReport" aria-label="Згенерувати звіт" hidden>
                 <span class="icon" data-lucide="file-text"></span>
                 <span>Згенерувати звіт</span>
               </button>
@@ -213,153 +226,153 @@
           <section class="glass-card analytics-card" id="card-profile-overview">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="user-check"></span>
-              <span>Ваш профіль: ключові показники</span>
+              <span data-i18n="charts.profileOverview.title">Ваш профіль: ключові показники</span>
             </h2>
-            <p class="analytics-card__subtitle">Порівняння останніх введених значень із рекомендованими межами для здорової людини.</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.profileOverview.subtitle">Порівняння останніх введених значень із рекомендованими межами для здорової людини.</p>
             <div class="chart-wrapper">
-              <canvas id="profile-overview-chart" aria-label="Порівняння показників користувача" role="img"></canvas>
+              <canvas id="profile-overview-chart" data-i18n-aria-label="charts.profileOverview.chartLabel" aria-label="Порівняння показників користувача" role="img"></canvas>
             </div>
-            <p class="analytics-card__note" id="profile-overview-note">Кольори відображають, чи знаходиться показник у межах норми, попереджувальній або ризиковій зоні.</p>
-            <p class="analytics-card__empty" id="profile-overview-empty" hidden>Щоб побачити персональні діаграми, спочатку розрахуйте ризики на сторінці «Форма прогнозування».</p>
+            <p class="analytics-card__note" id="profile-overview-note" data-i18n="charts.profileOverview.note">Кольори відображають, чи знаходиться показник у межах норми, попереджувальній або ризиковій зоні.</p>
+            <p class="analytics-card__empty" id="profile-overview-empty" hidden data-i18n="charts.profileOverview.empty">Щоб побачити персональні діаграми, спочатку розрахуйте ризики на сторінці «Форма прогнозування».</p>
           </section>
 
           <section class="glass-card analytics-card" id="card-risk-comparison">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="shield-check"></span>
-              <span>Ризики за моделлю</span>
+              <span data-i18n="charts.riskComparison.title">Ризики за моделлю</span>
             </h2>
-            <p class="analytics-card__subtitle">Порівняння обчислених ризиків діабету та ожиріння для вашого профілю.</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.riskComparison.subtitle">Порівняння обчислених ризиків діабету та ожиріння для вашого профілю.</p>
             <div class="chart-wrapper chart-wrapper--compact">
-              <canvas id="model-risks-chart" aria-label="Порівняння ризиків діабету та ожиріння" role="img"></canvas>
+              <canvas id="model-risks-chart" data-i18n-aria-label="charts.riskComparison.chartLabel" aria-label="Порівняння ризиків діабету та ожиріння" role="img"></canvas>
             </div>
-            <p class="analytics-card__note" id="model-risks-note">Ризики відображено у відсотках, де повна шкала відповідає 100%.</p>
-            <p class="analytics-card__empty" id="model-risks-empty" hidden>Розрахуйте ризики діабету та ожиріння, щоб побачити порівняння.</p>
+            <p class="analytics-card__note" id="model-risks-note" data-i18n="charts.riskComparison.note">Ризики відображено у відсотках, де повна шкала відповідає 100%.</p>
+            <p class="analytics-card__empty" id="model-risks-empty" hidden data-i18n="charts.riskComparison.empty">Розрахуйте ризики діабету та ожиріння, щоб побачити порівняння.</p>
           </section>
 
           <section class="glass-card analytics-card" id="card-factors">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="sliders"></span>
-              <span>Важливість факторів</span>
+              <span data-i18n="charts.factors.title">Важливість факторів</span>
             </h2>
-            <p class="analytics-card__subtitle">Показники, які найбільше вплинули на останній прогноз. Наведіть курсор, щоб прочитати пояснення.</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.factors.subtitle">Показники, які найбільше вплинули на останній прогноз. Наведіть курсор, щоб прочитати пояснення.</p>
             <div class="chart-wrapper chart-wrapper--tall">
-              <canvas id="insights-factors-chart" aria-label="Важливість факторів моделі" role="img"></canvas>
+              <canvas id="insights-factors-chart" data-i18n-aria-label="charts.factors.chartLabel" aria-label="Важливість факторів моделі" role="img"></canvas>
             </div>
-            <p class="analytics-card__note">Позитивні значення свідчать про більший вплив фактору на підвищення ризику.</p>
-            <p class="analytics-card__empty" id="insights-factors-empty" hidden>Топ фактори з’являться після першого успішного прогнозу.</p>
+            <p class="analytics-card__note" data-i18n="charts.factors.note">Позитивні значення свідчать про більший вплив фактору на підвищення ризику.</p>
+            <p class="analytics-card__empty" id="insights-factors-empty" hidden data-i18n="charts.factors.empty">Топ фактори з'являться після першого успішного прогнозу.</p>
           </section>
 
           <section class="glass-card analytics-card" id="card-bmi">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="activity"></span>
-              <span>Розподіл BMI у вибірці</span>
+              <span data-i18n="charts.bmi.title">Розподіл BMI у вибірці</span>
             </h2>
-            <p class="analytics-card__subtitle">Показує, який відсоток людей з вибірки NHANES знаходиться у кожній категорії маси тіла.</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.bmi.subtitle">Показує, який відсоток людей з вибірки NHANES знаходиться у кожній категорії маси тіла.</p>
             <div class="chart-wrapper">
-              <canvas id="dataset-bmi-chart" aria-label="Розподіл BMI у вибірці" role="img"></canvas>
+              <canvas id="dataset-bmi-chart" data-i18n-aria-label="charts.bmi.chartLabel" aria-label="Розподіл BMI у вибірці" role="img"></canvas>
             </div>
-            <p class="analytics-card__note">Порівняйте свій ІМТ із типовими значеннями населення.</p>
+            <p class="analytics-card__note" data-i18n="charts.bmi.note">Порівняйте свій ІМТ із типовими значеннями населення.</p>
           </section>
 
           <section class="glass-card analytics-card" id="card-bp">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="heart-pulse"></span>
-              <span>Категорії артеріального тиску</span>
+              <span data-i18n="charts.bp.title">Категорії артеріального тиску</span>
             </h2>
-            <p class="analytics-card__subtitle">Частка людей з різними рівнями артеріального тиску у датасеті.</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.bp.subtitle">Частка людей з різними рівнями артеріального тиску у датасеті.</p>
             <div class="chart-wrapper chart-wrapper--compact">
-              <canvas id="dataset-bp-chart" aria-label="Категорії артеріального тиску" role="img"></canvas>
+              <canvas id="dataset-bp-chart" data-i18n-aria-label="charts.bp.chartLabel" aria-label="Категорії артеріального тиску" role="img"></canvas>
             </div>
-            <p class="analytics-card__note">«Норма» — до 120/80 мм рт. ст., «Гіпертонія 2 ступеня» — 140/90 мм рт. ст. і вище.</p>
+            <p class="analytics-card__note" data-i18n="charts.bp.note">«Норма» — до 120/80 мм рт. ст., «Гіпертонія 2 ступеня» — 140/90 мм рт. ст. і вище.</p>
           </section>
 
           <section class="glass-card analytics-card" id="card-chol">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="droplet"></span>
-              <span>Рівні холестерину</span>
+              <span data-i18n="charts.cholesterol.title">Рівні холестерину</span>
             </h2>
-            <p class="analytics-card__subtitle">Розподіл загального холестерину у вибірці NHANES.</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.cholesterol.subtitle">Розподіл загального холестерину у вибірці NHANES.</p>
             <div class="chart-wrapper">
-              <canvas id="dataset-chol-chart" aria-label="Розподіл холестерину" role="img"></canvas>
+              <canvas id="dataset-chol-chart" data-i18n-aria-label="charts.cholesterol.chartLabel" aria-label="Розподіл холестерину" role="img"></canvas>
             </div>
-            <p class="analytics-card__note">Оптимальний рівень — нижче 200 мг/дл.</p>
+            <p class="analytics-card__note" data-i18n="charts.cholesterol.note">Оптимальний рівень — нижче 200 мг/дл.</p>
           </section>
 
           <section class="glass-card analytics-card" id="card-diabetes-age">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="trending-up"></span>
-              <span>Діабет за віковими групами</span>
+              <span data-i18n="charts.diabetesAge.title">Діабет за віковими групами</span>
             </h2>
-            <p class="analytics-card__subtitle">Яка частка людей у кожній віковій групі має діабет (за самозвітом).</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.diabetesAge.subtitle">Яка частка людей у кожній віковій групі має діабет (за самозвітом).</p>
             <div class="chart-wrapper">
-              <canvas id="dataset-diabetes-age-chart" aria-label="Діабет за віком" role="img"></canvas>
+              <canvas id="dataset-diabetes-age-chart" data-i18n-aria-label="charts.diabetesAge.chartLabel" aria-label="Діабет за віком" role="img"></canvas>
             </div>
-            <p class="analytics-card__note">Частка розрахована як відсоток учасників з діабетом у межах групи.</p>
+            <p class="analytics-card__note" data-i18n="charts.diabetesAge.note">Частка розрахована як відсоток учасників з діабетом у межах групи.</p>
           </section>
 
           <section class="glass-card analytics-card" id="card-obesity-age">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="pie-chart"></span>
-              <span>Ожиріння за віковими групами</span>
+              <span data-i18n="charts.obesityAge.title">Ожиріння за віковими групами</span>
             </h2>
-            <p class="analytics-card__subtitle">Показує, як змінюється частка людей з ожирінням у різних вікових групах.</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.obesityAge.subtitle">Показує, як змінюється частка людей з ожирінням у різних вікових групах.</p>
             <div class="chart-wrapper">
-              <canvas id="dataset-obesity-age-chart" aria-label="Ожиріння за віком" role="img"></canvas>
+              <canvas id="dataset-obesity-age-chart" data-i18n-aria-label="charts.obesityAge.chartLabel" aria-label="Ожиріння за віком" role="img"></canvas>
             </div>
-            <p class="analytics-card__note">Ожиріння визначено як ІМТ ≥ 30 кг/м².</p>
+            <p class="analytics-card__note" data-i18n="charts.obesityAge.note">Ожиріння визначено як ІМТ ≥ 30 кг/м².</p>
           </section>
 
           <section class="glass-card analytics-card" id="card-correlations">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="git-merge"></span>
-              <span>Кореляції факторів</span>
+              <span data-i18n="charts.correlations.title">Кореляції факторів</span>
             </h2>
-            <p class="analytics-card__subtitle">Наскільки тісно пов'язані основні показники між собою у вибірці.</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.correlations.subtitle">Наскільки тісно пов'язані основні показники між собою у вибірці.</p>
             <div class="chart-wrapper chart-wrapper--tall">
-              <canvas id="dataset-correlation-chart" aria-label="Кореляції факторів" role="img"></canvas>
+              <canvas id="dataset-correlation-chart" data-i18n-aria-label="charts.correlations.chartLabel" aria-label="Кореляції факторів" role="img"></canvas>
             </div>
-            <p class="analytics-card__note">Значення від -1 до 1: чим ближче до 1, тим сильніший позитивний зв'язок між показниками.</p>
-            <p class="analytics-card__empty" id="dataset-correlation-empty" hidden>Для цього графіка недостатньо даних про всі фактори. Переконайтеся, що у датасеті присутні всі ключові показники.</p>
+            <p class="analytics-card__note" data-i18n="charts.correlations.note">Значення від -1 до 1: чим ближче до 1, тим сильніший позитивний зв'язок між показниками.</p>
+            <p class="analytics-card__empty" id="dataset-correlation-empty" hidden data-i18n="charts.correlations.empty">Для цього графіка недостатньо даних про всі фактори. Переконайтеся, що у датасеті присутні всі ключові показники.</p>
           </section>
 
           <!-- Діаграми історії прогнозів користувача -->
           <section class="glass-card analytics-card" id="card-history-timeline">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="trending-up"></span>
-              <span>Історія прогнозів</span>
+              <span data-i18n="charts.historyTimeline.title">Історія прогнозів</span>
             </h2>
-            <p class="analytics-card__subtitle">Динаміка ймовірностей ризиків у часі для ваших прогнозів.</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.historyTimeline.subtitle">Динаміка ймовірностей ризиків у часі для ваших прогнозів.</p>
             <div class="chart-wrapper chart-wrapper--tall">
-              <canvas id="history-timeline-chart" aria-label="Історія прогнозів у часі" role="img"></canvas>
+              <canvas id="history-timeline-chart" data-i18n-aria-label="charts.historyTimeline.chartLabel" aria-label="Історія прогнозів у часі" role="img"></canvas>
             </div>
-            <p class="analytics-card__note">Лінії показують зміну ймовірності ризику для кожної цілі з часом.</p>
-            <p class="analytics-card__empty" id="history-timeline-empty" hidden>Щоб побачити діаграми, спочатку виконайте хоча б один прогноз на сторінці «Форма прогнозування».</p>
+            <p class="analytics-card__note" data-i18n="charts.historyTimeline.note">Лінії показують зміну ймовірності ризику для кожної цілі з часом.</p>
+            <p class="analytics-card__empty" id="history-timeline-empty" hidden data-i18n="charts.historyTimeline.empty">Щоб побачити діаграми, спочатку виконайте хоча б один прогноз на сторінці «Форма прогнозування».</p>
           </section>
 
           <section class="glass-card analytics-card" id="card-history-risk-distribution">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="bar-chart-3"></span>
-              <span>Розподіл по категоріях ризику</span>
+              <span data-i18n="charts.historyRiskDistribution.title">Розподіл по категоріях ризику</span>
             </h2>
-            <p class="analytics-card__subtitle">Кількість ваших прогнозів по кожній категорії ризику для кожної цілі.</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.historyRiskDistribution.subtitle">Кількість ваших прогнозів по кожній категорії ризику для кожної цілі.</p>
             <div class="chart-wrapper">
-              <canvas id="history-risk-distribution-chart" aria-label="Розподіл прогнозів по категоріях ризику" role="img"></canvas>
+              <canvas id="history-risk-distribution-chart" data-i18n-aria-label="charts.historyRiskDistribution.chartLabel" aria-label="Розподіл прогнозів по категоріях ризику" role="img"></canvas>
             </div>
-            <p class="analytics-card__note">Показує, скільки прогнозів у кожній категорії ризику ви зробили.</p>
-            <p class="analytics-card__empty" id="history-risk-distribution-empty" hidden>Щоб побачити діаграми, спочатку виконайте хоча б один прогноз на сторінці «Форма прогнозування».</p>
+            <p class="analytics-card__note" data-i18n="charts.historyRiskDistribution.note">Показує, скільки прогнозів у кожній категорії ризику ви зробили.</p>
+            <p class="analytics-card__empty" id="history-risk-distribution-empty" hidden data-i18n="charts.historyRiskDistribution.empty">Щоб побачити діаграми, спочатку виконайте хоча б один прогноз на сторінці «Форма прогнозування».</p>
           </section>
 
           <section class="glass-card analytics-card" id="card-history-models">
             <h2 class="glass-card__title">
               <span class="icon" data-lucide="pie-chart"></span>
-              <span>Використані моделі</span>
+              <span data-i18n="charts.historyModels.title">Використані моделі</span>
             </h2>
-            <p class="analytics-card__subtitle">Частка прогнозів, виконаних з різними моделями машинного навчання.</p>
+            <p class="analytics-card__subtitle" data-i18n="charts.historyModels.subtitle">Частка прогнозів, виконаних з різними моделями машинного навчання.</p>
             <div class="chart-wrapper">
-              <canvas id="history-models-chart" aria-label="Розподіл прогнозів по моделях" role="img"></canvas>
+              <canvas id="history-models-chart" data-i18n-aria-label="charts.historyModels.chartLabel" aria-label="Розподіл прогнозів по моделях" role="img"></canvas>
             </div>
-            <p class="analytics-card__note">Діаграма показує, які моделі ви використовували найчастіше.</p>
-            <p class="analytics-card__empty" id="history-models-empty" hidden>Щоб побачити діаграми, спочатку виконайте хоча б один прогноз на сторінці «Форма прогнозування».</p>
+            <p class="analytics-card__note" data-i18n="charts.historyModels.note">Діаграма показує, які моделі ви використовували найчастіше.</p>
+            <p class="analytics-card__empty" id="history-models-empty" hidden data-i18n="charts.historyModels.empty">Щоб побачити діаграми, спочатку виконайте хоча б один прогноз на сторінці «Форма прогнозування».</p>
           </section>
         </div>
       </section>
@@ -370,9 +383,9 @@
             <div class="assistant-warning__row">
               <p class="assistant-warning__text">
                 <span class="icon" data-lucide="alert-circle"></span>
-                <span>Увага. Асистент не є лікарем і не замінює медичну консультацію. Він допомагає пояснювати результати оцінки ризиків та готуватися до розмови з лікарем.</span>
+                <span data-i18n="assistant.warning">Увага. Асистент не є лікарем і не замінює медичну консультацію. Він допомагає пояснювати результати оцінки ризиків та готуватися до розмови з лікарем.</span>
               </p>
-              <button type="button" class="icon-button" id="assistant-warning-dismiss" aria-label="Закрити попередження" data-tooltip="Закрити попередження">
+              <button type="button" class="icon-button" id="assistant-warning-dismiss" data-i18n-aria-label="aria.closeWarning" data-i18n-data-tooltip="assistant.dismissWarning" aria-label="Закрити попередження" data-tooltip="Закрити попередження">
                 <span class="icon" data-lucide="x"></span>
               </button>
             </div>
@@ -385,7 +398,7 @@
                   <span>Чат з асистентом здоровʼя</span>
                 </h2>
                 <div class="assistant-chat__actions">
-                  <button type="button" class="button button--ghost button--small button--icon-only" id="assistant-clear-btn" aria-label="Очистити чат" data-tooltip="Очистити чат" hidden>
+                  <button type="button" class="button button--ghost button--small button--icon-only" id="assistant-clear-btn" data-i18n-aria-label="aria.clearChat" data-i18n-data-tooltip="aria.clearChat" aria-label="Очистити чат" data-tooltip="Очистити чат" hidden>
                     <span class="icon" data-lucide="trash-2"></span>
                   </button>
                 </div>
@@ -398,11 +411,11 @@
                   <button type="button" class="button button--ghost button--small assistant-quick__btn" data-template="Які питання задати лікарю?">Які питання задати лікарю</button>
                 </div>
                 <div class="assistant-composer">
-                  <input type="text" id="assistant-input" class="assistant-input" placeholder="Напишіть повідомлення..." />
-                <button type="button" class="button assistant-send assistant-voice button--icon-only" id="assistant-voice-btn" aria-label="Голосовий ввід" data-tooltip="Голосовий ввід">
+                  <input type="text" id="assistant-input" class="assistant-input" data-i18n-placeholder="assistant.placeholder" placeholder="Напишіть повідомлення..." />
+                <button type="button" class="button assistant-send assistant-voice button--icon-only" id="assistant-voice-btn" data-i18n-aria-label="aria.voiceInput" data-i18n-data-tooltip="aria.voiceInput" aria-label="Голосовий ввід" data-tooltip="Голосовий ввід">
                   <span class="icon" data-lucide="mic"></span>
                 </button>
-                  <button type="button" class="button assistant-send button--icon-only" id="assistant-send-btn" aria-label="Надіслати">
+                  <button type="button" class="button assistant-send button--icon-only" id="assistant-send-btn" data-i18n-aria-label="aria.send" aria-label="Надіслати">
                     <span class="icon" data-lucide="send"></span>
                   </button>
                 </div>
@@ -411,38 +424,38 @@
             <section class="glass-card assistant-state" id="assistant-state-card">
               <h2 class="glass-card__title">
                 <span class="icon" data-lucide="heart-pulse"></span>
-                <span id="assistant-state-title-text">Мій поточний ризик</span>
+                    <span id="assistant-state-title-text" data-i18n="risk.current">Мій поточний ризик</span>
               </h2>
               <div class="assistant-state__content" id="assistant-state-content">
                 <div class="assistant-state__selector" id="assistant-state-selector" hidden>
                   <div class="risk-select" id="assistant-risk-select">
                     <button type="button" class="risk-select__button" id="assistant-risk-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="assistant-risk-menu">
-                      <span class="risk-select__label" id="assistant-risk-btn-label">Обрати з історії</span>
+                      <span class="risk-select__label" id="assistant-risk-btn-label" data-i18n="assistant.selectFromHistory">Обрати з історії</span>
                       <span class="icon" data-lucide="chevron-down"></span>
                     </button>
                     <div class="risk-select__menu" id="assistant-risk-menu" role="listbox" hidden></div>
                   </div>
                 </div>
-                <p class="assistant-state__empty" id="assistant-state-empty">Дані про ризик недоступні. Спочатку виконайте оцінку ризику у розділі «Форма прогнозування».</p>
+                <p class="assistant-state__empty" id="assistant-state-empty" data-i18n="assistant.riskDataUnavailable">Дані про ризик недоступні. Спочатку виконайте оцінку ризику у розділі «Форма прогнозування».</p>
                 <div class="assistant-state__rows" id="assistant-state-rows" hidden>
                   <div class="assistant-state__row">
-                    <span class="assistant-state__label">Ціль</span>
+                    <span class="assistant-state__label" data-i18n="assistant.state.target">Ціль</span>
                     <span class="assistant-state__value" id="assistant-state-target">—</span>
                   </div>
                   <div class="assistant-state__row">
-                    <span class="assistant-state__label">Ймовірність</span>
+                    <span class="assistant-state__label" data-i18n="assistant.state.probability">Ймовірність</span>
                     <span class="assistant-state__value" id="assistant-state-probability">—</span>
                   </div>
                   <div class="assistant-state__row">
-                    <span class="assistant-state__label">Категорія ризику</span>
+                    <span class="assistant-state__label" data-i18n="assistant.state.category">Категорія ризику</span>
                     <span class="badge" id="assistant-state-badge">—</span>
                   </div>
                   <div class="assistant-state__row">
-                    <span class="assistant-state__label">Ключові фактори</span>
+                    <span class="assistant-state__label" data-i18n="assistant.state.factors">Ключові фактори</span>
                     <span class="assistant-state__value" id="assistant-state-factors">—</span>
                   </div>
                   <div class="assistant-state__row">
-                    <span class="assistant-state__label">Час</span>
+                    <span class="assistant-state__label" data-i18n="assistant.state.time">Час</span>
                     <span class="assistant-state__value" id="assistant-state-time">—</span>
                   </div>
                 </div>
@@ -461,11 +474,11 @@
                 <div class="profile-empty__icon">
                   <span class="icon" data-lucide="user"></span>
                 </div>
-                <h2>Профіль недоступний</h2>
-                <p>Щоб переглянути профіль та зберігати прогнози, увійдіть або створіть обліковий запис.</p>
+                <h2 data-i18n="profile.unavailable">Профіль недоступний</h2>
+                <p data-i18n="profile.unavailableMessage">Щоб переглянути профіль та зберігати прогнози, увійдіть або створіть обліковий запис.</p>
                 <div class="profile-card__actions">
-                  <button type="button" class="button button--ghost" id="profile-login-shortcut">Увійти</button>
-                  <button type="button" class="button" id="profile-register-shortcut">Зареєструватися</button>
+                  <button type="button" class="button button--ghost" id="profile-login-shortcut" data-i18n="auth.login.button">Увійти</button>
+                  <button type="button" class="button" id="profile-register-shortcut" data-i18n="auth.register.button">Зареєструватися</button>
                 </div>
               </div>
             </section>
@@ -482,13 +495,13 @@
                     <input type="file" id="avatar-upload-input" accept="image/*" hidden />
                     <input type="color" id="avatar-color-input" class="avatar-color-input-hidden" />
                     <div class="profile-avatar-actions">
-                      <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-upload-btn" aria-label="Завантажити фото">
+                      <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-upload-btn" data-i18n-aria-label="aria.uploadPhoto" aria-label="Завантажити фото">
                         <span class="icon" data-lucide="upload"></span>
                       </button>
-                      <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-delete-btn" hidden aria-label="Видалити фото">
+                      <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-delete-btn" hidden data-i18n-aria-label="aria.deletePhoto" aria-label="Видалити фото">
                         <span class="icon" data-lucide="trash-2"></span>
                       </button>
-                      <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-color-btn" hidden aria-label="Змінити колір аватару" data-tooltip="Змінити колір аватару">
+                      <button type="button" class="button button--ghost button--small button--icon-only" id="avatar-color-btn" hidden data-i18n-aria-label="aria.changeAvatarColor" data-i18n-data-tooltip="aria.changeAvatarColor" aria-label="Змінити колір аватару" data-tooltip="Змінити колір аватару">
                         <span class="icon" data-lucide="palette"></span>
                       </button>
                     </div>
@@ -505,15 +518,15 @@
               <div class="profile-tabs" role="tablist">
                 <button type="button" class="profile-tab profile-tab--active" data-tab="profile" role="tab" aria-selected="true">
                   <span class="icon" data-lucide="user"></span>
-                  <span>Профіль</span>
+                  <span data-i18n="profile.title">Профіль</span>
                 </button>
                 <button type="button" class="profile-tab" data-tab="password" role="tab" aria-selected="false">
                   <span class="icon" data-lucide="key"></span>
-                  <span>Зміна пароля</span>
+                  <span data-i18n="profile.changePassword.title">Зміна пароля</span>
                 </button>
                 <button type="button" class="profile-tab" data-tab="delete-account" role="tab" aria-selected="false">
                   <span class="icon" data-lucide="trash-2"></span>
-                  <span>Видалення акаунту</span>
+                  <span data-i18n="profile.deleteAccount.title">Видалення акаунту</span>
                 </button>
               </div>
 
@@ -524,36 +537,36 @@
                   <form id="profile-update-form" class="profile-form">
                     <div class="profile-form__grid">
                       <div class="profile-form__group">
-                        <label for="profile-edit-first-name">Ім'я *</label>
-                        <input type="text" id="profile-edit-first-name" name="first_name" placeholder="Ваше ім'я" required />
+                        <label for="profile-edit-first-name" data-i18n="auth.register.firstName">Ім'я *</label>
+                        <input type="text" id="profile-edit-first-name" name="first_name" data-i18n-placeholder="auth.register.firstName" placeholder="Ваше ім'я" required />
                       </div>
                       <div class="profile-form__group">
-                        <label for="profile-edit-last-name">Прізвище</label>
-                        <input type="text" id="profile-edit-last-name" name="last_name" placeholder="Ваше прізвище" />
+                        <label for="profile-edit-last-name" data-i18n="auth.register.lastName">Прізвище</label>
+                        <input type="text" id="profile-edit-last-name" name="last_name" data-i18n-placeholder="auth.register.lastName" placeholder="Ваше прізвище" />
                       </div>
                       <div class="profile-form__group">
-                        <label for="profile-edit-date-of-birth">Дата народження</label>
+                        <label for="profile-edit-date-of-birth" data-i18n="auth.register.dateOfBirth">Дата народження</label>
                         <input type="date" id="profile-edit-date-of-birth" name="date_of_birth" />
                       </div>
                       <div class="profile-form__group">
-                        <label for="profile-edit-gender">Стать</label>
+                        <label for="profile-edit-gender" data-i18n="auth.register.gender">Стать</label>
                         <select id="profile-edit-gender" name="gender">
-                          <option value="">Не вказано</option>
-                          <option value="male">Чоловік</option>
-                          <option value="female">Жінка</option>
+                          <option value="" data-i18n="profile.genderNotSpecified">Не вказано</option>
+                          <option value="male" data-i18n="auth.register.genderMale">Чоловік</option>
+                          <option value="female" data-i18n="auth.register.genderFemale">Жінка</option>
                         </select>
                       </div>
                     </div>
                     <div class="profile-form__actions" id="profile-form-actions" hidden>
-                      <button type="button" class="button button--ghost" id="profile-edit-cancel-btn">Скасувати</button>
-                      <button type="submit" class="button" id="profile-edit-save-btn">Зберегти зміни</button>
+                      <button type="button" class="button button--ghost" id="profile-edit-cancel-btn" data-i18n="profile.cancel">Скасувати</button>
+                      <button type="submit" class="button" id="profile-edit-save-btn" data-i18n="profile.save">Зберегти зміни</button>
                     </div>
                     <p class="profile-form__status" id="profile-update-status"></p>
                   </form>
                   <div class="profile-history-link" id="profile-history-link" hidden>
                     <button type="button" class="button button--ghost" id="profile-history-link-btn">
                       <span class="icon" data-lucide="history"></span>
-                      <span>Переглянути всю історію прогнозів</span>
+                      <span data-i18n="profile.viewHistory">Переглянути всю історію прогнозів</span>
                     </button>
                   </div>
                 </div>
@@ -563,24 +576,24 @@
                   <div class="profile-password-section">
                     <h3 class="profile-password-section__title">
                       <span class="icon" data-lucide="key"></span>
-                      <span>Зміна пароля</span>
+                      <span data-i18n="profile.changePassword.title">Зміна пароля</span>
                     </h3>
                     <form id="profile-password-form" class="profile-form">
                       <input type="email" id="profile-password-email" name="email" autocomplete="username" class="visually-hidden" aria-hidden="true" />
                       <div class="profile-form__group">
-                        <label for="profile-current-password">Поточний пароль</label>
-                        <input type="password" id="profile-current-password" name="current_password" placeholder="Введіть поточний пароль" required autocomplete="current-password" />
+                        <label for="profile-current-password" data-i18n="profile.changePassword.currentPassword">Поточний пароль</label>
+                        <input type="password" id="profile-current-password" name="current_password" data-i18n-placeholder="profile.changePassword.currentPassword" placeholder="Введіть поточний пароль" required autocomplete="current-password" />
                       </div>
                       <div class="profile-form__group">
-                        <label for="profile-new-password">Новий пароль</label>
-                        <input type="password" id="profile-new-password" name="new_password" placeholder="Введіть новий пароль" required autocomplete="new-password" />
+                        <label for="profile-new-password" data-i18n="profile.changePassword.newPassword">Новий пароль</label>
+                        <input type="password" id="profile-new-password" name="new_password" data-i18n-placeholder="profile.changePassword.newPassword" placeholder="Введіть новий пароль" required autocomplete="new-password" />
                       </div>
                       <div class="profile-form__group">
-                        <label for="profile-confirm-password">Підтвердження нового пароля</label>
-                        <input type="password" id="profile-confirm-password" name="confirm_new_password" placeholder="Підтвердіть новий пароль" required autocomplete="new-password" />
+                        <label for="profile-confirm-password" data-i18n="profile.changePassword.confirmPassword">Підтвердження нового пароля</label>
+                        <input type="password" id="profile-confirm-password" name="confirm_new_password" data-i18n-placeholder="profile.changePassword.confirmPassword" placeholder="Підтвердіть новий пароль" required autocomplete="new-password" />
                       </div>
                       <div class="profile-form__actions">
-                        <button type="submit" class="button">Оновити пароль</button>
+                        <button type="submit" class="button" data-i18n="profile.changePassword.button">Оновити пароль</button>
                       </div>
                       <p class="profile-form__status" id="profile-password-status"></p>
                     </form>
@@ -592,18 +605,18 @@
                   <div class="profile-danger-zone">
                     <h3 class="profile-danger-zone__title">
                       <span class="icon" data-lucide="alert-triangle"></span>
-                      <span>Видалення облікового запису</span>
+                      <span data-i18n="profile.deleteAccount.title">Видалення облікового запису</span>
                     </h3>
                     <div class="profile-danger-zone__content">
-                      <p class="profile-danger-zone__warning">Видалення облікового запису є незворотним. Усі ваші дані будуть втрачені:</p>
+                      <p class="profile-danger-zone__warning" data-i18n="profile.deleteAccount.confirmationMessage">Видалення облікового запису є незворотним. Усі ваші дані будуть втрачені:</p>
                       <ul class="profile-danger-zone__list">
-                        <li>Ваш профіль та особисті дані</li>
-                        <li>Вся історія прогнозів</li>
-                        <li>Завантажені фото та налаштування</li>
-                        <li>Всі інші пов’язані дані</li>
+                        <li data-i18n="profile.deleteAccount.dataLost.profile">Ваш профіль та особисті дані</li>
+                        <li data-i18n="profile.deleteAccount.dataLost.history">Вся історія прогнозів</li>
+                        <li data-i18n="profile.deleteAccount.dataLost.photos">Завантажені фото та налаштування</li>
+                        <li data-i18n="profile.deleteAccount.dataLost.other">Всі інші пов'язані дані</li>
                       </ul>
-                      <p class="profile-danger-zone__note">Якщо ви впевнені, що хочете продовжити, натисніть кнопку нижче.</p>
-                      <button type="button" class="button button--destructive" id="delete-account-btn">
+                      <p class="profile-danger-zone__note" data-i18n="profile.deleteAccount.note">Якщо ви впевнені, що хочете продовжити, натисніть кнопку нижче.</p>
+                      <button type="button" class="button button--destructive" id="delete-account-btn" data-i18n="profile.deleteAccount.button">
                         <span class="icon" data-lucide="trash-2"></span>
                         <span>Видалити обліковий запис</span>
                       </button>
@@ -670,15 +683,15 @@
             <div class="modal__header">
               <h2 class="modal__title" id="bulk-delete-history-modal-title">
                 <span class="icon" data-lucide="trash-2"></span>
-                <span>Видалити вибрані прогнози?</span>
+                <span data-i18n="history.bulkDelete.title">Видалити вибрані прогнози?</span>
               </h2>
             </div>
             <div class="modal__body">
-              <p class="modal__message" id="bulk-delete-history-message">Ви впевнені, що хочете видалити вибрані прогнози?</p>
+              <p class="modal__message" id="bulk-delete-history-message" data-i18n="history.bulkDelete.message">Ви впевнені, що хочете видалити вибрані прогнози?</p>
             </div>
             <div class="modal__actions">
-              <button type="button" class="button button--ghost" id="bulk-delete-history-cancel-btn">Скасувати</button>
-              <button type="button" class="button button--destructive" id="bulk-delete-history-confirm-btn">
+              <button type="button" class="button button--ghost" id="bulk-delete-history-cancel-btn" data-i18n="profile.cancel">Скасувати</button>
+              <button type="button" class="button button--destructive" id="bulk-delete-history-confirm-btn" data-i18n="history.bulkDelete.confirm">
                 <span class="icon" data-lucide="trash-2"></span>
                 <span>Видалити</span>
               </button>
@@ -693,15 +706,15 @@
           <div class="api-status-tabs" role="tablist">
             <button type="button" class="api-status-tab api-status-tab--active" data-tab="api" role="tab" aria-selected="true">
               <span class="icon" data-lucide="activity"></span>
-              <span>API</span>
+              <span data-i18n="apiStatus.tabs.api">API</span>
             </button>
             <button type="button" class="api-status-tab" data-tab="ollama" role="tab" aria-selected="false">
               <span class="icon" data-lucide="brain"></span>
-              <span>AI Модель (Ollama)</span>
+              <span data-i18n="apiStatus.tabs.ollama">AI Модель (Ollama)</span>
             </button>
             <button type="button" class="api-status-tab" data-tab="system" role="tab" aria-selected="false">
               <span class="icon" data-lucide="server"></span>
-              <span>Система</span>
+              <span data-i18n="apiStatus.tabs.system">Система</span>
             </button>
           </div>
 
@@ -712,15 +725,15 @@
               <section class="glass-card api-status-card">
                 <h2 class="glass-card__title">
                   <span class="icon" data-lucide="activity"></span>
-                  <span>Статус API</span>
+                  <span data-i18n="apiStatus.status.title">Статус API</span>
                 </h2>
                 <div class="api-status-page__status" id="api-status-page-status">
                   <div class="api-status-page__status-indicator">
                     <span class="status-dot" id="api-status-page-dot"></span>
-                    <span class="api-status-page__status-text" id="api-status-page-status-text">Перевірка...</span>
+                    <span class="api-status-page__status-text" id="api-status-page-status-text" data-i18n="apiStatus.status.checking">Перевірка...</span>
                     <span class="status-badge" id="api-status-badge"></span>
                   </div>
-                  <button type="button" class="button button--ghost" id="api-status-refresh-btn">
+                  <button type="button" class="button button--ghost" id="api-status-refresh-btn" data-i18n="apiStatus.refresh">
                     <span class="icon" data-lucide="refresh-cw"></span>
                     <span>Перевірити знову</span>
                   </button>
@@ -731,19 +744,19 @@
                 <section class="glass-card api-status-card">
                   <h2 class="glass-card__title">
                     <span class="icon" data-lucide="clock"></span>
-                    <span>Час відгуку</span>
+                    <span data-i18n="apiStatus.responseTime.title">Час відгуку</span>
                   </h2>
                   <div class="api-status-page__metrics" id="api-status-page-metrics">
                     <div class="api-status-page__metric">
-                      <span class="api-status-page__metric-label">Latency (Ping)</span>
+                      <span class="api-status-page__metric-label" data-i18n="apiStatus.responseTime.latency">Latency (Ping)</span>
                       <span class="api-status-page__metric-value" id="api-status-latency">—</span>
                     </div>
                     <div class="api-status-page__metric">
-                      <span class="api-status-page__metric-label">HTTP статус</span>
+                      <span class="api-status-page__metric-label" data-i18n="apiStatus.responseTime.httpStatus">HTTP статус</span>
                       <span class="api-status-page__metric-value" id="api-status-http-status">—</span>
                     </div>
                     <div class="api-status-page__metric">
-                      <span class="api-status-page__metric-label">Остання перевірка</span>
+                      <span class="api-status-page__metric-label" data-i18n="apiStatus.responseTime.lastCheck">Остання перевірка</span>
                       <span class="api-status-page__metric-value" id="api-status-last-check">—</span>
                     </div>
                   </div>
@@ -752,19 +765,19 @@
                 <section class="glass-card api-status-card">
                   <h2 class="glass-card__title">
                     <span class="icon" data-lucide="info"></span>
-                    <span>Інформація про API</span>
+                    <span data-i18n="apiStatus.info.title">Інформація про API</span>
                   </h2>
                   <div class="api-status-page__info" id="api-status-page-info">
                     <div class="api-status-page__info-item">
-                      <span class="api-status-page__info-label">Версія</span>
+                      <span class="api-status-page__info-label" data-i18n="apiStatus.info.version">Версія</span>
                       <span class="api-status-page__info-value" id="api-status-version">—</span>
                     </div>
                     <div class="api-status-page__info-item">
-                      <span class="api-status-page__info-label">Загальна кількість маршрутів</span>
+                      <span class="api-status-page__info-label" data-i18n="apiStatus.info.totalRoutes">Загальна кількість маршрутів</span>
                       <span class="api-status-page__info-value" id="api-status-total-routes">—</span>
                     </div>
                     <div class="api-status-page__info-item">
-                      <span class="api-status-page__info-label">Основних ендпоінтів</span>
+                      <span class="api-status-page__info-label" data-i18n="apiStatus.info.mainEndpoints">Основних ендпоінтів</span>
                       <span class="api-status-page__info-value" id="api-status-main-endpoints">—</span>
                     </div>
                   </div>
@@ -774,21 +787,21 @@
               <section class="glass-card api-status-card">
                 <h2 class="glass-card__title">
                   <span class="icon" data-lucide="list"></span>
-                  <span>Основні маршрути</span>
+                  <span data-i18n="apiStatus.routes.title">Основні маршрути</span>
                 </h2>
                 <div class="api-status-page__routes-table-wrapper">
                   <table class="api-status-page__routes-table" id="api-status-routes-table">
                     <thead>
                       <tr>
-                        <th>Method</th>
-                        <th>Path</th>
-                        <th>Опис</th>
-                        <th>Статус</th>
+                        <th data-i18n="apiStatus.routes.method">Method</th>
+                        <th data-i18n="apiStatus.routes.path">Path</th>
+                        <th data-i18n="apiStatus.routes.description">Опис</th>
+                        <th data-i18n="apiStatus.routes.status">Статус</th>
                       </tr>
                     </thead>
                     <tbody id="api-status-page-routes">
                       <tr>
-                        <td colspan="4" class="api-status-page__empty">Завантаження...</td>
+                        <td colspan="4" class="api-status-page__empty" data-i18n="apiStatus.loading">Завантаження...</td>
                       </tr>
                     </tbody>
                   </table>
@@ -800,8 +813,8 @@
                 <div class="api-route-modal__overlay"></div>
                 <div class="api-route-modal__content">
                   <div class="api-route-modal__header">
-                    <h2 class="api-route-modal__title" id="api-route-modal-title">Деталі маршруту</h2>
-                    <button type="button" class="api-route-modal__close" id="api-route-modal-close" aria-label="Закрити">
+                    <h2 class="api-route-modal__title" id="api-route-modal-title" data-i18n="apiStatus.routeDetails.title">Деталі маршруту</h2>
+                    <button type="button" class="api-route-modal__close" id="api-route-modal-close" data-i18n-aria-label="aria.close" aria-label="Закрити">
                       <span class="icon" data-lucide="x"></span>
                     </button>
                   </div>
@@ -814,35 +827,35 @@
               <section class="glass-card api-status-card">
                 <h2 class="glass-card__title">
                   <span class="icon" data-lucide="cpu"></span>
-                  <span>Технічні характеристики</span>
+                  <span data-i18n="apiStatus.techSpecs.title">Технічні характеристики</span>
                 </h2>
                 <div class="api-status-page__tech-specs">
                   <div class="api-status-page__tech-spec-item">
-                    <span class="api-status-page__tech-spec-label">Базова URL</span>
+                    <span class="api-status-page__tech-spec-label" data-i18n="apiStatus.techSpecs.baseUrl">Базова URL</span>
                     <span class="api-status-page__tech-spec-value" id="api-status-base-url">—</span>
                   </div>
                   <div class="api-status-page__tech-spec-item">
-                    <span class="api-status-page__tech-spec-label">Платформа</span>
+                    <span class="api-status-page__tech-spec-label" data-i18n="apiStatus.techSpecs.platform">Платформа</span>
                     <span class="api-status-page__tech-spec-value">FastAPI</span>
                   </div>
                   <div class="api-status-page__tech-spec-item">
-                    <span class="api-status-page__tech-spec-label">Авторизація</span>
+                    <span class="api-status-page__tech-spec-label" data-i18n="apiStatus.techSpecs.auth">Авторизація</span>
                     <span class="api-status-page__tech-spec-value">JWT Bearer Token</span>
                   </div>
                   <div class="api-status-page__tech-spec-item">
-                    <span class="api-status-page__tech-spec-label">База даних</span>
+                    <span class="api-status-page__tech-spec-label" data-i18n="apiStatus.techSpecs.database">База даних</span>
                     <span class="api-status-page__tech-spec-value">SQLite</span>
                   </div>
                   <div class="api-status-page__tech-spec-item">
-                    <span class="api-status-page__tech-spec-label">Збереження користувачів</span>
+                    <span class="api-status-page__tech-spec-label" data-i18n="apiStatus.techSpecs.userStorage">Збереження користувачів</span>
                     <span class="api-status-page__tech-spec-value">SQLModel</span>
                   </div>
                   <div class="api-status-page__tech-spec-item">
-                    <span class="api-status-page__tech-spec-label">Моделі ШІ</span>
+                    <span class="api-status-page__tech-spec-label" data-i18n="apiStatus.techSpecs.aiModels">Моделі ШІ</span>
                     <span class="api-status-page__tech-spec-value">LogReg, RandomForest, XGB, MLP, KNN, SVC</span>
                   </div>
                   <div class="api-status-page__tech-spec-item">
-                    <span class="api-status-page__tech-spec-label">Формат відповіді API</span>
+                    <span class="api-status-page__tech-spec-label" data-i18n="apiStatus.techSpecs.responseFormat">Формат відповіді API</span>
                     <span class="api-status-page__tech-spec-value">JSON</span>
                   </div>
                 </div>
@@ -851,10 +864,10 @@
               <section class="glass-card api-status-card">
                 <h2 class="glass-card__title">
                   <span class="icon" data-lucide="trending-up"></span>
-                  <span>Статистика відгуку</span>
+                  <span data-i18n="apiStatus.stats.title">Статистика відгуку</span>
                 </h2>
                 <div class="chart-wrapper chart-wrapper--compact">
-                  <canvas id="api-response-time-chart" aria-label="Графік часу відгуку API" role="img"></canvas>
+                  <canvas id="api-response-time-chart" data-i18n-aria-label="apiStatus.stats.chartLabel" aria-label="Графік часу відгуку API" role="img"></canvas>
                 </div>
               </section>
             </div>
@@ -864,15 +877,15 @@
               <section class="glass-card api-status-card">
                 <h2 class="glass-card__title">
                   <span class="icon" data-lucide="brain"></span>
-                  <span>Статус Ollama</span>
+                  <span data-i18n="apiStatus.ollama.status.title">Статус Ollama</span>
                 </h2>
                 <div class="api-status-page__status" id="ollama-status-page-status">
                   <div class="api-status-page__status-indicator">
                     <span class="status-dot" id="ollama-status-page-dot"></span>
-                    <span class="api-status-page__status-text" id="ollama-status-page-status-text">Перевірка...</span>
+                    <span class="api-status-page__status-text" id="ollama-status-page-status-text" data-i18n="apiStatus.ollama.status.checking">Перевірка...</span>
                     <span class="status-badge" id="ollama-status-badge"></span>
                   </div>
-                  <button type="button" class="button button--ghost" id="ollama-status-refresh-btn">
+                  <button type="button" class="button button--ghost" id="ollama-status-refresh-btn" data-i18n="apiStatus.ollama.refresh">
                     <span class="icon" data-lucide="refresh-cw"></span>
                     <span>Перевірити Ollama</span>
                   </button>
@@ -1333,40 +1346,40 @@
 
       <section id="page-login" class="page auth-page" aria-labelledby="page-title">
         <div class="auth-card">
-          <p class="auth-card__subtitle">Уведіть електронну пошту та пароль, щоб продовжити.</p>
+          <p class="auth-card__subtitle" data-i18n="auth.login.subtitle">Уведіть електронну пошту та пароль, щоб продовжити.</p>
           <form id="login-form" class="auth-form" novalidate>
             <div class="auth-form__field">
-              <label for="login-email">Електронна пошта</label>
-              <input type="email" id="login-email" name="email" autocomplete="username" placeholder="name@example.com" required />
+              <label for="login-email" data-i18n="auth.login.email">Електронна пошта</label>
+              <input type="email" id="login-email" name="email" autocomplete="username" data-i18n-placeholder="auth.login.emailPlaceholder" placeholder="name@example.com" required />
             </div>
             <div class="auth-form__field">
-              <label for="login-password">Пароль</label>
-              <input type="password" id="login-password" name="password" autocomplete="current-password" placeholder="Ваш пароль" required />
+              <label for="login-password" data-i18n="auth.login.password">Пароль</label>
+              <input type="password" id="login-password" name="password" autocomplete="current-password" data-i18n-placeholder="auth.login.passwordPlaceholder" placeholder="Ваш пароль" required />
             </div>
             <p class="auth-form__error" id="login-error" hidden></p>
             <p class="auth-form__success" id="login-success" hidden></p>
-            <button type="submit" class="button auth-form__submit">Увійти</button>
+            <button type="submit" class="button auth-form__submit" data-i18n="auth.login.button">Увійти</button>
             <p class="auth-form__footer">
-              <button type="button" class="auth-form__link" id="to-forgot-password">Забули пароль?</button>
+              <button type="button" class="auth-form__link" id="to-forgot-password" data-i18n="auth.login.forgotPassword">Забули пароль?</button>
             </p>
-            <p class="auth-form__footer">Ще не маєте облікового запису? <button type="button" class="auth-form__link" id="to-register">Зареєструватися</button></p>
+            <p class="auth-form__footer"><span data-i18n="auth.login.registerLink">Ще не маєте облікового запису?</span> <button type="button" class="auth-form__link" id="to-register" data-i18n="auth.login.registerButton">Зареєструватися</button></p>
           </form>
         </div>
       </section>
 
       <section id="page-forgot-password" class="page auth-page" aria-labelledby="page-title">
         <div class="auth-card">
-          <p class="auth-card__subtitle">Введіть вашу електронну пошту, і ми надішлемо інструкції для відновлення пароля.</p>
+          <p class="auth-card__subtitle" data-i18n="auth.forgotPassword.subtitle">Введіть вашу електронну пошту, і ми надішлемо інструкції для відновлення пароля.</p>
           <form id="forgot-password-form" class="auth-form" novalidate>
             <div class="auth-form__field">
-              <label for="forgot-email">Електронна пошта</label>
-              <input type="email" id="forgot-email" name="email" autocomplete="username" placeholder="name@example.com" required />
+              <label for="forgot-email" data-i18n="auth.forgotPassword.email">Електронна пошта</label>
+              <input type="email" id="forgot-email" name="email" autocomplete="username" data-i18n-placeholder="auth.forgotPassword.emailPlaceholder" placeholder="name@example.com" required />
             </div>
             <p class="auth-form__error" id="forgot-password-error" hidden></p>
             <p class="auth-form__success" id="forgot-password-success" hidden></p>
-            <button type="submit" class="button auth-form__submit">Надіслати інструкції</button>
+            <button type="submit" class="button auth-form__submit" data-i18n="auth.forgotPassword.button">Надіслати інструкції</button>
             <p class="auth-form__footer">
-              <button type="button" class="auth-form__link" id="forgot-to-login">Повернутися до входу</button>
+              <button type="button" class="auth-form__link" id="forgot-to-login" data-i18n="auth.forgotPassword.backToLogin">Повернутися до входу</button>
             </p>
           </form>
         </div>
@@ -1374,62 +1387,62 @@
 
       <section id="page-reset-password" class="page auth-page" aria-labelledby="page-title">
         <div class="auth-card">
-          <p class="auth-card__subtitle">Введіть новий пароль для вашого облікового запису.</p>
+          <p class="auth-card__subtitle" data-i18n="auth.resetPassword.subtitle">Введіть новий пароль для вашого облікового запису.</p>
           <form id="reset-password-form" class="auth-form" novalidate>
             <input type="email" id="reset-password-email" name="email" autocomplete="username" class="visually-hidden" aria-hidden="true" />
             <div class="auth-form__field">
-              <label for="reset-new-password">Новий пароль</label>
-              <input type="password" id="reset-new-password" name="new_password" autocomplete="new-password" placeholder="Мінімум 8 символів" minlength="8" required />
+              <label for="reset-new-password" data-i18n="auth.resetPassword.newPassword">Новий пароль</label>
+              <input type="password" id="reset-new-password" name="new_password" autocomplete="new-password" data-i18n-placeholder="auth.resetPassword.newPasswordPlaceholder" placeholder="Мінімум 8 символів" minlength="8" required />
             </div>
             <div class="auth-form__field">
-              <label for="reset-confirm-password">Підтвердження нового пароля</label>
-              <input type="password" id="reset-confirm-password" name="confirm_new_password" autocomplete="new-password" placeholder="Повторіть новий пароль" minlength="8" required />
+              <label for="reset-confirm-password" data-i18n="auth.resetPassword.confirmPassword">Підтвердження нового пароля</label>
+              <input type="password" id="reset-confirm-password" name="confirm_new_password" autocomplete="new-password" data-i18n-placeholder="auth.resetPassword.confirmPasswordPlaceholder" placeholder="Повторіть новий пароль" minlength="8" required />
             </div>
             <p class="auth-form__error" id="reset-password-error" hidden></p>
-            <button type="submit" class="button auth-form__submit">Оновити пароль</button>
+            <button type="submit" class="button auth-form__submit" data-i18n="auth.resetPassword.button">Оновити пароль</button>
           </form>
         </div>
       </section>
 
       <section id="page-register" class="page auth-page" aria-labelledby="page-title">
         <div class="auth-card">
-          <p class="auth-card__subtitle">Заповніть форму, щоб почати зберігати свою історію прогнозів.</p>
+          <p class="auth-card__subtitle" data-i18n="auth.register.subtitle">Заповніть форму, щоб почати зберігати свою історію прогнозів.</p>
           <form id="register-form" class="auth-form" novalidate>
             <div class="auth-form__field">
-              <label for="register-first-name">Ім'я *</label>
-              <input type="text" id="register-first-name" name="first_name" placeholder="Ваше ім'я" minlength="1" required />
+              <label for="register-first-name" data-i18n="auth.register.firstName">Ім'я *</label>
+              <input type="text" id="register-first-name" name="first_name" data-i18n-placeholder="auth.register.firstNamePlaceholder" placeholder="Ваше ім'я" minlength="1" required />
             </div>
             <div class="auth-form__field">
-              <label for="register-last-name">Прізвище *</label>
-              <input type="text" id="register-last-name" name="last_name" placeholder="Ваше прізвище" minlength="1" required />
+              <label for="register-last-name" data-i18n="auth.register.lastName">Прізвище *</label>
+              <input type="text" id="register-last-name" name="last_name" data-i18n-placeholder="auth.register.lastNamePlaceholder" placeholder="Ваше прізвище" minlength="1" required />
             </div>
             <div class="auth-form__field">
-              <label for="register-date-of-birth">Дата народження *</label>
+              <label for="register-date-of-birth" data-i18n="auth.register.dateOfBirth">Дата народження *</label>
               <input type="date" id="register-date-of-birth" name="date_of_birth" required />
             </div>
             <div class="auth-form__field">
-              <label for="register-gender">Стать *</label>
+              <label for="register-gender" data-i18n="auth.register.gender">Стать *</label>
               <select id="register-gender" name="gender" required>
-                <option value="">Оберіть стать</option>
-                <option value="male">Чоловік</option>
-                <option value="female">Жінка</option>
+                <option value="" data-i18n="auth.register.genderPlaceholder">Оберіть стать</option>
+                <option value="male" data-i18n="auth.register.genderMale">Чоловік</option>
+                <option value="female" data-i18n="auth.register.genderFemale">Жінка</option>
               </select>
             </div>
             <div class="auth-form__field">
-              <label for="register-email">Електронна пошта *</label>
-              <input type="email" id="register-email" name="email" autocomplete="username" placeholder="name@example.com" required />
+              <label for="register-email" data-i18n="auth.register.email">Електронна пошта *</label>
+              <input type="email" id="register-email" name="email" autocomplete="username" data-i18n-placeholder="auth.register.emailPlaceholder" placeholder="name@example.com" required />
             </div>
             <div class="auth-form__field">
-              <label for="register-password">Пароль *</label>
-              <input type="password" id="register-password" name="password" autocomplete="new-password" placeholder="Мінімум 8 символів" minlength="8" required />
+              <label for="register-password" data-i18n="auth.register.password">Пароль *</label>
+              <input type="password" id="register-password" name="password" autocomplete="new-password" data-i18n-placeholder="auth.register.passwordPlaceholder" placeholder="Мінімум 8 символів" minlength="8" required />
             </div>
             <div class="auth-form__field">
-              <label for="register-confirm">Підтвердження пароля *</label>
-              <input type="password" id="register-confirm" name="confirm_password" autocomplete="new-password" placeholder="Повторіть пароль" minlength="8" required />
+              <label for="register-confirm" data-i18n="auth.register.confirmPassword">Підтвердження пароля *</label>
+              <input type="password" id="register-confirm" name="confirm_password" autocomplete="new-password" data-i18n-placeholder="auth.register.confirmPasswordPlaceholder" placeholder="Повторіть пароль" minlength="8" required />
             </div>
             <p class="auth-form__error" id="register-error" hidden></p>
-            <button type="submit" class="button auth-form__submit">Зареєструватися</button>
-            <p class="auth-form__footer">Вже маєте обліковий запис? <button type="button" class="auth-form__link" id="to-login">Увійти</button></p>
+            <button type="submit" class="button auth-form__submit" data-i18n="auth.register.button">Зареєструватися</button>
+            <p class="auth-form__footer"><span data-i18n="auth.register.loginLink">Вже маєте обліковий запис?</span> <button type="button" class="auth-form__link" id="to-login" data-i18n="auth.register.loginButton">Увійти</button></p>
           </form>
         </div>
       </section>
@@ -1439,19 +1452,19 @@
           <!-- Стан 1: Список активних чатів на всю ширину -->
           <div class="chats-list-full" id="chats-list-full">
             <div class="chats-list-full__header">
-              <h2 class="chats-list-full__title">Список чатів</h2>
+              <h2 class="chats-list-full__title" data-i18n="chats.list.title">Список чатів</h2>
               <div class="chats-list-full__header-actions">
-                <button type="button" class="button button--ghost button--small button--icon-only" id="chats-edit-mode-btn" aria-label="Редагувати порядок" data-tooltip="Редагувати порядок">
+                <button type="button" class="button button--ghost button--small button--icon-only" id="chats-edit-mode-btn" data-i18n-aria-label="chats.editOrder" data-i18n-data-tooltip="chats.editOrder" aria-label="Редагувати порядок" data-tooltip="Редагувати порядок">
                   <span class="icon" data-lucide="grip-vertical"></span>
                 </button>
-                <button type="button" class="button button--ghost button--small button--icon-only" id="chats-new-chat-btn" aria-label="Новий чат" data-tooltip="Новий чат">
+                <button type="button" class="button button--ghost button--small button--icon-only" id="chats-new-chat-btn" data-i18n-aria-label="chats.newChat" data-i18n-data-tooltip="chats.newChat" aria-label="Новий чат" data-tooltip="Новий чат">
                   <span class="icon" data-lucide="plus"></span>
                 </button>
               </div>
             </div>
             <div class="chats-list-full__content">
               <div class="chats-list" id="chats-list">
-                <p class="chats-empty" id="chats-empty">Немає чатів. Створіть новий чат, щоб почати спілкування.</p>
+                <p class="chats-empty" id="chats-empty" data-i18n="chats.empty">Немає чатів. Створіть новий чат, щоб почати спілкування.</p>
               </div>
             </div>
           </div>
@@ -1459,15 +1472,15 @@
           <!-- Стан 2: Список користувачів на всю ширину -->
           <div class="chats-users-full" id="chats-users-full" hidden>
             <div class="chats-users-full__header">
-              <button type="button" class="button button--ghost button--small" id="chats-back-to-list-btn" aria-label="Назад">
+              <button type="button" class="button button--ghost button--small" id="chats-back-to-list-btn" data-i18n-aria-label="aria.back" aria-label="Назад">
                 <span class="icon" data-lucide="arrow-left"></span>
-                <span>Назад</span>
+                <span data-i18n="aria.back">Назад</span>
               </button>
-              <h2 class="chats-users-full__title">Виберіть користувача</h2>
+              <h2 class="chats-users-full__title" data-i18n="chats.selectUser">Виберіть користувача</h2>
             </div>
             <div class="chats-users-full__content">
               <div class="chats-users-list" id="chats-users-list">
-                <p class="chats-empty" id="chats-users-empty">Завантаження користувачів...</p>
+                <p class="chats-empty" id="chats-users-empty" data-i18n="chats.loadingUsers">Завантаження користувачів...</p>
               </div>
             </div>
           </div>
@@ -1480,32 +1493,32 @@
                 <div class="chats-main__empty-icon">
                   <span class="icon" data-lucide="message-circle"></span>
                 </div>
-                <h3>Оберіть чат</h3>
-                <p>Виберіть існуючий чат або створіть новий, щоб почати спілкування.</p>
+                <h3 data-i18n="chats.selectChat">Оберіть чат</h3>
+                <p data-i18n="chats.selectChatMessage">Виберіть існуючий чат або створіть новий, щоб почати спілкування.</p>
               </div>
               <div class="chats-main__content" id="chats-main-content" hidden>
                 <div class="chats-main__header">
-                  <button type="button" class="button button--ghost button--small btn-back-chats" id="chats-back-to-list-from-chat-btn" aria-label="Назад до списку">
+                  <button type="button" class="button button--ghost button--small btn-back-chats" id="chats-back-to-list-from-chat-btn" data-i18n-aria-label="chats.backToList" aria-label="Назад до списку">
                     <span class="icon" data-lucide="arrow-left"></span>
-                    <span>Назад</span>
+                    <span data-i18n="aria.back">Назад</span>
                   </button>
                   <div class="chats-main__header-info">
                     <div class="chats-main__avatar" id="chats-main-avatar">?</div>
                     <div>
-                      <h3 class="chats-main__header-name" id="chats-main-name">Користувач</h3>
-                      <p class="chats-main__header-status" id="chats-main-status">Онлайн</p>
+                      <h3 class="chats-main__header-name" id="chats-main-name" data-i18n="chats.user">Користувач</h3>
+                      <p class="chats-main__header-status" id="chats-main-status" data-i18n="chats.online">Онлайн</p>
                     </div>
                   </div>
                   <div class="chats-main__header-actions">
-                    <button type="button" class="button button--ghost button--small button--icon-only btn-block-user" id="chats-main-block-btn" aria-label="Заблокувати користувача" hidden>
+                    <button type="button" class="button button--ghost button--small button--icon-only btn-block-user" id="chats-main-block-btn" data-i18n-aria-label="aria.blockUser" aria-label="Заблокувати користувача" hidden>
                       <span class="icon" data-lucide="user-x"></span>
                     </button>
                   </div>
                 </div>
                 <div class="chats-main__messages" id="chats-main-messages"></div>
                 <div class="chats-main__composer">
-                  <input type="text" id="chats-main-input" class="chats-main__input" placeholder="Напишіть повідомлення..." />
-                  <button type="button" class="button chats-main__send button--icon-only" id="chats-main-send-btn" aria-label="Надіслати">
+                  <input type="text" id="chats-main-input" class="chats-main__input" data-i18n-placeholder="chats.messagePlaceholder" placeholder="Напишіть повідомлення..." />
+                  <button type="button" class="button chats-main__send button--icon-only" id="chats-main-send-btn" data-i18n-aria-label="aria.send" aria-label="Надіслати">
                     <span class="icon" data-lucide="send"></span>
                   </button>
                 </div>
@@ -1527,7 +1540,7 @@
         <div class="app-loader__circle"></div>
         <div class="app-loader__circle"></div>
       </div>
-      <p class="app-loader__text">Перенаправлення...</p>
+      <p class="app-loader__text" data-i18n="common.redirecting">Перенаправлення...</p>
     </div>
   </div>
 
