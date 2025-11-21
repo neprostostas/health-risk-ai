@@ -29,7 +29,7 @@ def format_percentage(prob: float) -> str:
         return "—"
 
 
-def build_health_context(session: Session, user_id: int, prediction_id: Optional[int] = None) -> str:
+def build_health_context(session: Session, user_id: int, prediction_id: Optional[int] = None, language: str = "uk") -> str:
     """Будує короткий український контекст про стан користувача.
     
     Якщо prediction_id передано — використовуємо відповідний запис історії користувача.
@@ -58,64 +58,129 @@ def build_health_context(session: Session, user_id: int, prediction_id: Optional
         last = session.exec(stmt).first()
     if not last:
         return ""
-    target_label = {
-        "diabetes_present": "Ризик діабету",
-        "obesity_present": "Ризик ожиріння",
-    }.get(last.target, last.target)
+    
+    # Локалізація залежно від мови
+    if language == "en":
+        target_label = {
+            "diabetes_present": "Diabetes risk",
+            "obesity_present": "Obesity risk",
+        }.get(last.target, last.target)
 
-    prob_text = format_percentage(last.probability)
-    bucket_label = {
-        "low": "низький",
-        "medium": "помірний",
-        "high": "високий",
-    }.get(last.risk_bucket, last.risk_bucket)
+        prob_text = format_percentage(last.probability)
+        bucket_label = {
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+        }.get(last.risk_bucket, last.risk_bucket)
 
-    # Витягуємо 3–5 факторів з inputs.top_factors, якщо вони збережені
-    top_factors = []
-    if isinstance(last.inputs, dict):
-        tf = last.inputs.get("top_factors") or []
-        for item in tf[:5]:
-            # очікуємо структуру з полями feature/impact
-            feature = item.get("feature", "фактор")
-            top_factors.append(feature)
+        # Витягуємо 3–5 факторів з inputs.top_factors, якщо вони збережені
+        top_factors = []
+        if isinstance(last.inputs, dict):
+            tf = last.inputs.get("top_factors") or []
+            for item in tf[:5]:
+                # очікуємо структуру з полями feature/impact
+                feature = item.get("feature", "factor")
+                top_factors.append(feature)
 
-    factors_text = ", ".join(top_factors) if top_factors else "фактори не визначені"
-    created_at = last.created_at.isoformat()
+        factors_text = ", ".join(top_factors) if top_factors else "factors not defined"
+        created_at = last.created_at.isoformat()
 
-    return (
-        f"Останній прогноз: {target_label}. "
-        f"Ймовірність: {prob_text}. Категорія ризику: {bucket_label}. "
-        f"Ключові фактори: {factors_text}. "
-        f"Час обчислення: {created_at} UTC."
-    )
+        return (
+            f"Latest prediction: {target_label}. "
+            f"Probability: {prob_text}. Risk category: {bucket_label}. "
+            f"Key factors: {factors_text}. "
+            f"Calculation time: {created_at} UTC."
+        )
+    else:
+        # Українська мова (за замовчуванням)
+        target_label = {
+            "diabetes_present": "Ризик діабету",
+            "obesity_present": "Ризик ожиріння",
+        }.get(last.target, last.target)
+
+        prob_text = format_percentage(last.probability)
+        bucket_label = {
+            "low": "низький",
+            "medium": "помірний",
+            "high": "високий",
+        }.get(last.risk_bucket, last.risk_bucket)
+
+        # Витягуємо 3–5 факторів з inputs.top_factors, якщо вони збережені
+        top_factors = []
+        if isinstance(last.inputs, dict):
+            tf = last.inputs.get("top_factors") or []
+            for item in tf[:5]:
+                # очікуємо структуру з полями feature/impact
+                feature = item.get("feature", "фактор")
+                top_factors.append(feature)
+
+        factors_text = ", ".join(top_factors) if top_factors else "фактори не визначені"
+        created_at = last.created_at.isoformat()
+
+        return (
+            f"Останній прогноз: {target_label}. "
+            f"Ймовірність: {prob_text}. Категорія ризику: {bucket_label}. "
+            f"Ключові фактори: {factors_text}. "
+            f"Час обчислення: {created_at} UTC."
+        )
 
 
-def build_assistant_prompt(context: str, user_message: str) -> str:
+def build_assistant_prompt(context: str, user_message: str, language: str = "uk") -> str:
     """Формує повний підказ для LLM з інструкціями та контекстом.
     
     Інструкції гарантують, що відповідь не міститиме діагнозів чи призначень.
+    
+    Args:
+        context: Контекст про стан користувача
+        user_message: Повідомлення користувача
+        language: Мова відповіді ("uk" або "en")
     """
-    system_block = (
-        "Ти освітній асистент здоровʼя в системі прогнозування ризиків. "
-        "Ти пояснюєш результати моделей ризику простими словами, допомагаєш зрозуміти "
-        "фактори ризику та які питання варто обговорити з лікарем. "
-        "Ти не ставиш діагнози, не призначаєш лікування і не рекомендуєш конкретні ліки. "
-        "Відповідай українською мовою, структуровано, з короткими абзацами."
-    )
-    if not context:
-        context_block = (
-            "Контекст: у користувача ще немає розрахованих ризиків. "
-            "Поясни, що спочатку потрібно пройти оцінку ризику у головному розділі застосунку."
+    # Формуємо системний промпт залежно від мови
+    if language == "en":
+        system_block = (
+            "You are an educational health assistant in a risk prediction system. "
+            "You explain risk model results in simple terms, help understand "
+            "risk factors and what questions to discuss with a doctor. "
+            "You do not make diagnoses, prescribe treatments, or recommend specific medications. "
+            "Respond in English, structured, with short paragraphs."
+        )
+        if not context:
+            context_block = (
+                "Context: The user has not yet calculated any risks. "
+                "Explain that they need to perform a risk assessment in the main section of the application first."
+            )
+        else:
+            context_block = f"User context: {context}"
+        
+        return (
+            f"{system_block}\n\n"
+            f"{context_block}\n\n"
+            f"User query: {user_message}\n\n"
+            "Respond clearly and concisely, in 3–6 paragraphs. Avoid medical prescriptions."
         )
     else:
-        context_block = f"Контекст користувача: {context}"
+        # Українська мова (за замовчуванням)
+        system_block = (
+            "Ти освітній асистент здоровʼя в системі прогнозування ризиків. "
+            "Ти пояснюєш результати моделей ризику простими словами, допомагаєш зрозуміти "
+            "фактори ризику та які питання варто обговорити з лікарем. "
+            "Ти не ставиш діагнози, не призначаєш лікування і не рекомендуєш конкретні ліки. "
+            "Відповідай українською мовою, структуровано, з короткими абзацами."
+        )
+        if not context:
+            context_block = (
+                "Контекст: у користувача ще немає розрахованих ризиків. "
+                "Поясни, що спочатку потрібно пройти оцінку ризику у головному розділі застосунку."
+            )
+        else:
+            context_block = f"Контекст користувача: {context}"
 
-    return (
-        f"{system_block}\n\n"
-        f"{context_block}\n\n"
-        f"Запит користувача: {user_message}\n\n"
-        "Відповідай чітко й коротко, у 3–6 абзацах. Уникай медичних призначень."
-    )
+        return (
+            f"{system_block}\n\n"
+            f"{context_block}\n\n"
+            f"Запит користувача: {user_message}\n\n"
+            "Відповідай чітко й коротко, у 3–6 абзацах. Уникай медичних призначень."
+        )
 
 
 def call_ollama(prompt: str) -> str:

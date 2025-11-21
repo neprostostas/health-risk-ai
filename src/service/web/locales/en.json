@@ -43,7 +43,10 @@
       "errorMessage": "Failed to log in. Please try again.",
       "errors": {
         "invalidCredentials": "Invalid email or password",
-        "required": "Required fields are not filled"
+        "required": "Required fields are not filled",
+        "emailAndPasswordEmpty": "Email and password fields cannot be empty.",
+        "emailEmpty": "Email field cannot be empty.",
+        "passwordEmpty": "Password field cannot be empty."
       }
     },
     "register": {
@@ -70,7 +73,11 @@
       "errors": {
         "emailExists": "User with this email already exists",
         "passwordsMismatch": "Passwords do not match",
-        "passwordTooShort": "Password must be at least 8 characters"
+        "passwordTooShort": "Password must be at least 8 characters",
+        "firstNameRequired": "First name is required.",
+        "lastNameRequired": "Last name is required.",
+        "dateOfBirthRequired": "Date of birth is required.",
+        "genderRequired": "Please select gender."
       }
     },
     "forgotPassword": {
@@ -84,8 +91,15 @@
       "success": "Instructions sent",
       "successMessage": "Instructions sent to your email.",
       "successMessageWithLink": "Password reset link copied to clipboard and opened in new tab.",
+      "emailRequired": "Please enter your email address.",
+      "userNotFound": "User with this email is not registered.",
       "linkCopied": "Link copied",
       "linkCopiedMessage": "Password reset link copied to clipboard.",
+      "linkCopiedSuccess": "Link copied",
+      "linkCopiedSuccessMessage": "Password reset link copied to clipboard.",
+      "linkCopyFailed": "Error",
+      "linkCopyFailedMessage": "Failed to copy link. Try copying manually.",
+      "resetPasswordError": "Password recovery error",
       "linkCopiedWithVersion": "Password reset link copied to clipboard<br>(thesis version).",
       "linkTitle": "Password reset link (thesis version):",
       "linkClickToCopy": "Click on the link above to copy it.",
@@ -102,8 +116,9 @@
       "confirmPasswordPlaceholder": "Repeat new password",
       "button": "Update password",
       "buttonUpdating": "Updating...",
-      "success": "Password updated",
+      "success": "Password successfully updated!",
       "successMessage": "Password successfully updated. You can now log in with the new password.",
+      "tokenMissing": "Recovery token is missing. Check the link from your email.",
       "error": "Password update error"
     },
     "logout": {
@@ -195,16 +210,241 @@
     "prediction": {
       "title": "Prediction form",
       "target": "Prediction target",
+      "targetSelect": "Select target",
+      "targetDiabetes": "Diabetes risk",
+      "targetObesity": "Obesity risk",
       "model": "Model",
-      "modelAuto": "Auto select",
-      "submit": "Predict",
+      "modelAuto": "Best model (champion)",
+      "modelLogreg": "Logistic Regression",
+      "modelRandomForest": "Random Forest",
+      "modelXGBoost": "XGBoost",
+      "modelSVM": "SVM (Support Vector Machine)",
+      "modelKNN": "K-Nearest Neighbors",
+      "modelMLP": "Neural Network (MLP)",
+      "submit": "Calculate risk",
       "processing": "Processing...",
+      "demo": "Fill with random data",
+      "demoRefill": "Refill again",
+      "targetTooltip": "Select the risk to assess.",
+      "modelTooltip": "Logistic Regression — basic linear model, shows the impact of each indicator.\nRandom Forest — ensemble of decision trees, robust to noise.\nXGBoost — powerful boosting for tabular data.\nLightGBM — fast gradient boosting implementation.\nSVM — finds optimal boundary between classes.\nKNN — compares with similar patients (neighbors).\nNeural Network (MLP) — detects complex nonlinear relationships.",
       "errors": {
-        "required": "Required field",
-        "invalidEmail": "Invalid email",
-        "minLength": "Minimum length: {{min}} characters",
-        "maxLength": "Maximum length: {{max}} characters"
+        "metadataNotReady": "Metadata is still loading, please try later.",
+        "metadataNotReadyTitle": "Metadata not ready",
+        "selectTarget": "Select prediction target",
+        "formError": "Form error",
+        "fillFields": "Fill in fields: {{fields}}"
+      },
+      "fields": {
+        "RIDAGEYR": "Age (years)",
+        "RIAGENDR": "Gender",
+        "BMXBMI": "Body Mass Index (BMI)",
+        "BPXSY1": "Systolic blood pressure (mmHg)",
+        "BPXDI1": "Diastolic blood pressure (mmHg)",
+        "LBXGLU": "Blood glucose level (mg/dL)",
+        "LBXTC": "Total cholesterol (mg/dL)"
+      },
+      "gender": {
+        "select": "Select gender",
+        "male": "Male",
+        "female": "Female"
+      },
+      "placeholder": "Enter value",
+      "requiredField": "Required field",
+      "demoNotifications": {
+        "filled": "Demo data filled",
+        "filledMessage": "Form filled with random values. You can calculate a prediction or change the data."
+      },
+      "analytics": {
+        "loadError": "Failed to load sample statistics.",
+        "loadErrorDetailed": "Failed to load sample statistics. Please try again later or check if analytics_summary.json file exists."
+      },
+      "metadata": {
+        "loadError": "Failed to get metadata",
+        "loadErrorDetailed": "An error occurred while loading metadata"
+      },
+      "generalError": "An error occurred during the request. Check the entered data and try again."
+    },
+    "buttons": {
+      "sending": "Sending...",
+      "sendInstructions": "Send instructions",
+      "updating": "Updating...",
+      "updatePassword": "Update password"
+    },
+    "common": {
+      "na": "N/A",
+      "checking": "Checking"
+    },
+    "healthClassification": {
+      "noData": {
+        "label": "No data",
+        "explanation": "Value not specified."
+      },
+      "bmi": {
+        "underweight": {
+          "label": "Underweight",
+          "explanation": "Body mass is below the recommended norm."
+        },
+        "normal": {
+          "label": "Normal",
+          "explanation": "BMI is in the healthy range of 18.5–24.9."
+        },
+        "overweight": {
+          "label": "Overweight",
+          "explanation": "The indicator exceeds the norm. It is recommended to pay attention to nutrition and activity."
+        },
+        "obesity1": {
+          "label": "Obesity I",
+          "explanation": "The level corresponds to first-degree obesity."
+        },
+        "obesity2": {
+          "label": "Obesity II+",
+          "explanation": "BMI level ≥ 35. Medical consultation needed."
+        }
+      },
+      "systolic": {
+        "normal": {
+          "label": "Normal",
+          "explanation": "Systolic pressure is within safe level (<120 mmHg)."
+        },
+        "elevated": {
+          "label": "Elevated",
+          "explanation": "Upper pressure 120–129 mmHg — important to monitor."
+        },
+        "hypertension1": {
+          "label": "Hypertension Stage 1",
+          "explanation": "Systolic pressure 130–139 mmHg."
+        },
+        "hypertension2": {
+          "label": "Hypertension Stage 2",
+          "explanation": "Systolic pressure ≥ 140 mmHg. Medical consultation needed."
+        }
+      },
+      "diastolic": {
+        "normal": {
+          "label": "Normal",
+          "explanation": "Diastolic pressure is within safe level (<80 mmHg)."
+        },
+        "elevated": {
+          "label": "Elevated",
+          "explanation": "Diastolic pressure 80–89 mmHg."
+        },
+        "hypertension2": {
+          "label": "Hypertension Stage 2",
+          "explanation": "Diastolic pressure ≥ 90 mmHg. Requires attention."
+        }
+      },
+      "glucose": {
+        "normal": {
+          "label": "Normal",
+          "explanation": "Fasting glucose below 100 mg/dL."
+        },
+        "prediabetes": {
+          "label": "Elevated (prediabetes)",
+          "explanation": "Glucose in the range of 100–125 mg/dL."
+        },
+        "diabetes": {
+          "label": "Possible diabetes",
+          "explanation": "Glucose ≥ 126 mg/dL. Consult a doctor."
+        }
+      },
+      "cholesterol": {
+        "optimal": {
+          "label": "Optimal",
+          "explanation": "Total cholesterol below 200 mg/dL."
+        },
+        "borderline": {
+          "label": "Borderline level",
+          "explanation": "Cholesterol 200–239 mg/dL. It is important to monitor nutrition."
+        },
+        "high": {
+          "label": "High level",
+          "explanation": "Cholesterol ≥ 240 mg/dL. Increased cardiovascular risk."
+        }
+      },
+      "default": {
+        "label": "Value",
+        "explanation": "Indicator value."
       }
+    },
+    "indicators": {
+      "bmi": {
+        "underweight": "Underweight",
+        "normal": "Normal",
+        "overweight": "Overweight",
+        "obesity": "Obesity"
+      },
+      "glucose": {
+        "normal": "Normal",
+        "prediabetes": "Elevated (prediabetes)",
+        "diabetes": "Possible diabetes"
+      },
+      "bp": {
+        "normal": "Normal",
+        "prehypertension": "Prehypertension",
+        "hypertension": "Hypertension"
+      }
+    },
+    "factors": {
+      "RIDAGEYR": {
+        "name": "Age",
+        "desc": "Participant age in full years. Helps understand age-related risks.",
+        "unit": "years"
+      },
+      "RIAGENDR": {
+        "name": "Gender",
+        "desc": "👨🏻‍🦰/ 👩🏻‍🦰"
+      },
+      "BMXBMI": {
+        "name": "Body Mass Index (BMI)",
+        "desc": "Calculated as mass divided by the square of height. Over 25 indicates overweight.",
+        "unit": "kg/m²"
+      },
+      "BPXSY1": {
+        "name": "Systolic pressure",
+        "desc": "Upper blood pressure reading (pressure during heart contraction).",
+        "unit": "mmHg"
+      },
+      "BPXDI1": {
+        "name": "Diastolic pressure",
+        "desc": "Lower blood pressure reading (pressure during heart relaxation).",
+        "unit": "mmHg"
+      },
+      "LBXGLU": {
+        "name": "Fasting glucose",
+        "desc": "Measured on an empty stomach. Helps detect prediabetes and diabetes.",
+        "unit": "mg/dL"
+      },
+      "LBXTC": {
+        "name": "Total cholesterol",
+        "desc": "Total cholesterol level in blood. Important for assessing cardiovascular risk.",
+        "unit": "mg/dL"
+      },
+      "defaultDesc": "Health indicator."
+    },
+    "targets": {
+      "diabetes_present": "Diabetes risk",
+      "obesity_present": "Obesity risk"
+    },
+    "tooltips": {
+      "RIDAGEYR": "Participant age in full years.",
+      "RIAGENDR": "Gender",
+      "BMXBMI": "Body Mass Index (kg/m²). Over 30 may indicate obesity.",
+      "BPXSY1": "Systolic blood pressure (upper value) in mmHg.",
+      "BPXDI1": "Diastolic blood pressure (lower value) in mmHg.",
+      "LBXGLU": "Fasting blood glucose level (mg/dL).",
+      "LBXTC": "Total cholesterol level (mg/dL).",
+      "default": "User parameter."
+    },
+    "model": {
+      "auto": "Auto",
+      "autoChampion": "Auto (champion)",
+      "logreg": "Logistic Regression",
+      "random_forest": "Random Forest",
+      "xgb": "XGBoost",
+      "svm": "SVM",
+      "knn": "K-Nearest Neighbors",
+      "mlp": "Neural Network (MLP)",
+      "unknown": "Unknown"
     }
   },
   "profile": {
@@ -212,6 +452,35 @@
     "edit": "Edit",
     "save": "Save",
     "cancel": "Cancel",
+    "updating": "Updating...",
+    "passwordUpdating": "Updating password...",
+    "passwordUpdated": "Update password",
+    "avatarColorChanged": "Avatar color changed",
+    "avatarColorChangedMessage": "Avatar color successfully updated.",
+    "updated": "Profile updated",
+    "updatedMessage": "Profile data successfully saved.",
+    "updateError": "Profile update error",
+    "updateErrorMessage": "Failed to update profile. Please try again.",
+    "photoUploaded": "Photo uploaded",
+    "photoUploadedMessage": "Profile photo successfully uploaded and updated.",
+    "photoUploadError": "Upload error",
+    "photoUploadErrorMessage": "Failed to upload photo. Try another file.",
+    "entryDeleted": "Entry deleted",
+    "entryDeletedMessage": "History entry successfully deleted.",
+    "deleteError": "Error",
+    "deleteErrorMessage": "Failed to delete history entry.",
+    "photoDeleted": "Photo deleted",
+    "photoDeletedMessage": "Profile photo successfully deleted. Default avatar restored.",
+    "photoDeleteError": "Error",
+    "photoDeleteErrorMessage": "Failed to delete photo. Try later.",
+    "passwordChanged": "Password changed",
+    "passwordChangeError": "Password change error",
+    "accountDeleted": "Account deleted",
+    "accountDeletedMessage": "Your account has been successfully deleted. You can create a new one or finish working with the system.",
+    "unavailable": "Profile Unavailable",
+    "unavailableMessage": "To view your profile and save predictions, please log in or create an account.",
+    "viewHistory": "View All Prediction History",
+    "genderNotSpecified": "Not Specified",
     "deleteAccount": {
       "title": "Delete account",
       "confirmationTitle": "Confirm deletion",
@@ -239,6 +508,9 @@
       "invalidCurrentPassword": "Invalid current password.",
       "success": "Password successfully changed.",
       "error": "Failed to change password. Please try again."
+    },
+    "avatar": {
+      "uploadError": "Failed to upload photo. Please try another file."
     }
   },
   "apiStatus": {
@@ -250,12 +522,25 @@
     },
     "status": {
       "title": "API Status",
-      "checking": "Checking...",
+      "checking": "Checking",
+      "checkingWithDots": "Checking...",
       "available": "Available",
       "unavailable": "Unavailable",
       "connected": "Connected to API",
       "disconnected": "Disconnected from API",
-      "degraded": "Degraded performance"
+      "degraded": "Degraded performance",
+      "operational": "Working normally",
+      "noData": "No data",
+      "apiUnavailable": "API unavailable",
+      "apiUnavailableMessage": "API unavailable. Check connection.",
+      "records": "Records: {{count}}",
+      "allSystemsOperational": "All systems operational",
+      "allSystemsOperationalMessage": "We have not detected any issues affecting our systems.",
+      "someSystemsDegraded": "Some systems operating with limitations",
+      "someSystemsDegradedMessage": "We have detected performance issues in some systems.",
+      "someSystemsUnavailable": "Some systems unavailable",
+      "someSystemsUnavailableMessage": "We have detected issues affecting our systems.",
+      "allServicesRestored": "All affected services are now fully restored."
     },
     "responseTime": {
       "title": "Response Time",
@@ -269,12 +554,119 @@
       "totalRoutes": "Total Routes",
       "mainEndpoints": "Main Endpoints"
     },
+    "services": {
+      "database": "Database"
+    },
     "routes": {
       "title": "Main Routes",
       "method": "Method",
       "path": "Path",
       "description": "Description",
-      "status": "Status"
+      "status": "Status",
+      "noRoutes": "No routes available",
+      "parameters": "Parameters",
+      "required": "Required",
+      "prefixes": {
+        "auth": "Authentication",
+        "users": "User management",
+        "assistant": "AI Assistant",
+        "chats": "User chats",
+        "predict": "Prediction",
+        "default": "API endpoint"
+      },
+      "tags": "Tags",
+      "type": "Type:",
+      "schema": "Schema:",
+      "httpMethods": "HTTP Methods",
+      "fullUrl": "Full URL",
+      "requestBody": "Request Body",
+      "responses": "Responses",
+      "descriptions": {
+        "health": "Service health check",
+        "system_database_stats": "Database statistics",
+        "metadata": "API and model metadata",
+        "predict": "Health risk prediction",
+        "explain": "Model explanation via permutation importance",
+        "health-risk_latest": "Latest saved risk prediction",
+        "auth_register": "New user registration",
+        "auth_login": "Login",
+        "auth_logout": "Logout",
+        "auth_change-password": "Change password for logged in user",
+        "auth_forgot-password": "Password recovery request",
+        "auth_reset-password": "Set new password",
+        "auth_me": "Get current user profile",
+        "auth_history": "User prediction history (via auth router)",
+        "users_me": "Get/update profile",
+        "users_me_avatar": "Upload/delete avatar",
+        "users_me_password": "Change password",
+        "users_me_delete": "Delete account",
+        "users_me_history": "User prediction history",
+        "users_me_history_stats": "Prediction statistics",
+        "users_me_history_prediction_id": "Delete history entry",
+        "users_history": "User prediction history (legacy)",
+        "users_history_stats": "Prediction statistics (legacy)",
+        "users_user_id_block": "Block user",
+        "users_user_id_unblock": "Unblock user",
+        "assistant_chat": "Chat with AI assistant",
+        "assistant_history": "Assistant message history",
+        "assistant_health": "Check Ollama status",
+        "api_chats": "List of chats between users",
+        "api_chats_users": "List of all users for chats",
+        "api_chats_unread-count": "Unread messages count",
+        "api_chats_chat_uuid": "Specific chat details",
+        "api_chats_chat_uuid_messages": "Send message to chat",
+        "api_chats_chat_uuid_read": "Mark messages as read",
+        "api_chats_chat_uuid_pin": "Pin/unpin chat",
+        "api_chats_reorder": "Reorder chats",
+        "health_risk_latest": "Latest saved risk prediction",
+        "auth_change_password": "Change password for logged in user",
+        "auth_forgot_password": "Password recovery request",
+        "auth_reset_password": "Set new password",
+        "api_chats_unread_count": "Unread messages count"
+      },
+      "detailed": {
+        "health": "Service health check. Returns information about API status, list of available routes and general service information. Used for monitoring and checking API availability.",
+        "system_database_stats": "Get database statistics. Provides information about record count, user activity, database size and other database performance metrics.",
+        "metadata": "API and machine learning model metadata. Returns information about available target variables, parameter schema for prediction, model versions and their characteristics.",
+        "predict": "Health risk prediction based on input parameters. Accepts user health data and target variable, returns risk probability and recommendations. Uses calibrated champion machine learning models.",
+        "explain": "Model explanation via permutation importance. Analyzes the impact of each parameter on the prediction result, allowing to understand which factors most influence the risk.",
+        "health-risk_latest": "Get the latest saved risk prediction for the current user. Returns the newest entry from prediction history with full information about results.",
+        "auth_register": "Register a new user in the system. Creates a new account with email, password and personal data validation. Returns JWT token for further authentication.",
+        "auth_login": "Login. Verifies user email and password, returns JWT access token and user profile information for authenticated requests.",
+        "auth_logout": "Logout. Ends the current user session. On the client, the access token is removed from localStorage.",
+        "auth_change-password": "Change password for logged in user. Requires current password and new password with confirmation. Ensures security through current password verification.",
+        "auth_forgot-password": "Password recovery request. Generates a secure token for password reset and sends instructions to user's email. Token is valid for 24 hours.",
+        "auth_reset-password": "Set new password via recovery token. Accepts token from email and new password, updates user password in database.",
+        "auth_me": "Get current authenticated user profile. Returns full user information including email, name, date of birth, avatar and other personal data.",
+        "auth_history": "Get user prediction history via auth router. Returns list of recent predictions with detailed information about each prediction.",
+        "users_me": "Get and update user profile. Supports GET for retrieval and PUT/PATCH for profile data updates. Allows changing name, last name, date of birth and other fields.",
+        "users_me_avatar": "Upload and delete user avatar. POST allows uploading image (PNG, JPG, JPEG), DELETE removes uploaded avatar and returns to generated one.",
+        "users_me_password": "Change user password. Updates password in account with minimum length and security validation.",
+        "users_me_delete": "Delete user account. Deletes all user data including prediction history, password recovery tokens and uploaded avatar. Action is irreversible.",
+        "users_me_history": "Get user prediction history. Returns list of predictions with detailed information about target variables, models, probabilities and creation dates.",
+        "users_me_history_stats": "User prediction statistics for charts. Provides aggregated data about predictions: distribution by target variables, risk levels, models and time series for visualization.",
+        "users_me_history_prediction_id": "Delete specific prediction history entry. Allows user to delete individual prediction from their history.",
+        "users_history": "User prediction history (legacy endpoint). Deprecated route, used for compatibility with older client versions.",
+        "users_history_stats": "Prediction statistics (legacy endpoint). Deprecated route for getting statistics, replaced by /users/me/history/stats.",
+        "users_user_id_block": "Block user by another user. Allows blocking another user, which hides them from chat list and prevents receiving messages from them.",
+        "users_user_id_unblock": "Unblock user. Cancels previous blocking, restoring ability to interact with user.",
+        "assistant_chat": "Chat with health AI assistant. Accepts user message, analyzes context from prediction history and provides personalized health recommendations through LLM (Ollama).",
+        "assistant_history": "AI assistant message history. Returns recent messages from assistant chat, allowing to restore conversation context.",
+        "assistant_health": "Check Ollama server status. Tests LLM service availability and performance, measures latency and returns detailed service status information.",
+        "api_chats": "List of chats between users. Returns all active chats of current user with information about last messages, unread messages and pin status.",
+        "api_chats_users": "List of all users for creating chats. Provides list of active system users with information about their profiles and blocking status for choosing interlocutor.",
+        "api_chats_unread-count": "Unread messages count. Returns total number of unread messages for current user in all chats.",
+        "api_chats_chat_uuid": "Specific chat details by UUID. Gets full chat information including all messages, interlocutor data and automatically marks messages as read.",
+        "api_chats_chat_uuid_messages": "Send message to chat. Creates new message in chat between two users with access and blocking validation.",
+        "api_chats_chat_uuid_read": "Mark messages as read. Updates status of all unread messages in chat, marking them as read by current user.",
+        "api_chats_chat_uuid_pin": "Pin or unpin chat. Allows pinning important chats at the top of the list for quick access.",
+        "api_chats_reorder": "Reorder chats. Updates chat display order in list according to user settings.",
+        "health_risk_latest": "Get the latest saved risk prediction for the current user. Returns the newest entry from prediction history with full information about results.",
+        "auth_change_password": "Change password for logged in user. Requires current password and new password with confirmation. Ensures security through current password verification.",
+        "auth_forgot_password": "Password recovery request. Generates a secure token for password reset and sends instructions to user's email. Token is valid for 24 hours.",
+        "auth_reset_password": "Set new password via recovery token. Accepts token from email and new password, updates user password in database.",
+        "api_chats_unread_count": "Unread messages count. Returns total number of unread messages for current user in all chats."
+      }
     },
     "routeDetails": {
       "title": "Route Details"
@@ -296,21 +688,152 @@
     "ollama": {
       "status": {
         "title": "Ollama Status",
-        "checking": "Checking...",
+        "checking": "Checking",
+        "checkingWithDots": "Checking...",
         "available": "Model available",
         "unavailable": "Model unavailable"
       },
-      "refresh": "Check Ollama"
+      "refresh": "Check Ollama",
+      "stable": "Ollama is running stably",
+      "unavailable": "Ollama unavailable",
+      "responseTime": {
+        "title": "Response Time",
+        "latency": "Latency (Ping)",
+        "lastCheck": "Last Check"
+      },
+      "modelInfo": {
+        "title": "Model Information",
+        "model": "Model",
+        "endpoint": "Endpoint",
+        "mode": "Operating Mode",
+        "modeValue": "Chat / Completion"
+      },
+      "defaultParams": {
+        "title": "Default Parameters",
+        "temperature": "Temperature",
+        "temperatureValue": "Default (not specified)",
+        "maxTokens": "Max Tokens",
+        "maxTokensValue": "Default (not specified)",
+        "timeout": "Timeout",
+        "timeoutValue": "60 seconds",
+        "streaming": "Streaming",
+        "streamingValue": "Disabled (stream: false)"
+      },
+      "errorHistory": {
+        "title": "Error History",
+        "empty": {
+          "title": "No errors recorded",
+          "description": "Ollama is running stably, all requests are executed successfully"
+        }
+      },
+      "requestStats": {
+        "title": "Request Statistics",
+        "chartLabel": "Ollama Response Time Chart",
+        "empty": {
+          "title": "No data yet",
+          "description": "After the first requests to Ollama, a response time chart will appear here"
+        }
+      }
     },
+    "api": {
+      "stable": "API is running stably"
+    },
+    "serviceUnavailable": "{{service}} unavailable",
+    "degradedPerformance": "Degraded performance {{service}}",
+    "allServices": "All services",
+    "allSystemsOperational": "All systems operational",
+    "refresh": "Check again",
     "db": {
+      "title": "Database",
       "status": {
         "checking": "Checking",
         "available": "Database available",
-        "unavailable": "Database unavailable"
+        "unavailable": "Database unavailable",
+        "connected": "Connected",
+        "connectionError": "Connection error"
       },
-      "lastCheck": "Last check: {{time}}"
+      "lastCheck": "Last check: {{time}}",
+      "record": "record",
+      "records": "records",
+      "recordsGenitive": "records",
+      "type": "DB Type",
+      "connection": "Connection",
+      "stats": {
+        "title": "Database Statistics",
+        "users": "Users",
+        "predictions": "Predictions",
+        "messages": "Messages",
+        "chats": "Chats",
+        "totalRecords": "Total Records",
+        "dbSize": "DB Size"
+      },
+      "activity": {
+        "title": "Activity for the Last 7 Days",
+        "less": "Less",
+        "more": "More"
+      }
     },
-    "refresh": "Check again",
+    "system": {
+      "title": "System Information",
+      "environment": "Environment",
+      "backendVersion": "Backend Version",
+      "frontendVersion": "Frontend Version",
+      "statusOverview": {
+        "title": "System Status",
+        "updating": "Updating system status",
+        "updatingDesc": "Waiting for response from database and Health Risk AI services.",
+        "apiStatus": "API: latest data received",
+        "dbStatus": "Database: check in progress...",
+        "allOperational": "All systems operational",
+        "allOperationalDesc": "We have not detected any issues affecting our systems.",
+        "dateRange": {
+          "label": "3 months",
+          "day": "Day",
+          "days3": "3 days",
+          "week": "Week",
+          "weeks2": "2 weeks",
+          "month": "Month",
+          "months2": "2 months",
+          "months3": "3 months",
+          "custom": "Custom Range",
+          "prevPeriod": "Previous Period",
+          "nextPeriod": "Next Period",
+          "pickerTitle": "Select Date Range",
+          "from": "From:",
+          "to": "To:",
+          "cancel": "Cancel",
+          "apply": "Apply"
+        },
+        "viewHistory": "View History"
+      }
+    },
+    "dateRange": {
+      "selectBothDates": "Please select both dates",
+      "fromBeforeTo": "The \"From\" date must be earlier than the \"To\" date",
+      "day": "Day",
+      "days": "{{count}} days",
+      "days3": "3 days",
+      "week": "Week",
+      "weeks2": "2 weeks",
+      "month": "Month",
+      "months2": "2 months",
+      "months3": "3 months",
+      "custom": "Custom"
+    },
+    "months": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    },
     "loading": "Loading..."
   },
   "chats": {
@@ -331,12 +854,75 @@
     "backToList": "Back to List",
     "noChats": "No active chats",
     "sendMessage": "Send message",
-    "unavailable": "Chat unavailable"
+    "unavailable": "Chat unavailable",
+    "noUsersAvailable": "No users available",
+    "noUsersForNewChat": "No users available for new chat",
+    "blocked": "Blocked",
+    "unblock": "Unblock",
+    "recentlyUnblocked": "Recently unblocked",
+    "cannotCreateWithBlocked": "Cannot create chat with blocked user",
+    "createError": "Failed to create chat",
+    "loadError": "Failed to load chat",
+    "unblockError": "Failed to unblock user",
+    "userUnblocked": "User unblocked",
+    "userUnblockedSuccess": "User successfully unblocked",
+    "userBlocked": "User blocked",
+    "userBlockedSuccess": "User successfully blocked",
+    "chatClosed": "Chat closed",
+    "chatClosedWithBlocked": "Chat with blocked user was closed",
+    "blockUnblockError": "Failed to block/unblock user",
+    "chatPinned": "Chat pinned",
+    "chatUnpinned": "Chat unpinned",
+    "pinUnpinError": "Failed to pin/unpin chat",
+    "chatDeleted": "Chat deleted",
+    "deleteError": "Failed to delete chat",
+    "finishEditing": "Finish editing",
+    "sendMessageError": "Failed to send message"
   },
   "assistant": {
     "title": "Assistant",
+    "chatTitle": "Health Assistant Chat",
     "waiting": "Waiting for assistant response",
-    "placeholder": "Ask something about your predictions or health..."
+    "placeholder": "Ask something about your predictions or health...",
+    "thinking": "Assistant is thinking",
+    "selectFromHistory": "Select from History",
+    "riskDataUnavailable": "Risk data unavailable. First perform a risk assessment in the \"Prediction Form\" section.",
+    "quickMessages": {
+      "explainRisk": "Explain my risk",
+      "whatDoesItMean": "What does this mean for me?",
+      "questionsForDoctor": "What questions should I ask the doctor?"
+    },
+    "state": {
+      "target": "Target",
+      "probability": "Probability",
+      "category": "Risk Category",
+      "factors": "Key Factors",
+      "time": "Time"
+    },
+    "generating": "Generating response",
+    "generatingMessage": "Assistant is generating a response. You can click \"Stop\" to pause.",
+    "stop": "Stop",
+    "continue": "Continue",
+    "noAnswer": "Answer unavailable.",
+    "initError": "Initialization error",
+    "initErrorMessage": "Failed to load assistant chat.",
+    "paused": "Paused",
+    "pausedMessage": "Click \"Continue\" to resume the response.",
+    "resumed": "Resumed",
+    "resumedMessage": "Continuing to type the response.",
+    "resumedMessage2": "Response resumed.",
+    "pausedMessage2": "Response paused.",
+    "pausedMessage3": "Response stopped at current position.",
+    "responseReceived": "Response received",
+    "responseReceivedMessage": "Assistant is typing the message.",
+    "sendError": "Send error",
+    "sendErrorMessage": "Failed to send message.",
+    "clearSuccess": "Chat cleared",
+    "clearSuccessMessage": "All conversation with assistant deleted.",
+    "clearError": "Clear error",
+    "clearErrorMessage": "Failed to clear chat.",
+    "warning": "Warning. The assistant is not a doctor and does not replace medical consultation. It helps explain risk assessment results and prepare for a conversation with a doctor.",
+    "dismissWarning": "Dismiss warning"
   },
   "diagrams": {
     "title": "Diagrams",
@@ -349,6 +935,50 @@
     "generate": "Generate report",
     "generation": {
       "title": "Report Generation"
+    },
+    "current": "Current",
+    "automatic": "Automatic",
+    "csvTitle": "HealthRisk.AI - Health Risk Prediction Report",
+    "pdfLibraryNotLoaded": "PDF library not loaded. Please refresh the page.",
+    "fontLoadErrorTitle": "Font loading error",
+    "fontLoadError": "Failed to load font for PDF. Please try later.",
+    "fontNotAvailable": "DejaVuSans font is not available. PDF may not display Cyrillic correctly.",
+    "pdfTheme": {
+      "light": {
+        "title": "Light",
+        "description": "Classic light theme for HealthRisk.AI"
+      },
+      "dark": {
+        "title": "Dark",
+        "description": "Contrast dark theme for night mode"
+      }
+    },
+    "empty": {
+      "title": "No data for report",
+      "message": "To generate a report, first perform a risk prediction in the form.",
+      "goToForm": "Go to form"
+    },
+    "selector": {
+      "selectFormat": "Select report format",
+      "selectPrediction": "Select prediction"
+    },
+    "formats": {
+      "pdf": {
+        "title": "PDF",
+        "description": "Portable document format"
+      },
+      "excel": {
+        "title": "Excel",
+        "description": "Spreadsheet format for analysis"
+      },
+      "csv": {
+        "title": "CSV",
+        "description": "Text data format"
+      },
+      "json": {
+        "title": "JSON",
+        "description": "Structured data format"
+      }
     }
   },
   "common": {
@@ -371,7 +1001,18 @@
     "logout": "Logout from account",
     "themeToggle": "Toggle theme",
     "blockUser": "Block user",
-    "unblockUser": "Unblock user"
+    "unblockUser": "Unblock user",
+    "targetHelp": "Select the risk to assess.",
+    "modelHelp": "Logistic Regression — basic linear model, shows the impact of each indicator.\nRandom Forest — ensemble of decision trees, robust to noise.\nXGBoost — powerful boosting for tabular data.\nLightGBM — fast gradient boosting implementation.\nSVM — finds optimal boundary between classes.\nKNN — compares with similar patients (neighbors).\nNeural Network (MLP) — detects complex nonlinear relationships.",
+    "features": {
+      "RIDAGEYR": "Participant age in full years.",
+      "RIAGENDR": "Gender",
+      "BMXBMI": "Body Mass Index (kg/m²). Over 30 may indicate obesity.",
+      "BPXSY1": "Systolic blood pressure (upper value) in mmHg.",
+      "BPXDI1": "Diastolic blood pressure (lower value) in mmHg.",
+      "LBXGLU": "Fasting blood glucose level (mg/dL).",
+      "LBXTC": "Total cholesterol level (mg/dL)."
+    }
   },
   "pdf": {
     "report": {
@@ -459,8 +1100,12 @@
         "pdfError": "PDF Generation Error",
         "pdfErrorMessage": "Failed to generate PDF report",
         "excelError": "Excel Generation Error",
-        "excelErrorMessage": "Failed to generate Excel report"
+        "excelErrorMessage": "Failed to generate Excel report",
+        "chartsNotFound": "Charts not found",
+        "chartsNotFoundMessage": "Failed to export charts. Check console for details. Found charts: {{count}}",
+        "reportSaved": "PDF report saved as {{filename}} and opened in a new tab"
       },
+      "page": "Page {{current}} of {{total}}",
       "excel": {
         "libraryError": "Error",
         "libraryErrorMessage": "Excel library not loaded. Please refresh the page.",
@@ -601,6 +1246,24 @@
       "note": "Lines show the change in risk probability for each target over time.",
       "empty": "To see diagrams, first perform at least one prediction on the \"Prediction Form\" page."
     },
+    "probability": "Probability, %",
+    "updatedAt": "Updated {{date}}: {{summary}}",
+    "colorsNote": "Colors indicate whether the indicator is within normal, warning, or risk zones.",
+    "highestRisk": "Currently highest {{risk}} — {{percentage}}%.",
+    "calculateMore": "Calculate one more risk to see full comparison.",
+    "responseTime": "Response time (ms)",
+    "yourValue": "Your value",
+    "upperLimit": "Upper normal limit",
+    "comparisonNote": "Once both risks are calculated, a comparison will appear here.",
+    "factorImpact": "Factor impact",
+    "impact": "Impact",
+    "percentage": "Share, %",
+    "share": "Share",
+    "peopleCount": "Number of people",
+    "correlationCoefficient": "Correlation coefficient",
+    "predictionSingular": "prediction",
+    "predictionPlural": "predictions",
+    "predictionGenitive": "predictions",
     "historyRiskDistribution": {
       "title": "Distribution by Risk Categories",
       "subtitle": "Number of your predictions for each risk category for each target.",
@@ -614,40 +1277,74 @@
       "chartLabel": "Prediction Distribution by Models",
       "note": "Chart shows which models you used most frequently.",
       "empty": "To see diagrams, first perform at least one prediction on the \"Prediction Form\" page."
+    }
+  },
+  "tooltip": {
+    "category": "Category"
+  },
+  "labels": {
+    "profileOverview": "User Metrics Comparison",
+    "modelRisks": "Diabetes and Obesity Risk Comparison",
+    "insightsFactors": "Model Factor Importance",
+    "datasetBMI": "BMI Distribution in Sample",
+    "datasetBP": "Blood Pressure Categories",
+    "datasetChol": "Cholesterol Distribution",
+    "datasetDiabetesAge": "Diabetes by Age",
+    "datasetObesityAge": "Obesity by Age",
+    "datasetCorrelation": "Factor Correlations",
+    "historyTimeline": "Prediction History Over Time",
+    "historyRiskDistribution": "Prediction Distribution by Risk Categories",
+    "historyModels": "Prediction Distribution by Models"
+  },
+  "history": {
+    "title": "History",
+    "empty": "History is empty",
+    "emptyLoggedOut": "History is available only after logging in.",
+    "prediction": "prediction",
+    "predictions": "predictions",
+    "declension": {
+      "singular": "prediction",
+      "plural": "predictions",
+      "genitive": "predictions"
     },
-    "tooltip": {
-      "category": "Category"
+    "emptyLoggedIn": "History is empty. Make a prediction to see it here.",
+    "emptyHistory": "History is empty. Make a prediction to see it here.",
+    "model": "Model",
+    "probability": "Probability",
+    "updated": "History updated",
+    "updatedMessage": "Selected predictions deleted.",
+    "cleared": "History cleared",
+    "clearedMessage": "All predictions deleted.",
+    "selectFirst": "Nothing selected",
+    "selectFirstMessage": "First select at least one prediction.",
+    "registered": "Registered: {{date}}",
+    "registeredLabel": "Registered",
+    "registeredToday": "today",
+    "dataUnavailable": "Data unavailable",
+    "dataUnavailableMessage": "Input data is missing for this entry.",
+    "loadError": "History load error",
+    "loadErrorMessage": "Failed to load prediction history. Try refreshing the page.",
+    "loadedToForm": "Prediction loaded",
+    "loadedToFormMessage": "Data from prediction history successfully loaded into form. You can calculate a new prediction.",
+    "dataLoaded": "Data loaded",
+    "dataLoadedMessage": "Prediction data loaded into the form.",
+    "allPredictions": "All Predictions",
+    "toggleView": "Toggle View",
+    "bulkSelect": "Bulk Select",
+    "deleteSelected": "Delete Selected",
+    "clearAll": "Clear All",
+    "table": {
+      "date": "Date",
+      "target": "Target",
+      "model": "Model",
+      "probability": "Probability",
+      "category": "Category",
+      "actions": "Actions"
     },
-    "labels": {
-      "profileOverview": "User Metrics Comparison",
-      "modelRisks": "Diabetes and Obesity Risk Comparison",
-      "insightsFactors": "Model Factor Importance",
-      "datasetBMI": "BMI Distribution in Sample",
-      "datasetBP": "Blood Pressure Categories",
-      "datasetChol": "Cholesterol Distribution",
-      "datasetDiabetesAge": "Diabetes by Age",
-      "datasetObesityAge": "Obesity by Age",
-      "datasetCorrelation": "Factor Correlations",
-      "historyTimeline": "Prediction History Over Time",
-      "historyRiskDistribution": "Prediction Distribution by Risk Categories",
-      "historyModels": "Prediction Distribution by Models"
-    },
-    "history": {
-      "riskDistribution": {
-        "title": "Risk distribution",
-        "low": "Low",
-        "medium": "Moderate",
-        "high": "High",
-        "category": "Category: {{category}}"
-      },
-      "models": {
-        "logreg": "Logistic Regression",
-        "random_forest": "Random Forest",
-        "xgb": "XGBoost",
-        "svm": "SVM",
-        "knn": "K-Nearest Neighbors",
-        "mlp": "Neural Network (MLP)"
-      }
+    "bulkDelete": {
+      "title": "Delete Selected Predictions?",
+      "message": "Are you sure you want to delete the selected predictions?",
+      "confirm": "Delete"
     }
   },
   "pages": {
@@ -672,170 +1369,6 @@
     "selected": "Selected risk",
     "current": "My current risk"
   },
-  "assistant": {
-    "title": "Assistant",
-    "waiting": "Waiting for assistant response",
-    "placeholder": "Ask something about your predictions or health...",
-    "thinking": "Assistant is thinking",
-    "selectFromHistory": "Select from History",
-    "riskDataUnavailable": "Risk data unavailable. First perform a risk assessment in the \"Prediction Form\" section.",
-    "state": {
-      "target": "Target",
-      "probability": "Probability",
-      "category": "Risk Category",
-      "factors": "Key Factors",
-      "time": "Time"
-    },
-    "generating": "Generating response",
-    "generatingMessage": "Assistant is generating a response. You can click \"Stop\" to pause.",
-    "paused": "Paused",
-    "pausedMessage": "Click \"Continue\" to resume the response.",
-    "resumed": "Resumed",
-    "resumedMessage": "Continuing to type the response.",
-    "resumedMessage2": "Response resumed.",
-    "pausedMessage2": "Response paused.",
-    "pausedMessage3": "Response stopped at current position.",
-    "responseReceived": "Response received",
-    "responseReceivedMessage": "Assistant is typing the message.",
-    "sendError": "Send error",
-    "sendErrorMessage": "Failed to send message.",
-    "clearSuccess": "Chat cleared",
-    "clearSuccessMessage": "All conversation with assistant deleted.",
-    "clearError": "Clear error",
-    "clearErrorMessage": "Failed to clear chat.",
-    "warning": "Warning. The assistant is not a doctor and does not replace medical consultation. It helps explain risk assessment results and prepare for a conversation with a doctor.",
-    "dismissWarning": "Dismiss warning"
-  },
-  "history": {
-    "title": "History",
-    "empty": "History is empty",
-    "emptyLoggedOut": "History is available only after logging in.",
-    "prediction": "prediction",
-    "predictions": "predictions",
-    "emptyLoggedIn": "History is empty. Make a prediction to see it here.",
-    "updated": "History updated",
-    "updatedMessage": "Selected predictions deleted.",
-    "cleared": "History cleared",
-    "clearedMessage": "All predictions deleted.",
-    "selectFirst": "Nothing selected",
-    "selectFirstMessage": "First select at least one prediction.",
-    "registered": "Registered: {{date}}",
-    "registeredLabel": "Registered",
-    "registeredToday": "today",
-    "dataUnavailable": "Data unavailable",
-    "dataUnavailableMessage": "Input data is missing for this entry.",
-    "loadError": "History load error",
-    "loadErrorMessage": "Failed to load prediction history. Try refreshing the page.",
-    "loadedToForm": "Prediction loaded",
-    "loadedToFormMessage": "Data from prediction history successfully loaded into form. You can calculate a new prediction.",
-    "allPredictions": "All Predictions",
-    "toggleView": "Toggle View",
-    "bulkSelect": "Bulk Select",
-    "deleteSelected": "Delete Selected",
-    "clearAll": "Clear All",
-    "table": {
-      "date": "Date",
-      "target": "Target",
-      "model": "Model",
-      "probability": "Probability",
-      "category": "Category",
-      "actions": "Actions"
-    },
-    "bulkDelete": {
-      "title": "Delete Selected Predictions?",
-      "message": "Are you sure you want to delete the selected predictions?",
-      "confirm": "Delete"
-    }
-  },
-  "profile": {
-    "title": "Profile",
-    "edit": "Edit",
-    "save": "Save",
-    "cancel": "Cancel",
-    "updating": "Updating...",
-    "passwordUpdating": "Updating password...",
-    "passwordUpdated": "Update password",
-    "avatarColorChanged": "Avatar color changed",
-    "avatarColorChangedMessage": "Avatar color successfully updated.",
-    "updated": "Profile updated",
-    "updatedMessage": "Profile data successfully saved.",
-    "updateError": "Profile update error",
-    "updateErrorMessage": "Failed to update profile. Please try again.",
-    "photoUploaded": "Photo uploaded",
-    "photoUploadedMessage": "Profile photo successfully uploaded and updated.",
-    "photoUploadError": "Upload error",
-    "photoUploadErrorMessage": "Failed to upload photo. Try another file.",
-    "entryDeleted": "Entry deleted",
-    "entryDeletedMessage": "History entry successfully deleted.",
-    "deleteError": "Error",
-    "deleteErrorMessage": "Failed to delete history entry.",
-    "photoDeleted": "Photo deleted",
-    "photoDeletedMessage": "Profile photo successfully deleted. Default avatar restored.",
-    "photoDeleteError": "Error",
-    "photoDeleteErrorMessage": "Failed to delete photo. Try later.",
-    "passwordChanged": "Password changed",
-    "passwordChangeError": "Password change error",
-    "unavailable": "Profile Unavailable",
-    "unavailableMessage": "To view your profile and save predictions, please log in or create an account.",
-    "viewHistory": "View All Prediction History",
-    "genderNotSpecified": "Not Specified",
-    "deleteAccount": {
-      "title": "Delete account",
-      "confirmationTitle": "Confirm deletion",
-      "confirmationMessage": "Are you sure you want to delete your account? This action is irreversible.",
-      "button": "Delete account",
-      "confirm": "Yes, delete",
-      "cancel": "Cancel",
-      "dataLost": {
-        "profile": "Your profile and personal data",
-        "history": "All prediction history",
-        "photos": "Uploaded photos and settings",
-        "other": "All other related data"
-      },
-      "note": "If you are sure you want to proceed, click the button below."
-    },
-    "changePassword": {
-      "title": "Change password",
-      "currentPassword": "Current password",
-      "newPassword": "New password",
-      "confirmPassword": "Confirm password",
-      "button": "Change password",
-      "updating": "Updating password...",
-      "passwordsNotMatch": "Passwords do not match.",
-      "passwordTooShort": "Password must contain at least 8 characters.",
-      "invalidCurrentPassword": "Invalid current password.",
-      "success": "Password successfully changed.",
-      "error": "Failed to change password. Please try again."
-    }
-  },
-  "forms": {
-    "prediction": {
-      "title": "Prediction form",
-      "target": "Prediction target",
-      "targetSelect": "Select target",
-      "targetDiabetes": "Diabetes risk",
-      "targetObesity": "Obesity risk",
-      "model": "Model",
-      "modelAuto": "Best model (champion)",
-      "modelLogreg": "Logistic Regression",
-      "modelRandomForest": "Random Forest",
-      "modelXGBoost": "XGBoost",
-      "modelSVM": "SVM (Support Vector Machine)",
-      "modelKNN": "K-Nearest Neighbors",
-      "modelMLP": "Neural Network (MLP)",
-      "submit": "Calculate risk",
-      "processing": "Processing...",
-      "demo": "Fill with random data",
-      "targetTooltip": "Select the risk to assess.",
-      "modelTooltip": "Logistic Regression — basic linear model, shows the impact of each indicator.\nRandom Forest — ensemble of decision trees, robust to noise.\nXGBoost — powerful boosting for tabular data.\nLightGBM — fast gradient boosting implementation.\nSVM — finds optimal boundary between classes.\nKNN — compares with similar patients (neighbors).\nNeural Network (MLP) — detects complex nonlinear relationships.",
-      "errors": {
-        "required": "Required field",
-        "invalidEmail": "Invalid email",
-        "minLength": "Minimum length: {{min}} characters",
-        "maxLength": "Maximum length: {{max}} characters"
-      }
-    }
-  },
   "prediction": {
     "calculated": "Prediction calculated",
     "calculatedMessage": "Risk: {{risk}}% ({{label}}). Results saved to history.",
@@ -848,6 +1381,7 @@
     "errorMessage": "Failed to recognize voice.",
     "notSupported": "Not supported",
     "notSupportedMessage": "Browser does not support voice input.",
+    "stopRecord": "Stop recording",
     "permissionDenied": "Microphone access denied",
     "permissionDeniedMessage": "Allow access in browser settings and try again.",
     "startError": "Microphone start error",
@@ -867,29 +1401,14 @@
     "voiceInput": "Voice input",
     "send": "Send",
     "uploadPhoto": "Upload photo",
+    "uploadAnotherPhoto": "Upload another photo",
     "deletePhoto": "Delete photo",
     "changeAvatarColor": "Change avatar color",
     "blockUser": "Block user",
+    "unblockUser": "Unblock user",
     "loading": "Loading",
     "back": "Back",
     "close": "Close"
-  },
-  "tooltips": {
-    "logout": "Logout from account",
-    "themeToggle": "Toggle theme",
-    "blockUser": "Block user",
-    "unblockUser": "Unblock user",
-    "targetHelp": "Select the risk to assess.",
-    "modelHelp": "Logistic Regression — basic linear model, shows the impact of each indicator.\nRandom Forest — ensemble of decision trees, robust to noise.\nXGBoost — powerful boosting for tabular data.\nLightGBM — fast gradient boosting implementation.\nSVM — finds optimal boundary between classes.\nKNN — compares with similar patients (neighbors).\nNeural Network (MLP) — detects complex nonlinear relationships.",
-    "features": {
-      "RIDAGEYR": "Participant age in full years.",
-      "RIAGENDR": "Gender",
-      "BMXBMI": "Body Mass Index (kg/m²). Over 30 may indicate obesity.",
-      "BPXSY1": "Systolic blood pressure (upper value) in mmHg.",
-      "BPXDI1": "Diastolic blood pressure (lower value) in mmHg.",
-      "LBXGLU": "Fasting blood glucose level (mg/dL).",
-      "LBXTC": "Total cholesterol level (mg/dL)."
-    }
   },
   "sidebar": {
     "logo": "Automated health risk assessment and prediction system using artificial intelligence methods",
@@ -902,6 +1421,9 @@
       "chats": "Chats",
       "profile": "Profile"
     }
+  },
+  "notifications": {
+    "unreadMessages": "You have {{count}} unread messages"
   },
   "modals": {
     "confirm": {
@@ -954,6 +1476,30 @@
       "title": "Delete chat?",
       "message": "Are you sure you want to delete this chat? All messages will be deleted."
     }
+  },
+  "errors": {
+    "invalidServerResponse": "Invalid server response",
+    "loginRequired": "Please log in to the system.",
+    "pageNotFound": "Page not found.",
+    "requestError": "An error occurred during the request.",
+    "lucideIconLoadError": "Unable to load Lucide icon \"{{icon}}\" from provided CDNs"
+  },
+  "date": {
+    "daysOfWeek": {
+      "sun": "Sunday",
+      "mon": "Monday",
+      "tue": "Tuesday",
+      "wed": "Wednesday",
+      "thu": "Thursday",
+      "fri": "Friday",
+      "sat": "Saturday",
+      "sunday": "Sunday",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday"
+    }
   }
 }
-

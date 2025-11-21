@@ -379,7 +379,7 @@ function applyTranslations() {
   });
   
   // Apply to specific attribute patterns
-  const attrPatterns = ['title', 'placeholder', 'aria-label', 'aria-description', 'alt', 'data-tooltip'];
+  const attrPatterns = ['title', 'placeholder', 'aria-label', 'aria-description', 'alt', 'data-tooltip', 'template'];
   attrPatterns.forEach(attr => {
     document.querySelectorAll(`[data-i18n-${attr}]`).forEach(element => {
       const key = element.getAttribute(`data-i18n-${attr}`);

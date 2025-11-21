@@ -88,11 +88,16 @@ def chat(
         prediction_id=prediction_id,
     )
 
+    # Отримуємо мову з payload (за замовчуванням українська)
+    language = payload.get("language", "uk")
+    if language not in ["uk", "en"]:
+        language = "uk"
+
     # 2) Будуємо контекст за вибраним (або останнім) прогнозом
-    context = build_health_context(session, current_user.id, prediction_id=prediction_id)
+    context = build_health_context(session, current_user.id, prediction_id=prediction_id, language=language)
 
     # 3) Формуємо підказ для моделі
-    prompt = build_assistant_prompt(context, user_message)
+    prompt = build_assistant_prompt(context, user_message, language=language)
 
     # 4) Виклик Ollama
     answer = call_ollama(prompt)

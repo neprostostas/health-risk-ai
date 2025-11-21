@@ -172,6 +172,14 @@ const TARGET_LABELS = {
   obesity_present: "Ризик ожиріння",
 };
 
+function getTargetLabel(target) {
+  if (window.i18n) {
+    const label = window.i18n.t(`forms.targets.${target}`);
+    return label && label !== `forms.targets.${target}` ? label : (TARGET_LABELS[target] || target);
+  }
+  return getTargetLabel(target);
+}
+
 const HEALTH_THRESHOLDS = {
   BMXBMI: {
     normal: 25,
@@ -396,11 +404,23 @@ KNN — порівнює зі схожими пацієнтами (сусіди)
 };
 
 function getFeatureName(code) {
+  if (window.i18n) {
+    const name = window.i18n.t(`forms.factors.${code}.name`);
+    return name && name !== `forms.factors.${code}.name` ? name : (factorInfo[code]?.name ?? code);
+  }
   return factorInfo[code]?.name ?? code;
 }
 
 function getFeatureDescription(code) {
-  return factorInfo[code]?.desc ?? "Показник здоров'я.";
+  if (window.i18n) {
+    const desc = window.i18n.t(`forms.factors.${code}.desc`);
+    if (desc && desc !== `forms.factors.${code}.desc`) {
+      return desc;
+    }
+    const defaultDesc = window.i18n.t('forms.factors.defaultDesc');
+    return defaultDesc && defaultDesc !== 'forms.factors.defaultDesc' ? defaultDesc : (window.i18n ? window.i18n.t('forms.factors.defaultDesc') : "Показник здоров'я.");
+  }
+  return factorInfo[code]?.desc ?? (window.i18n ? window.i18n.t('forms.factors.defaultDesc') : "Показник здоров'я.");
 }
 
 function getFeatureUnit(code) {
@@ -427,8 +447,8 @@ function classifyMetric(feature, value) {
   if (Number.isNaN(numeric)) {
     return {
       level: "info",
-      label: "Немає даних",
-      explanation: "Значення не вказано.",
+      label: window.i18n ? window.i18n.t('forms.healthClassification.noData.label') : "Немає даних",
+      explanation: window.i18n ? window.i18n.t('forms.healthClassification.noData.explanation') : "Значення не вказано.",
     };
   }
 
@@ -436,35 +456,35 @@ function classifyMetric(feature, value) {
     if (numeric < 18.5) {
       return {
         level: "warning",
-        label: "Недостатня вага",
-        explanation: "Маса тіла нижча за рекомендовану норму.",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.bmi.underweight.label') : "Недостатня вага",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.bmi.underweight.explanation') : "Маса тіла нижча за рекомендовану норму.",
       };
     }
     if (numeric < HEALTH_THRESHOLDS.BMXBMI.normal) {
       return {
         level: "normal",
-        label: "Норма",
-        explanation: "ІМТ знаходиться у здоровому діапазоні 18.5–24.9.",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.bmi.normal.label') : "Норма",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.bmi.normal.explanation') : "ІМТ знаходиться у здоровому діапазоні 18.5–24.9.",
       };
     }
     if (numeric < HEALTH_THRESHOLDS.BMXBMI.overweight) {
       return {
         level: "warning",
-        label: "Надмірна вага",
-        explanation: "Показник перевищує норму. Рекомендується звернути увагу на харчування й активність.",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.bmi.overweight.label') : "Надмірна вага",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.bmi.overweight.explanation') : "Показник перевищує норму. Рекомендується звернути увагу на харчування й активність.",
       };
     }
     if (numeric < HEALTH_THRESHOLDS.BMXBMI.obesity) {
       return {
         level: "danger",
-        label: "Ожиріння I",
-        explanation: "Рівень відповідає ожирінню першого ступеня.",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.bmi.obesity1.label') : "Ожиріння I",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.bmi.obesity1.explanation') : "Рівень відповідає ожирінню першого ступеня.",
       };
     }
     return {
       level: "danger",
-      label: "Ожиріння II+",
-      explanation: "Рівень ІМТ ≥ 35. Потрібна консультація лікаря.",
+      label: window.i18n ? window.i18n.t('forms.healthClassification.bmi.obesity2.label') : "Ожиріння II+",
+      explanation: window.i18n ? window.i18n.t('forms.healthClassification.bmi.obesity2.explanation') : "Рівень ІМТ ≥ 35. Потрібна консультація лікаря.",
     };
   }
 
@@ -472,28 +492,28 @@ function classifyMetric(feature, value) {
     if (numeric < HEALTH_THRESHOLDS.BPXSY1.normal) {
       return {
         level: "normal",
-        label: "Норма",
-        explanation: "Систолічний тиск у межах безпечного рівня (<120 мм рт. ст.).",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.systolic.normal.label') : "Норма",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.systolic.normal.explanation') : "Систолічний тиск у межах безпечного рівня (<120 мм рт. ст.).",
       };
     }
     if (numeric < HEALTH_THRESHOLDS.BPXSY1.elevated) {
       return {
         level: "warning",
-        label: "Підвищений",
-        explanation: "Верхній тиск 120–129 мм рт. ст. — важливо контролювати.",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.systolic.elevated.label') : "Підвищений",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.systolic.elevated.explanation') : "Верхній тиск 120–129 мм рт. ст. — важливо контролювати.",
       };
     }
     if (numeric < HEALTH_THRESHOLDS.BPXSY1.stage1) {
       return {
         level: "warning",
-        label: "Гіпертонія 1 ступеня",
-        explanation: "Систолічний тиск 130–139 мм рт. ст.",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.systolic.hypertension1.label') : "Гіпертонія 1 ступеня",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.systolic.hypertension1.explanation') : "Систолічний тиск 130–139 мм рт. ст.",
       };
     }
     return {
       level: "danger",
-      label: "Гіпертонія 2 ступеня",
-      explanation: "Систолічний тиск ≥ 140 мм рт. ст. Потрібна медична консультація.",
+      label: window.i18n ? window.i18n.t('forms.healthClassification.systolic.hypertension2.label') : "Гіпертонія 2 ступеня",
+      explanation: window.i18n ? window.i18n.t('forms.healthClassification.systolic.hypertension2.explanation') : "Систолічний тиск ≥ 140 мм рт. ст. Потрібна медична консультація.",
     };
   }
 
@@ -501,21 +521,21 @@ function classifyMetric(feature, value) {
     if (numeric < HEALTH_THRESHOLDS.BPXDI1.normal) {
       return {
         level: "normal",
-        label: "Норма",
-        explanation: "Діастолічний тиск у межах безпечного рівня (<80 мм рт. ст.).",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.diastolic.normal.label') : "Норма",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.diastolic.normal.explanation') : "Діастолічний тиск у межах безпечного рівня (<80 мм рт. ст.).",
       };
     }
     if (numeric < HEALTH_THRESHOLDS.BPXDI1.stage1) {
       return {
         level: "warning",
-        label: "Підвищений",
-        explanation: "Діастолічний тиск 80–89 мм рт. ст.",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.diastolic.elevated.label') : "Підвищений",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.diastolic.elevated.explanation') : "Діастолічний тиск 80–89 мм рт. ст.",
       };
     }
     return {
       level: "danger",
-      label: "Гіпертонія 2 ступеня",
-      explanation: "Діастолічний тиск ≥ 90 мм рт. ст. Потребує уваги.",
+      label: window.i18n ? window.i18n.t('forms.healthClassification.diastolic.hypertension2.label') : "Гіпертонія 2 ступеня",
+      explanation: window.i18n ? window.i18n.t('forms.healthClassification.diastolic.hypertension2.explanation') : "Діастолічний тиск ≥ 90 мм рт. ст. Потребує уваги.",
     };
   }
 
@@ -523,21 +543,21 @@ function classifyMetric(feature, value) {
     if (numeric < HEALTH_THRESHOLDS.LBXGLU.normal) {
       return {
         level: "normal",
-        label: "Норма",
-        explanation: "Глюкоза натще нижча за 100 мг/дл.",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.glucose.normal.label') : "Норма",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.glucose.normal.explanation') : "Глюкоза натще нижча за 100 мг/дл.",
       };
     }
     if (numeric < HEALTH_THRESHOLDS.LBXGLU.prediabetes) {
       return {
         level: "warning",
-        label: "Підвищена (переддіабет)",
-        explanation: "Глюкоза у діапазоні 100–125 мг/дл.",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.glucose.prediabetes.label') : "Підвищена (переддіабет)",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.glucose.prediabetes.explanation') : "Глюкоза у діапазоні 100–125 мг/дл.",
       };
     }
     return {
       level: "danger",
-      label: "Можливий діабет",
-      explanation: "Глюкоза ≥ 126 мг/дл. Порадьтеся з лікарем.",
+      label: window.i18n ? window.i18n.t('forms.healthClassification.glucose.diabetes.label') : "Можливий діабет",
+      explanation: window.i18n ? window.i18n.t('forms.healthClassification.glucose.diabetes.explanation') : "Глюкоза ≥ 126 мг/дл. Порадьтеся з лікарем.",
     };
   }
 
@@ -545,28 +565,28 @@ function classifyMetric(feature, value) {
     if (numeric < HEALTH_THRESHOLDS.LBXTC.optimal) {
       return {
         level: "normal",
-        label: "Оптимальний",
-        explanation: "Загальний холестерин нижче 200 мг/дл.",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.cholesterol.optimal.label') : "Оптимальний",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.cholesterol.optimal.explanation') : "Загальний холестерин нижче 200 мг/дл.",
       };
     }
     if (numeric < HEALTH_THRESHOLDS.LBXTC.borderline) {
       return {
         level: "warning",
-        label: "Прикордонний рівень",
-        explanation: "Холестерин 200–239 мг/дл. Важливо контролювати харчування.",
+        label: window.i18n ? window.i18n.t('forms.healthClassification.cholesterol.borderline.label') : "Прикордонний рівень",
+        explanation: window.i18n ? window.i18n.t('forms.healthClassification.cholesterol.borderline.explanation') : "Холестерин 200–239 мг/дл. Важливо контролювати харчування.",
       };
     }
     return {
       level: "danger",
-      label: "Високий рівень",
-      explanation: "Холестерин ≥ 240 мг/дл. Підвищений серцево-судинний ризик.",
+      label: window.i18n ? window.i18n.t('forms.healthClassification.cholesterol.high.label') : "Високий рівень",
+      explanation: window.i18n ? window.i18n.t('forms.healthClassification.cholesterol.high.explanation') : "Холестерин ≥ 240 мг/дл. Підвищений серцево-судинний ризик.",
     };
   }
 
   return {
     level: "info",
-    label: "Значення",
-    explanation: "Значення показника.",
+    label: window.i18n ? window.i18n.t('forms.healthClassification.default.label') : "Значення",
+    explanation: window.i18n ? window.i18n.t('forms.healthClassification.default.explanation') : "Значення показника.",
   };
 }
 
@@ -623,12 +643,14 @@ function setAssistantVoiceButton(mode) {
   if (!btn) return;
   const icon = btn.querySelector(".icon");
   if (mode === "stop") {
-    btn.setAttribute("aria-label", "Зупинити запис");
-    btn.setAttribute("data-tooltip", "Зупинити запис");
+    const stopRecordText = window.i18n ? window.i18n.t('voice.stopRecord') : "Зупинити запис";
+    btn.setAttribute("aria-label", stopRecordText);
+    btn.setAttribute("data-tooltip", stopRecordText);
     if (icon) icon.setAttribute("data-lucide", "square");
   } else {
-    btn.setAttribute("aria-label", "Голосовий ввід");
-    btn.setAttribute("data-tooltip", "Голосовий ввід");
+    const voiceInputText = window.i18n ? window.i18n.t('voice.input') : "Голосовий ввід";
+    btn.setAttribute("aria-label", voiceInputText);
+    btn.setAttribute("data-tooltip", voiceInputText);
     if (icon) icon.setAttribute("data-lucide", "mic");
   }
   refreshIcons();
@@ -653,10 +675,10 @@ function openBulkDeleteHistoryModal() {
     const key = mode === "all" ? 'modals.deleteHistory.allConfirm' : 'modals.deleteHistory.selectedConfirm';
     msg.textContent = window.i18n.t(key, { count, predictions: predictionWord });
   } else {
-    msg.textContent =
-      mode === "all"
-        ? `Ви впевнені, що хочете видалити всі ${count} ${declineUAPredictions(count)}?`
-        : `Ви впевнені, що хочете видалити ${count} ${declineUAPredictions(count)}?`;
+    const fallbackPredictionWord = declineUAPredictions(count);
+    msg.textContent = mode === "all"
+      ? `Ви впевнені, що хочете видалити всі ${count} ${fallbackPredictionWord}?`
+      : `Ви впевнені, що хочете видалити ${count} ${fallbackPredictionWord}?`;
   }
   modal.removeAttribute("hidden");
   modal.hidden = false;
@@ -672,12 +694,21 @@ function closeBulkDeleteHistoryModal() {
 
 function declineUAPredictions(n) {
   // просте відмінювання слова "прогноз"
+  if (!window.i18n) {
+    const abs = Math.abs(n) % 100;
+    const n1 = abs % 10;
+    if (abs > 10 && abs < 20) return "прогнозів";
+    if (n1 > 1 && n1 < 5) return "прогнози";
+    if (n1 === 1) return "прогноз";
+    return "прогнозів";
+  }
+  // Використовуємо локалізацію
   const abs = Math.abs(n) % 100;
   const n1 = abs % 10;
-  if (abs > 10 && abs < 20) return "прогнозів";
-  if (n1 > 1 && n1 < 5) return "прогнози";
-  if (n1 === 1) return "прогноз";
-  return "прогнозів";
+  if (abs > 10 && abs < 20) return window.i18n.t('history.declension.genitive');
+  if (n1 > 1 && n1 < 5) return window.i18n.t('history.declension.plural');
+  if (n1 === 1) return window.i18n.t('history.declension.singular');
+  return window.i18n.t('history.declension.genitive');
 }
 
 async function deleteSelectedHistory() {
@@ -872,7 +903,7 @@ function toggleVoiceRecording() {
     }
   } catch (e) {
     const msg = (e && e.name === "NotAllowedError")
-      ? "Дозвольте доступ до мікрофона у налаштуваннях браузера."
+      ? (window.i18n ? window.i18n.t('voice.permissionDeniedMessage') : "Дозвольте доступ до мікрофона у налаштуваннях браузера.")
       : String(e?.message || e);
     showNotification({
       type: "error",
@@ -913,15 +944,17 @@ function setAssistantSendButton(mode) {
   if (!btn) return;
   const icon = btn.querySelector(".icon");
   if (mode === "send") {
-    btn.setAttribute("aria-label", "Надіслати");
+    btn.setAttribute("aria-label", window.i18n ? window.i18n.t('aria.send') : "Надіслати");
     if (icon) icon.setAttribute("data-lucide", "send");
   } else if (mode === "stop") {
-    btn.setAttribute("aria-label", "Зупинити");
-    btn.setAttribute("data-tooltip", "Зупинити");
+    const stopText = window.i18n ? window.i18n.t('assistant.stop') : "Зупинити";
+    btn.setAttribute("aria-label", stopText);
+    btn.setAttribute("data-tooltip", stopText);
     if (icon) icon.setAttribute("data-lucide", "square");
   } else if (mode === "play") {
-    btn.setAttribute("aria-label", "Продовжити");
-    btn.setAttribute("data-tooltip", "Продовжити");
+    const continueText = window.i18n ? window.i18n.t('assistant.continue') : "Продовжити";
+    btn.setAttribute("aria-label", continueText);
+    btn.setAttribute("data-tooltip", continueText);
     if (icon) icon.setAttribute("data-lucide", "play");
   }
   refreshIcons();
@@ -1410,11 +1443,16 @@ async function sendAssistantMessage(text) {
       message: window.i18n ? window.i18n.t('assistant.generatingMessage') : "Асистент формує відповідь. Ви можете натиснути «Стоп», щоб поставити на паузу.",
       duration: 2500,
     });
+    // Отримуємо поточну мову для передачі в запит
+    const currentLang = window.i18n && window.i18n.getCurrentLanguage ? 
+      window.i18n.getCurrentLanguage() : 'uk';
+    
     const data = await apiFetch("/assistant/chat", {
       method: "POST",
     body: JSON.stringify({
       message: text,
       prediction_id: assistantSelectedPredictionId || undefined,
+      language: currentLang,
     }),
     });
     setAssistantTyping(false);
@@ -1430,7 +1468,8 @@ async function sendAssistantMessage(text) {
         container.appendChild(assistantStream.msgEl);
         container.scrollTop = container.scrollHeight;
       }
-      assistantStream.buffer = String(data?.answer || "Відповідь відсутня.");
+      const noAnswerText = window.i18n ? window.i18n.t('assistant.noAnswer') : "Відповідь відсутня.";
+      assistantStream.buffer = String(data?.answer || noAnswerText);
       assistantStream.index = 0;
       setAssistantSendButton("play");
       showNotification({
@@ -1441,7 +1480,7 @@ async function sendAssistantMessage(text) {
       });
       return;
     }
-    startAssistantStream(data?.answer || "Відповідь відсутня.");
+    startAssistantStream(data?.answer || (window.i18n ? window.i18n.t('assistant.noAnswer') : "Відповідь відсутня."));
     showNotification({
       type: "success",
       title: window.i18n ? window.i18n.t('assistant.responseReceived') : "Відповідь отримано",
@@ -1825,7 +1864,7 @@ async function apiFetch(
       handleUnauthorized();
       // Після перенаправлення кидаємо помилку, яка буде оброблена в catch блоках
       // Але не показуємо її користувачу, бо вже перенаправлено
-      const authError = new Error("Потрібно увійти до системи.");
+      const authError = new Error(window.i18n ? window.i18n.t('errors.loginRequired') : "Потрібно увійти до системи.");
       authError.isAuthError = true; // Позначаємо, що це помилка автентифікації
       authError.silent = true; // Позначаємо, що помилку не потрібно показувати
       throw authError;
@@ -1837,13 +1876,13 @@ async function apiFetch(
       const isProtectedPath = protectedPaths.some(path => currentPath.startsWith(path));
       if (isProtectedPath) {
         handleUnauthorized();
-        const notFoundError = new Error("Сторінку не знайдено.");
+        const notFoundError = new Error(window.i18n ? window.i18n.t('errors.pageNotFound') : "Сторінку не знайдено.");
         notFoundError.isAuthError = true;
         notFoundError.silent = true;
         throw notFoundError;
       }
     }
-    const message = data?.detail || data?.message || "Сталася помилка під час запиту.";
+    const message = data?.detail || data?.message || (window.i18n ? window.i18n.t('errors.requestError') : "Сталася помилка під час запиту.");
     throw new Error(message);
   }
   return data;
@@ -2223,7 +2262,7 @@ function formatProbability(probability) {
 }
 
 function formatTargetLabel(target) {
-  return TARGET_LABELS[target] || target;
+  return getTargetLabel(target);
 }
 
 function getRiskColor(bucket) {
@@ -2462,7 +2501,7 @@ function updateAvatarButtons() {
         icon.setAttribute("data-lucide", "camera");
         lucide.createIcons();
       }
-      avatarUploadBtn.setAttribute("aria-label", "Завантажити іншу фото");
+      avatarUploadBtn.setAttribute("aria-label", window.i18n ? window.i18n.t('aria.uploadAnotherPhoto') : "Завантажити іншу фото");
     }
     // Показуємо кнопку видалення
     if (avatarDeleteBtn) {
@@ -2485,7 +2524,7 @@ function updateAvatarButtons() {
         icon.setAttribute("data-lucide", "upload");
         lucide.createIcons();
       }
-      avatarUploadBtn.setAttribute("aria-label", "Завантажити фото");
+      avatarUploadBtn.setAttribute("aria-label", window.i18n ? window.i18n.t('aria.uploadPhoto') : "Завантажити фото");
     }
     // ОБОВ'ЯЗКОВО ховаємо кнопку видалення - вона не потрібна коли немає фото
     if (avatarDeleteBtn) {
@@ -2612,8 +2651,8 @@ function renderHistoryTable() {
       historyEmpty.innerHTML = `
         <p data-i18n="history.emptyLoggedOut">Історія доступна лише після входу до системи.</p>
         <div style="margin-top: 16px; display: flex; gap: 12px; justify-content: center;">
-          <button type="button" class="button button--ghost" id="history-login-shortcut">Увійти</button>
-          <button type="button" class="button" id="history-register-shortcut">Зареєструватися</button>
+          <button type="button" class="button button--ghost" id="history-login-shortcut">${window.i18n ? window.i18n.t('auth.login.button') : 'Увійти'}</button>
+          <button type="button" class="button" id="history-register-shortcut">${window.i18n ? window.i18n.t('auth.register.button') : 'Зареєструватися'}</button>
         </div>
       `;
       refreshIcons();
@@ -2624,7 +2663,7 @@ function renderHistoryTable() {
   if (!authState.history || authState.history.length === 0) {
     historyTableBody.innerHTML = "";
     if (historyEmpty) {
-    historyEmpty.textContent = "Історія поки порожня. Зробіть прогноз, щоб побачити його тут.";
+    historyEmpty.textContent = window.i18n ? window.i18n.t('history.emptyHistory') : "Історія поки порожня. Зробіть прогноз, щоб побачити його тут.";
     historyEmpty.hidden = false;
     }
     if (historyTableWrapper) {
@@ -2655,12 +2694,12 @@ function renderHistoryTable() {
     .map((entry) => {
       const dateLabel = formatDateTimeLong(entry.created_at);
       const targetLabel = formatTargetLabel(entry.target);
-      const modelLabel = entry.model_name || "Автоматично";
+      const modelLabel = entry.model_name || (window.i18n ? window.i18n.t('forms.model.auto') : "Автоматично");
       const probabilityLabel = formatProbability(entry.probability);
       const riskLabel = getRiskLabel(entry.risk_bucket);
       const color = getRiskColor(entry.risk_bucket);
       const checkboxCell = historyBulkMode
-        ? `<td><input type="checkbox" class="history-select-checkbox" data-id="${entry.id}" ${historySelectedIds.has(entry.id) ? "checked" : ""} aria-label="Вибрати"></td>`
+        ? `<td><input type="checkbox" class="history-select-checkbox" data-id="${entry.id}" ${historySelectedIds.has(entry.id) ? "checked" : ""} aria-label="${window.i18n ? window.i18n.t('aria.select') : 'Вибрати'}"></td>`
         : `<td><span class="history-select-spacer" aria-hidden="true"></span></td>`;
       return `
         <tr data-id="${entry.id}">
@@ -2671,10 +2710,10 @@ function renderHistoryTable() {
           <td>${probabilityLabel}</td>
           <td><span class="history-actions__pill" style="background:${color};color:#fff;">${riskLabel}</span></td>
           <td class="history-table__actions">
-            <button type="button" class="icon-button" data-action="replay" data-id="${entry.id}" title="Повторити" aria-label="Повторити" data-tooltip="Повторити" ${historyBulkMode ? "hidden" : ""}>
+            <button type="button" class="icon-button" data-action="replay" data-id="${entry.id}" title="${window.i18n ? window.i18n.t('aria.replay') : 'Повторити'}" aria-label="${window.i18n ? window.i18n.t('aria.replay') : 'Повторити'}" data-tooltip="${window.i18n ? window.i18n.t('aria.replay') : 'Повторити'}" ${historyBulkMode ? "hidden" : ""}>
               <span class="icon" data-lucide="rotate-ccw"></span>
             </button>
-            <button type="button" class="icon-button icon-button--danger" data-action="delete" data-id="${entry.id}" title="Видалити" aria-label="Видалити" data-tooltip="Видалити" ${historyBulkMode ? "hidden" : ""}>
+            <button type="button" class="icon-button icon-button--danger" data-action="delete" data-id="${entry.id}" title="${window.i18n ? window.i18n.t('aria.delete') : 'Видалити'}" aria-label="${window.i18n ? window.i18n.t('aria.delete') : 'Видалити'}" data-tooltip="${window.i18n ? window.i18n.t('aria.delete') : 'Видалити'}" ${historyBulkMode ? "hidden" : ""}>
               <span class="icon" data-lucide="trash-2"></span>
             </button>
           </td>
@@ -2737,7 +2776,7 @@ function renderHistoryTable() {
         .map((entry) => {
           const dateLabel = formatDateTimeLong(entry.created_at);
           const targetLabel = formatTargetLabel(entry.target);
-          const modelLabel = entry.model_name || "Автоматично";
+          const modelLabel = entry.model_name || (window.i18n ? window.i18n.t('forms.model.auto') : "Автоматично");
           const probabilityLabel = formatProbability(entry.probability);
           const riskLabel = getRiskLabel(entry.risk_bucket);
           const color = getRiskColor(entry.risk_bucket);
@@ -2745,18 +2784,18 @@ function renderHistoryTable() {
           return `
             <div class="history-card-item" data-id="${entry.id}">
               <div class="history-card__row">
-                <input type="checkbox" class="history-card__checkbox history-select-checkbox" data-id="${entry.id}" ${checked} aria-label="Вибрати">
+                <input type="checkbox" class="history-card__checkbox history-select-checkbox" data-id="${entry.id}" ${checked} aria-label="${window.i18n ? window.i18n.t('aria.select') : 'Вибрати'}">
                 <h3 class="history-card__title">${targetLabel}</h3>
                 <span class="badge history-card__badge" style="background:${color};color:#fff;">${riskLabel}</span>
               </div>
               <p class="history-card__meta">${dateLabel}</p>
-              <p class="history-card__meta">Модель: ${modelLabel}</p>
-              <p class="history-card__meta">Ймовірність: ${probabilityLabel}</p>
+              <p class="history-card__meta">${window.i18n ? window.i18n.t('history.model') : 'Модель'}: ${modelLabel}</p>
+              <p class="history-card__meta">${window.i18n ? window.i18n.t('history.probability') : 'Ймовірність'}: ${probabilityLabel}</p>
               <div class="history-card__actions">
-                <button type="button" class="icon-button" data-action="replay" data-id="${entry.id}" title="Повторити" aria-label="Повторити" data-tooltip="Повторити">
+                <button type="button" class="icon-button" data-action="replay" data-id="${entry.id}" title="${window.i18n ? window.i18n.t('aria.replay') : 'Повторити'}" aria-label="${window.i18n ? window.i18n.t('aria.replay') : 'Повторити'}" data-tooltip="${window.i18n ? window.i18n.t('aria.replay') : 'Повторити'}">
                   <span class="icon" data-lucide="rotate-ccw"></span>
                 </button>
-                <button type="button" class="icon-button icon-button--danger" data-action="delete" data-id="${entry.id}" title="Видалити" aria-label="Видалити" data-tooltip="Видалити">
+                <button type="button" class="icon-button icon-button--danger" data-action="delete" data-id="${entry.id}" title="${window.i18n ? window.i18n.t('aria.delete') : 'Видалити'}" aria-label="${window.i18n ? window.i18n.t('aria.delete') : 'Видалити'}" data-tooltip="${window.i18n ? window.i18n.t('aria.delete') : 'Видалити'}">
                   <span class="icon" data-lucide="trash-2"></span>
                 </button>
               </div>
@@ -3037,15 +3076,15 @@ async function handleLoginSubmit(event) {
   // Клієнтська валідація
   setAuthFormError(loginErrorBox, "");
   if (!email && !password) {
-    setAuthFormError(loginErrorBox, "Поля електронної пошти та пароля не можуть бути порожніми.");
+    setAuthFormError(loginErrorBox, window.i18n ? window.i18n.t('auth.login.errors.emailAndPasswordEmpty') : "Поля електронної пошти та пароля не можуть бути порожніми.");
     return;
   }
   if (!email) {
-    setAuthFormError(loginErrorBox, "Поле електронної пошти не може бути порожнім.");
+    setAuthFormError(loginErrorBox, window.i18n ? window.i18n.t('auth.login.errors.emailEmpty') : "Поле електронної пошти не може бути порожнім.");
     return;
   }
   if (!password) {
-    setAuthFormError(loginErrorBox, "Поле пароля не може бути порожнім.");
+    setAuthFormError(loginErrorBox, window.i18n ? window.i18n.t('auth.login.errors.passwordEmpty') : "Поле пароля не може бути порожнім.");
     return;
   }
   
@@ -3099,24 +3138,24 @@ async function handleRegisterSubmit(event) {
 
   // Валідація обов'язкових полів
   if (!firstName) {
-    setAuthFormError(registerErrorBox, "Ім'я є обов'язковим полем.");
+    setAuthFormError(registerErrorBox, window.i18n ? window.i18n.t('auth.register.errors.firstNameRequired') : "Ім'я є обов'язковим полем.");
     return;
   }
   if (!lastName) {
-    setAuthFormError(registerErrorBox, "Прізвище є обов'язковим полем.");
+    setAuthFormError(registerErrorBox, window.i18n ? window.i18n.t('auth.register.errors.lastNameRequired') : "Прізвище є обов'язковим полем.");
     return;
   }
   if (!dateOfBirth) {
-    setAuthFormError(registerErrorBox, "Дата народження є обов'язковим полем.");
+    setAuthFormError(registerErrorBox, window.i18n ? window.i18n.t('auth.register.errors.dateOfBirthRequired') : "Дата народження є обов'язковим полем.");
     return;
   }
   if (!gender || !["male", "female"].includes(gender)) {
-    setAuthFormError(registerErrorBox, "Будь ласка, оберіть стать.");
+    setAuthFormError(registerErrorBox, window.i18n ? window.i18n.t('auth.register.errors.genderRequired') : "Будь ласка, оберіть стать.");
     return;
   }
 
   if (password !== confirm) {
-    setAuthFormError(registerErrorBox, "Паролі не співпадають.");
+    setAuthFormError(registerErrorBox, window.i18n ? window.i18n.t('auth.register.errors.passwordsMismatch') : "Паролі не співпадають.");
     return;
   }
 
@@ -3173,7 +3212,7 @@ async function handleProfileUpdate(event) {
   // Збираємо дані з форми (first_name обов'язкове)
   const firstName = profileEditFirstNameInput.value.trim();
   if (!firstName) {
-    setProfileStatus("Ім'я є обов'язковим полем.", "error");
+    setProfileStatus(window.i18n ? window.i18n.t('profile.update.firstNameRequired') : "Ім'я є обов'язковим полем.", "error");
     return;
   }
   payload.first_name = firstName;
@@ -3193,7 +3232,7 @@ async function handleProfileUpdate(event) {
     payload.avatar_color = avatarColorInput.value;
   }
   
-  setProfileStatus("Збереження...", "info");
+  setProfileStatus(window.i18n ? window.i18n.t('profile.update.saving') : "Збереження...", "info");
   
   const submitButton = event.target.querySelector('button[type="submit"]');
   if (submitButton) submitButton.disabled = true;
@@ -3247,7 +3286,7 @@ async function handleProfileUpdate(event) {
       });
     });
     
-    setProfileStatus("Профіль успішно оновлено.", "info");
+    setProfileStatus(window.i18n ? window.i18n.t('profile.update.success') : "Профіль успішно оновлено.", "info");
     
     // Показуємо повідомлення про успіх (з перевіркою, чи була зміна кольору аватара)
     const wasAvatarColorChanged = avatarColorInput && 
@@ -3323,18 +3362,18 @@ async function handleAvatarUpload(event) {
   // Перевірка типу файлу
   const validTypes = ["image/png", "image/jpeg", "image/jpg"];
   if (!validTypes.includes(file.type)) {
-    setProfileStatus("Недозволений формат файлу. Дозволені: PNG, JPG, JPEG", "error");
+    setProfileStatus(window.i18n ? window.i18n.t('profile.avatar.invalidFormat') : "Недозволений формат файлу. Дозволені: PNG, JPG, JPEG", "error");
     return;
   }
   
   // Перевірка розміру файлу (5MB)
   const maxSize = 5 * 1024 * 1024;
   if (file.size > maxSize) {
-    setProfileStatus("Файл занадто великий. Максимальний розмір: 5MB", "error");
+    setProfileStatus(window.i18n ? window.i18n.t('profile.avatar.fileTooLarge') : "Файл занадто великий. Максимальний розмір: 5MB", "error");
     return;
   }
   
-  setProfileStatus("Завантаження фото...", "info");
+  setProfileStatus(window.i18n ? window.i18n.t('profile.avatar.uploading') : "Завантаження фото...", "info");
   
   // Додаємо індикатор завантаження
   if (avatarUploadBtn) {
@@ -3369,7 +3408,7 @@ async function handleAvatarUpload(event) {
     updateUserPanel();
     updateProfileSection();
     updateAvatarButtons();
-    setProfileStatus("Фото завантажено успішно.", "info");
+    setProfileStatus(window.i18n ? window.i18n.t('profile.avatar.uploadSuccess') : "Фото завантажено успішно.", "info");
     
     // Оновлюємо preview аватару в формі редагування
     const profileAvatarPreviewImage = document.getElementById("profile-avatar-preview-image");
@@ -3410,7 +3449,7 @@ async function handleAvatarUpload(event) {
         icon.setAttribute("data-lucide", hasUploadedAvatar ? "camera" : "upload");
         lucide.createIcons();
       }
-      avatarUploadBtn.setAttribute("aria-label", hasUploadedAvatar ? "Завантажити іншу фото" : "Завантажити фото");
+      avatarUploadBtn.setAttribute("aria-label", hasUploadedAvatar ? (window.i18n ? window.i18n.t('aria.uploadAnotherPhoto') : "Завантажити іншу фото") : (window.i18n ? window.i18n.t('aria.uploadPhoto') : "Завантажити фото"));
     }
   }
 }
@@ -3535,7 +3574,7 @@ async function confirmDeleteAvatar() {
   if (!authState.user) return;
   
   closeDeleteAvatarModal();
-  setProfileStatus("Скидання аватару...", "info");
+  setProfileStatus(window.i18n ? window.i18n.t('profile.avatar.resetting') : "Скидання аватару...", "info");
   
   if (avatarResetBtn) {
     avatarResetBtn.disabled = true;
@@ -3552,7 +3591,7 @@ async function confirmDeleteAvatar() {
     updateUserPanel();
     updateProfileSection();
     updateAvatarButtons();
-    setProfileStatus("Аватар скинуто до стандартного.", "info");
+    setProfileStatus(window.i18n ? window.i18n.t('profile.avatar.resetSuccess') : "Аватар скинуто до стандартного.", "info");
     
     // Оновлюємо preview аватару в формі редагування
     const profileAvatarPreviewImage = document.getElementById("profile-avatar-preview-image");
@@ -3655,9 +3694,9 @@ async function handlePasswordChange(event) {
       // Try to translate common error messages
       if (errorMessage.toLowerCase().includes('невірний') || errorMessage.toLowerCase().includes('invalid') || errorMessage.toLowerCase().includes('incorrect')) {
         errorMessage = window.i18n ? window.i18n.t('profile.changePassword.invalidCurrentPassword') : "Невірний поточний пароль.";
-      } else if (!window.i18n) {
+      } else {
         // Fallback to default error message if i18n not available
-        errorMessage = "Не вдалося змінити пароль. Спробуйте ще раз.";
+        errorMessage = window.i18n ? window.i18n.t('profile.changePassword.error') : "Не вдалося змінити пароль. Спробуйте ще раз.";
       }
     }
     setPasswordStatus(errorMessage, "error");
@@ -3697,14 +3736,14 @@ async function handleForgotPassword(event) {
   const email = formData.get("email")?.toString().trim();
   
   if (!email) {
-    setForgotPasswordError("Будь ласка, введіть електронну пошту.");
+    setForgotPasswordError(window.i18n ? window.i18n.t('auth.forgotPassword.emailRequired') : "Будь ласка, введіть електронну пошту.");
     return;
   }
   
   const submitButton = forgotPasswordForm.querySelector('button[type="submit"]');
   if (submitButton) {
     submitButton.disabled = true;
-    submitButton.textContent = "Надсилання...";
+    submitButton.textContent = window.i18n ? window.i18n.t('forms.buttons.sending') : "Надсилання...";
   }
   
   setForgotPasswordError("");
@@ -3822,15 +3861,15 @@ async function handleForgotPassword(event) {
                     if (successful) {
                       showNotification({
                         type: "success",
-                        title: "Посилання скопійовано",
-                        message: "Посилання для скидання пароля скопійовано в буфер обміну.",
+                        title: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopiedSuccess') : "Посилання скопійовано",
+                        message: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopiedSuccessMessage') : "Посилання для скидання пароля скопійовано в буфер обміну.",
                         duration: 3000,
                       });
                     } else {
                       showNotification({
                         type: "error",
-                        title: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopyError') : "Помилка",
-                        message: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopyErrorMessage') : "Не вдалося скопіювати посилання. Спробуйте скопіювати вручну.",
+                        title: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopyFailed') : "Помилка",
+                        message: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopyFailedMessage') : "Не вдалося скопіювати посилання. Спробуйте скопіювати вручну.",
                         duration: 5000,
                       });
                     }
@@ -3838,8 +3877,8 @@ async function handleForgotPassword(event) {
                 } catch (error) {
                   showNotification({
                     type: "error",
-                    title: "Помилка",
-                    message: "Не вдалося скопіювати посилання. Спробуйте скопіювати вручну.",
+                    title: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopyFailed') : "Помилка",
+                    message: window.i18n ? window.i18n.t('auth.forgotPassword.linkCopyFailedMessage') : "Не вдалося скопіювати посилання. Спробуйте скопіювати вручну.",
                     duration: 5000,
                   });
                 }
@@ -3873,7 +3912,7 @@ async function handleForgotPassword(event) {
     } else {
       // Якщо reset_token відсутній - користувача не знайдено
       // (Але це не повинно статися, якщо backend правильно повертає помилку)
-      const errorMessage = "Користувача з такою електронною поштою не зареєстровано.";
+      const errorMessage = window.i18n ? window.i18n.t('auth.forgotPassword.userNotFound') : "Користувача з такою електронною поштою не зареєстровано.";
       setForgotPasswordError(errorMessage);
       
       showNotification({
@@ -3906,7 +3945,7 @@ async function handleForgotPassword(event) {
     
     showNotification({
       type: "error",
-      title: "Помилка відновлення пароля",
+      title: window.i18n ? window.i18n.t('auth.forgotPassword.resetPasswordError') : "Помилка відновлення пароля",
       message: errorMessage,
       duration: 5000,
     });
@@ -3930,12 +3969,12 @@ async function handleForgotPassword(event) {
     // Якщо кнопка прихована (після помилки або успіху), стан буде скинуто через resetForgotPasswordForm()
     if (submitButton && !submitButton.hidden) {
       submitButton.disabled = false;
-      submitButton.textContent = "Надіслати інструкції";
+      submitButton.textContent = window.i18n ? window.i18n.t('forms.buttons.sendInstructions') : "Надіслати інструкції";
     }
     // Якщо кнопка прихована, але все ще disabled, скидаємо її стан для майбутнього використання
     if (submitButton && submitButton.hidden && submitButton.disabled) {
       submitButton.disabled = false;
-      submitButton.textContent = "Надіслати інструкції";
+      submitButton.textContent = window.i18n ? window.i18n.t('forms.buttons.sendInstructions') : "Надіслати інструкції";
     }
   }
 }
@@ -3962,7 +4001,7 @@ function resetForgotPasswordForm() {
   if (forgotPasswordSubmitBtn) {
     forgotPasswordSubmitBtn.hidden = false;
     forgotPasswordSubmitBtn.disabled = false;
-    forgotPasswordSubmitBtn.textContent = "Надіслати інструкції";
+    forgotPasswordSubmitBtn.textContent = window.i18n ? window.i18n.t('forms.buttons.sendInstructions') : "Надіслати інструкції";
   }
   setForgotPasswordError("");
   if (forgotPasswordSuccess) {
@@ -3997,7 +4036,7 @@ async function handleResetPassword(event) {
   const token = urlParams.get("token");
   
   if (!token) {
-    setResetPasswordError("Відсутній токен відновлення. Перевірте посилання з email.");
+    setResetPasswordError(window.i18n ? window.i18n.t('auth.resetPassword.tokenMissing') : "Відсутній токен відновлення. Перевірте посилання з email.");
     return;
   }
   
@@ -4007,19 +4046,19 @@ async function handleResetPassword(event) {
   
   // Валідація на клієнті
   if (newPassword !== confirmPassword) {
-    setResetPasswordError("Паролі не співпадають.");
+    setResetPasswordError(window.i18n ? window.i18n.t('auth.register.errors.passwordsMismatch') : "Паролі не співпадають.");
     return;
   }
   
   if (newPassword.length < 8) {
-    setResetPasswordError("Пароль повинен містити мінімум 8 символів.");
+    setResetPasswordError(window.i18n ? window.i18n.t('auth.register.errors.passwordTooShort') : "Пароль повинен містити мінімум 8 символів.");
     return;
   }
   
   const submitButton = resetPasswordForm.querySelector('button[type="submit"]');
   if (submitButton) {
     submitButton.disabled = true;
-    submitButton.textContent = "Оновлення...";
+    submitButton.textContent = window.i18n ? window.i18n.t('forms.buttons.updating') : "Оновлення...";
   }
   
   setResetPasswordError("");
@@ -4036,7 +4075,7 @@ async function handleResetPassword(event) {
     
       // Показуємо повідомлення про успіх
     setResetPasswordError(""); // Очищаємо помилки
-    const successMessage = data.message || "Пароль успішно оновлено!";
+    const successMessage = data.message || (window.i18n ? window.i18n.t('auth.resetPassword.success') : "Пароль успішно оновлено!");
     if (resetPasswordError) {
       resetPasswordError.textContent = successMessage;
       resetPasswordError.style.color = "var(--success-color, #4ade80)";
@@ -4065,7 +4104,7 @@ async function handleResetPassword(event) {
     }, 2000);
   } catch (error) {
     // Обробка помилок від backend
-    const errorMessage = error.message || error.detail || "Не вдалося оновити пароль. Перевірте токен або спробуйте ще раз.";
+    const errorMessage = error.message || error.detail || (window.i18n ? window.i18n.t('auth.resetPassword.error') : "Не вдалося оновити пароль. Перевірте токен або спробуйте ще раз.");
     setResetPasswordError(errorMessage);
     showNotification({
       type: "error",
@@ -4076,7 +4115,7 @@ async function handleResetPassword(event) {
   } finally {
     if (submitButton) {
       submitButton.disabled = false;
-      submitButton.textContent = "Оновити пароль";
+      submitButton.textContent = window.i18n ? window.i18n.t('forms.buttons.updatePassword') : "Оновити пароль";
     }
   }
 }
@@ -4209,8 +4248,8 @@ async function handleDeleteAccount() {
     // Це гарантує, що сповіщення відобразиться навіть після зміни маршруту
     showNotification({
       type: "success",
-      title: "Обліковий запис видалено",
-      message: "Ваш обліковий запис успішно видалено. Ви можете створити новий або завершити роботу з системою.",
+      title: window.i18n ? window.i18n.t('profile.accountDeleted') : "Обліковий запис видалено",
+      message: window.i18n ? window.i18n.t('profile.accountDeletedMessage') : "Ваш обліковий запис успішно видалено. Ви можете створити новий або завершити роботу з системою.",
       duration: 8000, // 8 секунд для важливого повідомлення
     });
     
@@ -4225,7 +4264,7 @@ async function handleDeleteAccount() {
     
   } catch (error) {
     // Показуємо помилку в модальному вікні
-    const errorMessage = error.detail || error.message || "Не вдалося видалити обліковий запис. Спробуйте пізніше.";
+    const errorMessage = error.detail || error.message || (window.i18n ? window.i18n.t('profile.deleteAccount.error') : "Не вдалося видалити обліковий запис. Спробуйте пізніше.");
     if (deleteAccountError) {
       deleteAccountError.textContent = errorMessage;
       deleteAccountError.hidden = false;
@@ -4252,8 +4291,8 @@ function handleHistoryTableClick(event) {
       navigateTo("/app");
       showNotification({
         type: "success",
-        title: "Дані завантажено",
-        message: "Дані прогнозу завантажено до форми.",
+        title: window.i18n ? window.i18n.t('history.dataLoaded') : "Дані завантажено",
+        message: window.i18n ? window.i18n.t('history.dataLoadedMessage') : "Дані прогнозу завантажено до форми.",
         duration: 4000,
       });
     }
@@ -4358,7 +4397,7 @@ function showNotification({ type = "info", title, message = "", duration = DEFAU
       <h3 class="notification__title">${escapeHtml(title)}</h3>
       ${message ? `<p class="notification__message">${escapeHtml(message)}</p>` : ""}
     </div>
-    <button type="button" class="notification__close" aria-label="Закрити сповіщення" data-notification-id="${notificationId}">
+    <button type="button" class="notification__close" aria-label="${window.i18n ? window.i18n.t('aria.closeNotification') : 'Закрити сповіщення'}" data-notification-id="${notificationId}">
       <span class="icon" data-lucide="x" aria-hidden="true"></span>
     </button>
   `;
@@ -4650,12 +4689,12 @@ async function fetchMetadata() {
   try {
     const response = await fetch(`${API_BASE}/metadata`);
     if (!response.ok) {
-      throw new Error("Не вдалося отримати метадані");
+      throw new Error(window.i18n ? window.i18n.t('forms.prediction.metadata.loadError') : "Не вдалося отримати метадані");
     }
     metadataCache = await response.json();
     buildFeatureInputs(metadataCache.feature_schema || []);
   } catch (error) {
-    showError(error.message || "Сталася помилка під час завантаження метаданих");
+    showError(error.message || (window.i18n ? window.i18n.t('forms.prediction.metadata.loadErrorDetailed') : "Сталася помилка під час завантаження метаданих"));
   }
 }
 
@@ -4664,7 +4703,8 @@ function createTooltipButton(content, tooltipId) {
   btn.type = "button";
   btn.className = "tooltip-trigger";
   if (tooltipId && TOOLTIP_LIBRARY[tooltipId]) {
-    btn.dataset.tooltip = TOOLTIP_LIBRARY[tooltipId];
+    const tooltipText = tooltipId === "model-help" && window.i18n ? window.i18n.t('tooltips.modelHelp') : TOOLTIP_LIBRARY[tooltipId];
+    btn.dataset.tooltip = tooltipText;
   } else {
     btn.dataset.tooltip = content;
   }
@@ -4697,7 +4737,9 @@ function buildFeatureInputs(schema) {
     label.setAttribute("for", feature.name);
 
     const labelText = document.createElement("span");
-    labelText.textContent = feature.description || feature.name;
+    // Використовуємо локалізовану назву поля, якщо доступна
+    const fieldLabel = window.i18n ? window.i18n.t(`forms.prediction.fields.${feature.name}`) : null;
+    labelText.textContent = fieldLabel || feature.description || feature.name;
 
     const tooltipText = TOOLTIP_TEXTS[feature.name] || "Параметр користувача.";
     const tooltipBtn = createTooltipButton(tooltipText);
@@ -4707,10 +4749,13 @@ function buildFeatureInputs(schema) {
     let inputElement;
     if (feature.name === "RIAGENDR") {
       inputElement = document.createElement("select");
+      const selectText = window.i18n ? window.i18n.t('forms.prediction.gender.select') : 'Оберіть стать';
+      const maleText = window.i18n ? window.i18n.t('forms.prediction.gender.male') : 'Чоловік';
+      const femaleText = window.i18n ? window.i18n.t('forms.prediction.gender.female') : 'Жінка';
       inputElement.innerHTML = `
-        <option value="" disabled selected>Оберіть стать</option>
-        <option value="1">Чоловік</option>
-        <option value="2">Жінка</option>
+        <option value="" disabled selected>${selectText}</option>
+        <option value="1">${maleText}</option>
+        <option value="2">${femaleText}</option>
       `;
     } else {
       inputElement = document.createElement("input");
@@ -4718,7 +4763,8 @@ function buildFeatureInputs(schema) {
       inputElement.step = "any";
       if (typeof feature.min === "number") inputElement.min = feature.min;
       if (typeof feature.max === "number") inputElement.max = feature.max;
-      inputElement.placeholder = feature.hint || "Введіть значення";
+      const placeholderText = window.i18n ? window.i18n.t('forms.prediction.placeholder') : 'Введіть значення';
+      inputElement.placeholder = feature.hint || placeholderText;
     }
 
     inputElement.id = feature.name;
@@ -4731,7 +4777,7 @@ function buildFeatureInputs(schema) {
     if (feature.required) {
       const hint = document.createElement("span");
       hint.className = "form__hint";
-      hint.textContent = "Обов'язкове поле";
+      hint.textContent = window.i18n ? window.i18n.t('forms.prediction.requiredField') : "Обов'язкове поле";
       field.appendChild(hint);
     }
 
@@ -4775,14 +4821,17 @@ function buildFeatureInputs(schema) {
 
 function attachModelTooltip() {
   const modelTooltipBtn = document.querySelector('[data-tooltip-id="model-help"]');
-  if (modelTooltipBtn && TOOLTIP_LIBRARY["model-help"]) {
-    modelTooltipBtn.dataset.tooltip = TOOLTIP_LIBRARY["model-help"];
+  if (modelTooltipBtn) {
+    const tooltipText = window.i18n ? window.i18n.t('tooltips.modelHelp') : TOOLTIP_LIBRARY["model-help"];
+    if (tooltipText) {
+      modelTooltipBtn.dataset.tooltip = tooltipText;
+    }
   }
   refreshIcons();
 }
 
 function showError(message) {
-  errorBox.textContent = message || "Сталася помилка під час запиту. Перевірте введені дані та спробуйте ще раз.";
+  errorBox.textContent = message || (window.i18n ? window.i18n.t('forms.prediction.generalError') : "Сталася помилка під час запиту. Перевірте введені дані та спробуйте ще раз.");
   errorBox.hidden = false;
 }
 
@@ -4847,13 +4896,17 @@ function updateBmiIndicator() {
   }
 
   if (value < 18.5) {
-    updateIndicator(liveIndicators.bmi, "Недостатня вага", "warning");
+    const text = window.i18n ? window.i18n.t('forms.indicators.bmi.underweight') : "Недостатня вага";
+    updateIndicator(liveIndicators.bmi, text, "warning");
   } else if (value < 25) {
-    updateIndicator(liveIndicators.bmi, "Норма", "normal");
+    const text = window.i18n ? window.i18n.t('forms.indicators.bmi.normal') : "Норма";
+    updateIndicator(liveIndicators.bmi, text, "normal");
   } else if (value < 30) {
-    updateIndicator(liveIndicators.bmi, "Надмірна вага", "warning");
+    const text = window.i18n ? window.i18n.t('forms.indicators.bmi.overweight') : "Надмірна вага";
+    updateIndicator(liveIndicators.bmi, text, "warning");
   } else {
-    updateIndicator(liveIndicators.bmi, "Ожиріння", "danger");
+    const text = window.i18n ? window.i18n.t('forms.indicators.bmi.obesity') : "Ожиріння";
+    updateIndicator(liveIndicators.bmi, text, "danger");
   }
 }
 
@@ -4867,11 +4920,14 @@ function updateGlucoseIndicator() {
   }
 
   if (value < 100) {
-    updateIndicator(liveIndicators.glucose, "Норма", "normal");
+    const text = window.i18n ? window.i18n.t('forms.indicators.glucose.normal') : "Норма";
+    updateIndicator(liveIndicators.glucose, text, "normal");
   } else if (value < 126) {
-    updateIndicator(liveIndicators.glucose, "Підвищена (переддіабет)", "warning");
+    const text = window.i18n ? window.i18n.t('forms.indicators.glucose.prediabetes') : "Підвищена (переддіабет)";
+    updateIndicator(liveIndicators.glucose, text, "warning");
   } else {
-    updateIndicator(liveIndicators.glucose, "Можливий діабет", "danger");
+    const text = window.i18n ? window.i18n.t('forms.indicators.glucose.diabetes') : "Можливий діабет";
+    updateIndicator(liveIndicators.glucose, text, "danger");
   }
 }
 
@@ -4886,11 +4942,14 @@ function updateBpIndicator() {
   }
 
   if (systolic < 120 && diastolic < 80) {
-    updateIndicator(liveIndicators.bp, "Норма", "normal");
+    const text = window.i18n ? window.i18n.t('forms.indicators.bp.normal') : "Норма";
+    updateIndicator(liveIndicators.bp, text, "normal");
   } else if (systolic >= 140 || diastolic >= 90) {
-    updateIndicator(liveIndicators.bp, "Гіпертонія", "danger");
+    const text = window.i18n ? window.i18n.t('forms.indicators.bp.hypertension') : "Гіпертонія";
+    updateIndicator(liveIndicators.bp, text, "danger");
   } else {
-    updateIndicator(liveIndicators.bp, "Передгіпертонія", "warning");
+    const text = window.i18n ? window.i18n.t('forms.indicators.bp.prehypertension') : "Передгіпертонія";
+    updateIndicator(liveIndicators.bp, text, "warning");
   }
 }
 
@@ -4970,11 +5029,14 @@ function renderFactors(factors) {
               const info = factorInfo[rawFeatureName] ?? {};
               const lines = [];
               lines.push(info.name ?? context.label);
-              lines.push(`Технічна назва: ${rawFeatureName}`);
+              const technicalNameText = window.i18n ? window.i18n.t('charts.tooltip.technicalName', { name: rawFeatureName }) : `Технічна назва: ${rawFeatureName}`;
+              lines.push(technicalNameText);
               if (info.desc) {
-                lines.push(`Пояснення: ${info.desc}`);
+                const explanationText = window.i18n ? window.i18n.t('charts.tooltip.explanation', { desc: info.desc }) : `Пояснення: ${info.desc}`;
+                lines.push(explanationText);
               }
-              lines.push(`Вплив: ${context.parsed.y.toFixed(3)}`);
+              const influenceText = window.i18n ? window.i18n.t('charts.tooltip.influenceValue', { value: context.parsed.y.toFixed(3) }) : `Вплив: ${context.parsed.y.toFixed(3)}`;
+              lines.push(influenceText);
               return lines;
             },
           },
@@ -5080,7 +5142,7 @@ async function checkApiStatus() {
   try {
     const response = await fetch(`${API_BASE}/health`, { signal: controller.signal });
     if (!response.ok) {
-      throw new Error("Статус API недоступний");
+      throw new Error(window.i18n ? window.i18n.t('apiStatus.status.apiUnavailable') : "Статус API недоступний");
     }
     setApiStatus(true);
   } catch (error) {
@@ -5295,12 +5357,12 @@ function generateStatusTimeline(history) {
     });
     
     let status = 'operational'; // operational, degraded, down
-    let statusText = 'Працює нормально';
+    let statusText = window.i18n ? window.i18n.t('apiStatus.status.operational') : 'Працює нормально';
     let latency = null;
     
     if (dayRecords.length === 0) {
       status = 'operational';
-      statusText = 'Немає даних';
+      statusText = window.i18n ? window.i18n.t('apiStatus.status.noData') : 'Немає даних';
     } else {
       // Визначаємо статус на основі записів
       const hasErrors = dayRecords.some(r => !r.isOnline || r.error);
@@ -5308,13 +5370,13 @@ function generateStatusTimeline(history) {
       
       if (hasErrors) {
         status = 'down';
-        statusText = 'Недоступно';
+        statusText = window.i18n ? window.i18n.t('apiStatus.status.unavailable') : 'Недоступно';
       } else if (hasHighLatency) {
         status = 'degraded';
-        statusText = 'Погіршена продуктивність';
+        statusText = window.i18n ? window.i18n.t('apiStatus.status.degraded') : 'Погіршена продуктивність';
       } else {
         status = 'operational';
-        statusText = 'Працює нормально';
+        statusText = window.i18n ? window.i18n.t('apiStatus.status.operational') : 'Працює нормально';
       }
       
       // Середня latency
@@ -5355,7 +5417,20 @@ function formatDateRange(segments) {
   const first = segments[0].date; // Найстаріша дата
   const last = segments[segments.length - 1].date; // Найновіша дата
   
-  const months = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
+  const months = window.i18n ? [
+    window.i18n.t('date.months.short.jan'),
+    window.i18n.t('date.months.short.feb'),
+    window.i18n.t('date.months.short.mar'),
+    window.i18n.t('date.months.short.apr'),
+    window.i18n.t('date.months.short.may'),
+    window.i18n.t('date.months.short.jun'),
+    window.i18n.t('date.months.short.jul'),
+    window.i18n.t('date.months.short.aug'),
+    window.i18n.t('date.months.short.sep'),
+    window.i18n.t('date.months.short.oct'),
+    window.i18n.t('date.months.short.nov'),
+    window.i18n.t('date.months.short.dec')
+  ] : ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
   
   const currentDays = getCurrentDateRangeDays();
   
@@ -5420,20 +5495,20 @@ function formatDateRange(segments) {
 function getRangeLabel() {
   if (currentDateRange.type === 'custom') {
     if (!currentDateRange.startDate || !currentDateRange.endDate) {
-      return '3 місяці';
+      return window.i18n ? window.i18n.t('apiStatus.system.statusOverview.dateRange.months3') : '3 місяці';
     }
-    return 'Кастомний';
+    return window.i18n ? window.i18n.t('apiStatus.system.statusOverview.dateRange.custom') : 'Кастомний';
   }
   
   const days = currentDateRange.days || 90;
-  if (days === 1) return 'День';
-  if (days === 3) return '3 дні';
-  if (days === 7) return 'Тиждень';
-  if (days === 14) return '2 тижні';
-  if (days === 30) return 'Місяць';
-  if (days === 60) return '2 місяці';
-  if (days === 90) return '3 місяці';
-  return `${days} днів`;
+  if (days === 1) return window.i18n ? window.i18n.t('apiStatus.system.statusOverview.dateRange.day') : 'День';
+  if (days === 3) return window.i18n ? window.i18n.t('apiStatus.system.statusOverview.dateRange.days3') : '3 дні';
+  if (days === 7) return window.i18n ? window.i18n.t('apiStatus.system.statusOverview.dateRange.week') : 'Тиждень';
+  if (days === 14) return window.i18n ? window.i18n.t('apiStatus.system.statusOverview.dateRange.weeks2') : '2 тижні';
+  if (days === 30) return window.i18n ? window.i18n.t('apiStatus.system.statusOverview.dateRange.month') : 'Місяць';
+  if (days === 60) return window.i18n ? window.i18n.t('apiStatus.system.statusOverview.dateRange.months2') : '2 місяці';
+  if (days === 90) return window.i18n ? window.i18n.t('apiStatus.system.statusOverview.dateRange.months3') : '3 місяці';
+  return window.i18n ? window.i18n.t('apiStatus.dateRange.days', { count: days }) : `${days} днів`;
 }
 
 function updateRangeLabel() {
@@ -5561,7 +5636,7 @@ function renderSystemStatusOverview() {
       ]
     },
     {
-      name: 'База даних',
+      name: window.i18n ? window.i18n.t('apiStatus.services.database') : 'База даних',
       icon: 'database',
       components: 5,
       segments: dbSegments,
@@ -5586,13 +5661,19 @@ function renderSystemStatusOverview() {
     banner.className = `system-status-overview__banner system-status-overview__banner--${overallStatus}`;
     
     if (overallStatus === 'operational') {
-      bannerText.innerHTML = '<strong>Всі системи працюють нормально</strong><span>Ми не виявили жодних проблем, що впливають на наші системи.</span>';
+      const allSystemsText = window.i18n ? window.i18n.t('apiStatus.status.allSystemsOperational') : 'Всі системи працюють нормально';
+      const allSystemsMessage = window.i18n ? window.i18n.t('apiStatus.status.allSystemsOperationalMessage') : 'Ми не виявили жодних проблем, що впливають на наші системи.';
+      bannerText.innerHTML = `<strong>${allSystemsText}</strong><span>${allSystemsMessage}</span>`;
       if (bannerIcon) bannerIcon.setAttribute('data-lucide', 'check-circle-2');
     } else if (overallStatus === 'degraded') {
-      bannerText.innerHTML = '<strong>Деякі системи працюють з обмеженнями</strong><span>Ми виявили проблеми з продуктивністю в деяких системах.</span>';
+      const degradedText = window.i18n ? window.i18n.t('apiStatus.status.someSystemsDegraded') : 'Деякі системи працюють з обмеженнями';
+      const degradedMessage = window.i18n ? window.i18n.t('apiStatus.status.someSystemsDegradedMessage') : 'Ми виявили проблеми з продуктивністю в деяких системах.';
+      bannerText.innerHTML = `<strong>${degradedText}</strong><span>${degradedMessage}</span>`;
       if (bannerIcon) bannerIcon.setAttribute('data-lucide', 'alert-triangle');
     } else {
-      bannerText.innerHTML = '<strong>Деякі системи недоступні</strong><span>Ми виявили проблеми, що впливають на наші системи.</span>';
+      const unavailableText = window.i18n ? window.i18n.t('apiStatus.status.someSystemsUnavailable') : 'Деякі системи недоступні';
+      const unavailableMessage = window.i18n ? window.i18n.t('apiStatus.status.someSystemsUnavailableMessage') : 'Ми виявили проблеми, що впливають на наші системи.';
+      bannerText.innerHTML = `<strong>${unavailableText}</strong><span>${unavailableMessage}</span>`;
       if (bannerIcon) bannerIcon.setAttribute('data-lucide', 'x-circle');
     }
     
@@ -5625,7 +5706,7 @@ function renderSystemStatusOverview() {
             <div class="system-status-tooltip__date">${dateStr}</div>
             <div class="system-status-tooltip__status">${segment.statusText}</div>
             ${segment.latency ? `<div class="system-status-tooltip__status">Latency: ${segment.latency}ms</div>` : ''}
-            ${segment.recordsCount > 0 ? `<div class="system-status-tooltip__status">Записів: ${segment.recordsCount}</div>` : ''}
+            ${segment.recordsCount > 0 ? `<div class="system-status-tooltip__status">${window.i18n ? window.i18n.t('apiStatus.status.records', { count: segment.recordsCount }) : `Записів: ${segment.recordsCount}`}</div>` : ''}
             <div class="system-status-tooltip__arrow"></div>
           </div>
         </div>
@@ -5839,7 +5920,7 @@ function initializeSystemStatusOverview() {
           const toValue = datePickerTo.value;
           
           if (!fromValue || !toValue) {
-            alert('Будь ласка, оберіть обидві дати');
+            alert(window.i18n ? window.i18n.t('apiStatus.dateRange.selectBothDates') : 'Будь ласка, оберіть обидві дати');
             return;
           }
           
@@ -5847,7 +5928,7 @@ function initializeSystemStatusOverview() {
           const toDate = new Date(toValue);
           
           if (fromDate.getTime() > toDate.getTime()) {
-            alert('Дата "Від" повинна бути раніше дати "До"');
+            alert(window.i18n ? window.i18n.t('apiStatus.dateRange.fromBeforeTo') : 'Дата "Від" повинна бути раніше дати "До"');
             return;
           }
           
@@ -5961,17 +6042,32 @@ const ROUTE_DETAILED_DESCRIPTIONS = {
 };
 
 function getRouteDescription(path) {
+  // Функція для генерації ключа з шляху
+  const pathToKey = (p) => {
+    return p.replace(/\//g, '_').replace(/\{|\}/g, '').replace(/-/g, '_').replace(/^_/, '');
+  };
+  
   // Перевіряємо точний збіг
   if (ROUTE_DESCRIPTIONS[path]) {
-    return ROUTE_DESCRIPTIONS[path];
+    const key = `apiStatus.routes.descriptions.${pathToKey(path)}`;
+    return window.i18n ? (window.i18n.t(key) !== key ? window.i18n.t(key) : ROUTE_DESCRIPTIONS[path]) : ROUTE_DESCRIPTIONS[path];
   }
   // Перевіряємо префікси
   for (const [route, desc] of Object.entries(ROUTE_DESCRIPTIONS)) {
-    if (path.startsWith(route.replace("{chat_uuid}", ""))) {
-      return desc;
+    if (path.startsWith(route.replace("{chat_uuid}", "").replace("{user_id}", "").replace("{prediction_id}", ""))) {
+      const key = `apiStatus.routes.descriptions.${pathToKey(route)}`;
+      return window.i18n ? (window.i18n.t(key) !== key ? window.i18n.t(key) : desc) : desc;
     }
   }
   // Генеруємо опис на основі path
+  if (window.i18n) {
+    if (path.startsWith("/auth")) return window.i18n.t('apiStatus.routes.prefixes.auth');
+    if (path.startsWith("/users")) return window.i18n.t('apiStatus.routes.prefixes.users');
+    if (path.startsWith("/assistant")) return window.i18n.t('apiStatus.routes.prefixes.assistant');
+    if (path.startsWith("/api/chats")) return window.i18n.t('apiStatus.routes.prefixes.chats');
+    if (path.startsWith("/predict")) return window.i18n.t('apiStatus.routes.prefixes.predict');
+    return window.i18n.t('apiStatus.routes.prefixes.default');
+  }
   if (path.startsWith("/auth")) return "Автентифікація";
   if (path.startsWith("/users")) return "Управління користувачами";
   if (path.startsWith("/assistant")) return "AI-асистент";
@@ -6006,14 +6102,33 @@ function showRouteDetails(routeData) {
   // Формуємо контент модального вікна
   let html = '';
   
+  // Функція для генерації ключа з шляху
+  const pathToKey = (p) => {
+    return p.replace(/\//g, '_').replace(/\{|\}/g, '').replace(/-/g, '_').replace(/^_/, '');
+  };
+  
   // Опис/Summary - використовуємо детальний опис якщо є, інакше summary або description
   let detailedDescription = ROUTE_DETAILED_DESCRIPTIONS[routeData.path];
+  if (window.i18n && detailedDescription) {
+    const key = `apiStatus.routes.detailed.${pathToKey(routeData.path)}`;
+    const localized = window.i18n.t(key);
+    if (localized !== key) {
+      detailedDescription = localized;
+    }
+  }
   
   // Якщо немає точного збігу, шукаємо по префіксу (для динамічних маршрутів)
   if (!detailedDescription) {
     for (const [route, desc] of Object.entries(ROUTE_DETAILED_DESCRIPTIONS)) {
       if (routeData.path.startsWith(route.replace("{chat_uuid}", "").replace("{user_id}", "").replace("{prediction_id}", ""))) {
         detailedDescription = desc;
+        if (window.i18n) {
+          const key = `apiStatus.routes.detailed.${pathToKey(route)}`;
+          const localized = window.i18n.t(key);
+          if (localized !== key) {
+            detailedDescription = localized;
+          }
+        }
         break;
       }
     }
@@ -6024,7 +6139,7 @@ function showRouteDetails(routeData) {
   
   html += `
     <div class="api-route-detail-section">
-      <h3 class="api-route-detail-section__title">Опис</h3>
+      <h3 class="api-route-detail-section__title">${window.i18n ? window.i18n.t('apiStatus.routes.description') : 'Опис'}</h3>
       <p class="api-route-detail-section__content">${finalDescription}</p>
     </div>
   `;
@@ -6037,7 +6152,7 @@ function showRouteDetails(routeData) {
     }).join(' ');
     html += `
       <div class="api-route-detail-section">
-        <h3 class="api-route-detail-section__title">HTTP Методи</h3>
+        <h3 class="api-route-detail-section__title">${window.i18n ? window.i18n.t('apiStatus.routes.httpMethods') : 'HTTP Методи'}</h3>
         <div class="api-route-detail-section__content">${methodBadges}</div>
       </div>
     `;
@@ -6046,7 +6161,7 @@ function showRouteDetails(routeData) {
   // Шлях
   html += `
     <div class="api-route-detail-section">
-      <h3 class="api-route-detail-section__title">Шлях</h3>
+      <h3 class="api-route-detail-section__title">${window.i18n ? window.i18n.t('apiStatus.routes.path') : 'Шлях'}</h3>
       <div class="api-route-detail-section__content">
         <code class="api-route-detail-code">${routeData.path}</code>
       </div>
@@ -6057,7 +6172,7 @@ function showRouteDetails(routeData) {
   const fullUrl = `${window.location.origin}${API_BASE}${routeData.path}`;
   html += `
     <div class="api-route-detail-section">
-      <h3 class="api-route-detail-section__title">Повний URL</h3>
+      <h3 class="api-route-detail-section__title">${window.i18n ? window.i18n.t('apiStatus.routes.fullUrl') : 'Повний URL'}</h3>
       <div class="api-route-detail-section__content">
         <code class="api-route-detail-code">${fullUrl}</code>
       </div>
@@ -6069,7 +6184,7 @@ function showRouteDetails(routeData) {
     const tags = routeData.tags.map(tag => `<span class="api-route-tag">${tag}</span>`).join('');
     html += `
       <div class="api-route-detail-section">
-        <h3 class="api-route-detail-section__title">Теги</h3>
+        <h3 class="api-route-detail-section__title">${window.i18n ? window.i18n.t('apiStatus.routes.tags') : 'Теги'}</h3>
         <div class="api-route-detail-section__content">${tags}</div>
       </div>
     `;
@@ -6082,19 +6197,19 @@ function showRouteDetails(routeData) {
       paramsHtml += `
         <div class="api-route-param">
           <div class="api-route-param__header">
-            <code class="api-route-param__name">${param.name || 'N/A'}</code>
+            <code class="api-route-param__name">${param.name || (window.i18n ? window.i18n.t('forms.common.na') : 'N/A')}</code>
             <span class="api-route-param__in">${param.in || 'query'}</span>
-            ${param.required ? '<span class="api-route-param__required">Обов\'язковий</span>' : ''}
+            ${param.required ? `<span class="api-route-param__required">${window.i18n ? window.i18n.t('apiStatus.routes.required') : 'Обов\'язковий'}</span>` : ''}
           </div>
           ${param.description ? `<p class="api-route-param__description">${param.description}</p>` : ''}
-          ${param.schema ? `<div class="api-route-param__type">Тип: <code>${param.schema.type || 'string'}</code></div>` : ''}
+          ${param.schema ? `<div class="api-route-param__type">${window.i18n ? window.i18n.t('apiStatus.routes.type') : 'Тип'}: <code>${param.schema.type || 'string'}</code></div>` : ''}
         </div>
       `;
     });
     paramsHtml += '</div>';
     html += `
       <div class="api-route-detail-section">
-        <h3 class="api-route-detail-section__title">Параметри</h3>
+        <h3 class="api-route-detail-section__title">${window.i18n ? window.i18n.t('apiStatus.routes.parameters') : 'Параметри'}</h3>
         <div class="api-route-detail-section__content">${paramsHtml}</div>
       </div>
     `;
@@ -6112,7 +6227,7 @@ function showRouteDetails(routeData) {
         bodyHtml += `
           <div class="api-route-content-type">
             <strong>Content-Type:</strong> <code>${contentType}</code>
-            ${schema.schema ? `<div class="api-route-schema">Схема: <pre><code>${JSON.stringify(schema.schema, null, 2)}</code></pre></div>` : ''}
+            ${schema.schema ? `<div class="api-route-schema">${window.i18n ? window.i18n.t('apiStatus.routes.schema') : 'Схема'}: <pre><code>${JSON.stringify(schema.schema, null, 2)}</code></pre></div>` : ''}
           </div>
         `;
       });
@@ -6120,7 +6235,7 @@ function showRouteDetails(routeData) {
     }
     html += `
       <div class="api-route-detail-section">
-        <h3 class="api-route-detail-section__title">Тіло запиту</h3>
+        <h3 class="api-route-detail-section__title">${window.i18n ? window.i18n.t('apiStatus.routes.requestBody') : 'Тіло запиту'}</h3>
         <div class="api-route-detail-section__content">${bodyHtml}</div>
       </div>
     `;
@@ -6142,7 +6257,7 @@ function showRouteDetails(routeData) {
     responsesHtml += '</div>';
     html += `
       <div class="api-route-detail-section">
-        <h3 class="api-route-detail-section__title">Відповіді</h3>
+        <h3 class="api-route-detail-section__title">${window.i18n ? window.i18n.t('apiStatus.routes.responses') : 'Відповіді'}</h3>
         <div class="api-route-detail-section__content">${responsesHtml}</div>
       </div>
     `;
@@ -6246,7 +6361,7 @@ async function checkOllamaStatusWithLatency() {
     return {
       isOnline: false,
       latency,
-      error: error.message || "Ollama недоступна",
+      error: error.message || (window.i18n ? window.i18n.t('apiStatus.ollama.unavailable') : "Ollama недоступна"),
       timestamp: new Date(),
     };
   } finally {
@@ -6282,7 +6397,8 @@ function startDbDotsAnimation() {
   }
   
   // Встановлюємо початковий текст з 1 крапкою
-  dbStatusTextEl.textContent = "Перевірка.";
+  const checkingText = window.i18n ? window.i18n.t('apiStatus.checking') : "Перевірка";
+  dbStatusTextEl.textContent = `${checkingText}.`;
   
   let dotCount = 1; // Починаємо з 1 крапки
   dbDotsAnimationInterval = setInterval(() => {
@@ -6318,10 +6434,11 @@ function startDbDotsAnimation() {
     }
     
     // Перевіряємо, чи текст все ще містить "Перевірка"
-    if (dbStatusTextEl.textContent.includes("Перевірка")) {
+    const checkingText = window.i18n ? window.i18n.t('apiStatus.checking') : "Перевірка";
+    if (dbStatusTextEl.textContent.includes(checkingText)) {
       dotCount = (dotCount % 3) + 1; // 1, 2, 3 -> ., .., ...
       const dots = ".".repeat(dotCount);
-      dbStatusTextEl.textContent = `Перевірка${dots}`;
+      dbStatusTextEl.textContent = `${checkingText}${dots}`;
     } else {
       // Якщо текст змінився, зупиняємо анімацію
       clearInterval(dbDotsAnimationInterval);
@@ -6422,7 +6539,7 @@ function updateApiResponseTimeChart() {
       labels,
       datasets: [
         {
-          label: "Час відгуку (ms)",
+          label: window.i18n ? window.i18n.t('charts.responseTime') : "Час відгуку (ms)",
           data,
           borderColor: "rgba(116, 137, 255, 0.8)",
           backgroundColor: "rgba(116, 137, 255, 0.1)",
@@ -6503,7 +6620,7 @@ function updateOllamaResponseTimeChart() {
       labels,
       datasets: [
         {
-          label: "Час відгуку (ms)",
+          label: window.i18n ? window.i18n.t('charts.responseTime') : "Час відгуку (ms)",
           data,
           borderColor: "rgba(63, 194, 114, 0.8)",
           backgroundColor: "rgba(63, 194, 114, 0.1)",
@@ -6564,6 +6681,8 @@ async function initializeApiStatusPage() {
   
   // Функція для оновлення інтерфейсу API
   const updateApiStatusUI = (result) => {
+    // Зберігаємо результат для оновлення при зміні мови
+    window.lastApiStatusResult = result;
     if (!statusDot || !statusText) return;
     
     statusDot.classList.remove("status-dot--ok", "status-dot--fail");
@@ -6589,7 +6708,7 @@ async function initializeApiStatusPage() {
     
     if (result.isOnline) {
       statusDot.classList.add("status-dot--ok");
-      statusText.textContent = "API працює стабільно";
+      statusText.textContent = window.i18n ? window.i18n.t('apiStatus.api.stable') : "API працює стабільно";
       if (statusBadge) {
         statusBadge.classList.add("status-badge--online");
         statusBadge.textContent = "Online";
@@ -6647,7 +6766,8 @@ async function initializeApiStatusPage() {
             `;
           })
           .join("");
-        routesTableBody.innerHTML = routes || '<tr><td colspan="4" class="api-status-page__empty">Немає доступних маршрутів</td></tr>';
+        const noRoutesText = window.i18n ? window.i18n.t('apiStatus.routes.noRoutes') : 'Немає доступних маршрутів';
+        routesTableBody.innerHTML = routes || `<tr><td colspan="4" class="api-status-page__empty">${noRoutesText}</td></tr>`;
         refreshIcons();
         
         // Додаємо обробники кліку на рядки таблиці
@@ -6667,7 +6787,7 @@ async function initializeApiStatusPage() {
       }
     } else {
       statusDot.classList.add("status-dot--fail");
-      statusText.textContent = "API недоступне";
+      statusText.textContent = window.i18n ? window.i18n.t('apiStatus.status.apiUnavailable') : "API недоступне";
       if (statusBadge) {
         statusBadge.classList.add("status-badge--offline");
         statusBadge.textContent = "Offline";
@@ -6679,7 +6799,8 @@ async function initializeApiStatusPage() {
       if (totalRoutesEl) totalRoutesEl.textContent = "—";
       if (mainEndpointsEl) mainEndpointsEl.textContent = "—";
       if (routesTableBody) {
-        routesTableBody.innerHTML = '<tr><td colspan="4" class="api-status-page__empty">API недоступне. Перевірте підключення.</td></tr>';
+        const apiUnavailableMessage = window.i18n ? window.i18n.t('apiStatus.status.apiUnavailableMessage') : 'API недоступне. Перевірте підключення.';
+        routesTableBody.innerHTML = `<tr><td colspan="4" class="api-status-page__empty">${apiUnavailableMessage}</td></tr>`;
       }
     }
     
@@ -6699,14 +6820,16 @@ async function initializeApiStatusPage() {
   if (refreshBtn) {
     refreshBtn.onclick = async () => {
       refreshBtn.disabled = true;
-      refreshBtn.innerHTML = '<span class="icon" data-lucide="loader-2"></span><span>Перевірка...</span>';
+      const checkingText = window.i18n ? window.i18n.t('apiStatus.checkingWithDots') : "Перевірка...";
+      refreshBtn.innerHTML = `<span class="icon" data-lucide="loader-2"></span><span>${checkingText}</span>`;
       refreshIcons();
       
       const result = await checkApiStatusWithLatency();
       updateApiStatusUI(result);
       
       refreshBtn.disabled = false;
-      refreshBtn.innerHTML = '<span class="icon" data-lucide="refresh-cw"></span><span>Перевірити знову</span>';
+      const refreshText = window.i18n ? window.i18n.t('apiStatus.refresh') : "Перевірити знову";
+      refreshBtn.innerHTML = `<span class="icon" data-lucide="refresh-cw"></span><span>${refreshText}</span>`;
       refreshIcons();
     };
   }
@@ -6730,7 +6853,8 @@ async function initializeApiStatusPage() {
     
     // Встановлюємо початковий текст з 1 крапкою
     if (ollamaStatusText) {
-      ollamaStatusText.textContent = "Перевірка.";
+      const checkingText = window.i18n ? window.i18n.t('apiStatus.ollama.status.checking') : "Перевірка";
+      ollamaStatusText.textContent = `${checkingText}.`;
     }
     
     let dotCount = 1; // Починаємо з 1 крапки
@@ -6742,10 +6866,11 @@ async function initializeApiStatusPage() {
       }
       
       // Перевіряємо, чи текст все ще містить "Перевірка"
-      if (ollamaStatusText.textContent.includes("Перевірка")) {
+      const checkingText = window.i18n ? window.i18n.t('apiStatus.ollama.status.checking') : "Перевірка";
+      if (ollamaStatusText.textContent.includes(checkingText)) {
         dotCount = (dotCount % 3) + 1; // 1, 2, 3 -> ., .., ...
         const dots = ".".repeat(dotCount);
-        ollamaStatusText.textContent = `Перевірка${dots}`;
+        ollamaStatusText.textContent = `${checkingText}${dots}`;
       } else {
         // Якщо текст змінився, зупиняємо анімацію
         clearInterval(ollamaDotsAnimationInterval);
@@ -6789,7 +6914,7 @@ async function initializeApiStatusPage() {
     
     if (result.isOnline) {
       ollamaStatusDot.classList.add("status-dot--ok");
-      ollamaStatusText.textContent = "Ollama працює стабільно";
+      ollamaStatusText.textContent = window.i18n ? window.i18n.t('apiStatus.ollama.stable') : "Ollama працює стабільно";
       if (ollamaStatusBadge) {
         ollamaStatusBadge.classList.add("status-badge--online");
         ollamaStatusBadge.textContent = "Online";
@@ -6800,7 +6925,7 @@ async function initializeApiStatusPage() {
       }
     } else {
       ollamaStatusDot.classList.add("status-dot--fail");
-      ollamaStatusText.textContent = "Ollama недоступна";
+      ollamaStatusText.textContent = window.i18n ? window.i18n.t('apiStatus.ollama.unavailable') : "Ollama недоступна";
       if (ollamaStatusBadge) {
         ollamaStatusBadge.classList.add("status-badge--offline");
         ollamaStatusBadge.textContent = "Offline";
@@ -6824,12 +6949,14 @@ async function initializeApiStatusPage() {
   if (ollamaRefreshBtn) {
     ollamaRefreshBtn.onclick = async () => {
       ollamaRefreshBtn.disabled = true;
-      ollamaRefreshBtn.innerHTML = '<span class="icon" data-lucide="loader-2"></span><span>Перевірка...</span>';
+      const checkingText = window.i18n ? window.i18n.t('apiStatus.checkingWithDots') : "Перевірка...";
+      ollamaRefreshBtn.innerHTML = `<span class="icon" data-lucide="loader-2"></span><span>${checkingText}</span>`;
       refreshIcons();
       
       // Запускаємо анімацію крапочок
       if (ollamaStatusText) {
-        ollamaStatusText.textContent = "Перевірка";
+        const checkingTextShort = window.i18n ? window.i18n.t('apiStatus.ollama.status.checking') : "Перевірка";
+        ollamaStatusText.textContent = checkingTextShort;
         startOllamaDotsAnimation();
       }
       
@@ -6837,7 +6964,8 @@ async function initializeApiStatusPage() {
       updateOllamaStatusUI(result);
       
       ollamaRefreshBtn.disabled = false;
-      ollamaRefreshBtn.innerHTML = '<span class="icon" data-lucide="refresh-cw"></span><span>Перевірити Ollama</span>';
+      const refreshOllamaText = window.i18n ? window.i18n.t('apiStatus.ollama.refresh') : "Перевірити Ollama";
+      ollamaRefreshBtn.innerHTML = `<span class="icon" data-lucide="refresh-cw"></span><span>${refreshOllamaText}</span>`;
       refreshIcons();
     };
   }
@@ -6866,7 +6994,15 @@ async function initializeApiStatusPage() {
     
     // Створюємо квадратики для кожного дня
     const days = Object.keys(activityData).sort();
-    const dayLabels = ["Неділя", "Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця", "Субота"];
+    const dayLabels = window.i18n ? [
+      window.i18n.t('date.daysOfWeek.sun'),
+      window.i18n.t('date.daysOfWeek.mon'),
+      window.i18n.t('date.daysOfWeek.tue'),
+      window.i18n.t('date.daysOfWeek.wed'),
+      window.i18n.t('date.daysOfWeek.thu'),
+      window.i18n.t('date.daysOfWeek.fri'),
+      window.i18n.t('date.daysOfWeek.sat')
+    ] : ["Неділя", "Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця", "Субота"];
     
     dbActivityHeatmap.innerHTML = days.map((day, index) => {
       const activity = activityData[day] || 0;
@@ -6881,7 +7017,7 @@ async function initializeApiStatusPage() {
              data-level="${level}" 
              data-activity="${activity}"
              data-date="${day}"
-             title="${dayName}, ${formattedDate}: ${activity} ${activity === 1 ? 'запис' : activity < 5 ? 'записи' : 'записів'}">
+             title="${dayName}, ${formattedDate}: ${activity} ${window.i18n ? (activity === 1 ? window.i18n.t('apiStatus.db.record') : activity < 5 ? window.i18n.t('apiStatus.db.records') : window.i18n.t('apiStatus.db.recordsGenitive')) : (activity === 1 ? 'запис' : activity < 5 ? 'записи' : 'записів')}">
         </div>
       `;
     }).join("");
@@ -6976,13 +7112,13 @@ async function initializeApiStatusPage() {
           dbStatusDot.classList.remove("status-dot--ok", "status-dot--fail");
           dbStatusDot.classList.add("status-dot--ok");
         }
-        if (dbStatusText) dbStatusText.textContent = "База даних доступна";
+        if (dbStatusText) dbStatusText.textContent = window.i18n ? window.i18n.t('apiStatus.db.status.available') : "База даних доступна";
         if (dbStatusBadge) {
           dbStatusBadge.classList.remove("status-badge--online", "status-badge--offline", "status-badge--degraded");
           dbStatusBadge.classList.add("status-badge--online");
           dbStatusBadge.textContent = "Online";
         }
-        if (dbConnectionStatus) dbConnectionStatus.textContent = "Підключено";
+        if (dbConnectionStatus) dbConnectionStatus.textContent = window.i18n ? window.i18n.t('apiStatus.db.status.connected') : "Підключено";
         
         // Завантажуємо статистику БД (використовуємо вже отримані дані)
         await loadDatabaseStats(data);
@@ -7005,13 +7141,13 @@ async function initializeApiStatusPage() {
           dbStatusDot.classList.remove("status-dot--ok", "status-dot--fail");
           dbStatusDot.classList.add("status-dot--fail");
         }
-        if (dbStatusText) dbStatusText.textContent = "База даних недоступна";
+        if (dbStatusText) dbStatusText.textContent = window.i18n ? window.i18n.t('apiStatus.db.status.unavailable') : "База даних недоступна";
         if (dbStatusBadge) {
           dbStatusBadge.classList.remove("status-badge--online", "status-badge--offline", "status-badge--degraded");
           dbStatusBadge.classList.add("status-badge--offline");
           dbStatusBadge.textContent = "Offline";
         }
-        if (dbConnectionStatus) dbConnectionStatus.textContent = "Помилка підключення";
+        if (dbConnectionStatus) dbConnectionStatus.textContent = window.i18n ? window.i18n.t('apiStatus.db.status.connectionError') : "Помилка підключення";
       } finally {
         clearTimeout(timeoutId);
         stopDbDotsAnimation();
@@ -7040,7 +7176,7 @@ async function initializeApiStatusPage() {
   
   // Запускаємо анімацію крапочок перед перевіркою Ollama
   if (ollamaStatusText) {
-    ollamaStatusText.textContent = "Перевірка";
+    ollamaStatusText.textContent = window.i18n ? window.i18n.t('forms.common.checking') : "Перевірка";
     startOllamaDotsAnimation();
   }
   
@@ -7081,6 +7217,71 @@ function initializeApiStatus() {
     if (typeof updateProfileSection === 'function') {
       updateProfileSection();
     }
+    // Rebuild form fields with new language
+    if (metadataCache && metadataCache.feature_schema && typeof buildFeatureInputs === 'function') {
+      buildFeatureInputs(metadataCache.feature_schema);
+    }
+    // Update button texts with new language
+    if (submitButton) {
+      if (submitButton.disabled) {
+        submitButton.textContent = window.i18n ? window.i18n.t('forms.prediction.processing') : "Обробка...";
+      } else {
+        submitButton.textContent = window.i18n ? window.i18n.t('forms.prediction.submit') : "Розрахувати ризик";
+      }
+    }
+    if (demoButton) {
+      const complete = typeof isPredictionFormComplete === 'function' ? isPredictionFormComplete() : false;
+      if (complete && demoUsed) {
+        demoButton.textContent = window.i18n ? window.i18n.t('forms.prediction.demoRefill') : "Перезаповнити ще раз";
+      } else {
+        demoButton.textContent = window.i18n ? window.i18n.t('forms.prediction.demo') : "Заповнити випадкові дані";
+      }
+    }
+    // Update API routes table with new language
+    const routesTableBody = document.getElementById('api-status-page-routes');
+    if (routesTableBody && window.lastApiStatusResult) {
+      // Оновлюємо описи в таблиці маршрутів
+      const routeRows = routesTableBody.querySelectorAll('.api-route-row');
+      routeRows.forEach(row => {
+        const routeDataStr = row.getAttribute('data-route');
+        if (routeDataStr) {
+          try {
+            const routeData = JSON.parse(routeDataStr.replace(/&quot;/g, '"'));
+            const description = getRouteDescription(routeData.path);
+            const descCell = row.querySelector('td:nth-child(3)');
+            if (descCell) {
+              descCell.textContent = description;
+            }
+          } catch (e) {
+            console.warn('Failed to update route description:', e);
+          }
+        }
+      });
+    }
+    // Update system status overview date range label and preset buttons
+    if (typeof updateRangeLabel === 'function') {
+      updateRangeLabel();
+    }
+    // Update preset buttons text
+    const presetButtons = document.querySelectorAll('.system-status-overview__range-preset');
+    presetButtons.forEach(btn => {
+      const days = parseInt(btn.getAttribute('data-days'));
+      if (days) {
+        const keyMap = {
+          1: 'apiStatus.system.statusOverview.dateRange.day',
+          3: 'apiStatus.system.statusOverview.dateRange.days3',
+          7: 'apiStatus.system.statusOverview.dateRange.week',
+          14: 'apiStatus.system.statusOverview.dateRange.weeks2',
+          30: 'apiStatus.system.statusOverview.dateRange.month',
+          60: 'apiStatus.system.statusOverview.dateRange.months2',
+          90: 'apiStatus.system.statusOverview.dateRange.months3'
+        };
+        const key = keyMap[days];
+        if (key && window.i18n) {
+          btn.textContent = window.i18n.t(key);
+        }
+      }
+    });
   });
 }
 
@@ -7223,8 +7424,8 @@ function activateSection(sectionId) {
     initializeAssistantPage().catch((error) => {
       showNotification({
         type: "error",
-        title: "Помилка ініціалізації",
-        message: "Не вдалося завантажити чат асистента.",
+        title: window.i18n ? window.i18n.t('assistant.initError') : "Помилка ініціалізації",
+        message: window.i18n ? window.i18n.t('assistant.initErrorMessage') : "Не вдалося завантажити чат асистента.",
         duration: 4000,
       });
     });
@@ -7277,11 +7478,11 @@ async function handleSubmit(event) {
   clearError();
 
   if (!metadataCache) {
-    const errorMessage = "Метадані ще завантажуються, спробуйте пізніше.";
+    const errorMessage = window.i18n ? window.i18n.t('forms.prediction.errors.metadataNotReady') : "Метадані ще завантажуються, спробуйте пізніше.";
     showError(errorMessage);
     showNotification({
       type: "warning",
-      title: "Метадані не готові",
+      title: window.i18n ? window.i18n.t('forms.prediction.errors.metadataNotReadyTitle') : "Метадані не готові",
       message: errorMessage,
       duration: 4000,
     });
@@ -7290,11 +7491,11 @@ async function handleSubmit(event) {
 
   const target = targetSelect.value;
   if (!target) {
-    const errorMessage = "Оберіть ціль прогнозування";
+    const errorMessage = window.i18n ? window.i18n.t('forms.prediction.errors.selectTarget') : "Оберіть ціль прогнозування";
     showError(errorMessage);
     showNotification({
       type: "warning",
-      title: "Помилка форми",
+      title: window.i18n ? window.i18n.t('forms.prediction.errors.formError') : "Помилка форми",
       message: errorMessage,
       duration: 4000,
     });
@@ -7303,7 +7504,8 @@ async function handleSubmit(event) {
 
   const { payload, missing } = collectPayload();
   if (missing.length > 0) {
-    const errorMessage = `Заповніть поля: ${missing.join(", ")}`;
+    const fieldsText = missing.join(", ");
+    const errorMessage = window.i18n ? window.i18n.t('forms.prediction.errors.fillFields', { fields: fieldsText }) : `Заповніть поля: ${fieldsText}`;
     showError(errorMessage);
     showNotification({
       type: "warning",
@@ -7315,7 +7517,7 @@ async function handleSubmit(event) {
   }
 
   submitButton.disabled = true;
-  submitButton.textContent = "Обробка...";
+  submitButton.textContent = window.i18n ? window.i18n.t('forms.prediction.processing') : "Обробка...";
 
   try {
     // Формуємо URL з параметрами
@@ -7384,17 +7586,17 @@ async function handleSubmit(event) {
     } else {
     }
   } catch (error) {
-    const errorMessage = error.message || "Не вдалося розрахувати прогноз. Спробуйте ще раз.";
+    const errorMessage = error.message || (window.i18n ? window.i18n.t('forms.prediction.calculateError') : "Не вдалося розрахувати прогноз. Спробуйте ще раз.");
     showError(errorMessage);
     showNotification({
       type: "error",
-      title: "Помилка прогнозування",
+      title: window.i18n ? window.i18n.t('forms.prediction.errorTitle') : "Помилка прогнозування",
       message: errorMessage,
       duration: 5000,
     });
   } finally {
     submitButton.disabled = false;
-    submitButton.textContent = "Розрахувати ризик";
+    submitButton.textContent = window.i18n ? window.i18n.t('forms.prediction.submit') : "Розрахувати ризик";
   }
 }
 
@@ -7448,9 +7650,9 @@ function updateSubmitAvailability() {
   // Оновлюємо текст на кнопці демо-заповнення залежно від стану
   if (demoButton) {
     if (complete && demoUsed) {
-      demoButton.textContent = "Перезаповнити ще раз";
+      demoButton.textContent = window.i18n ? window.i18n.t('forms.prediction.demoRefill') : "Перезаповнити ще раз";
     } else {
-      demoButton.textContent = "Заповнити випадкові дані";
+      demoButton.textContent = window.i18n ? window.i18n.t('forms.prediction.demo') : "Заповнити випадкові дані";
     }
   }
 }
@@ -7473,11 +7675,11 @@ function hashPredictionInput(payload, target, model) {
 
 function fillRandomDemoData() {
   if (!metadataCache) {
-    const errorMessage = "Метадані ще завантажуються, спробуйте пізніше.";
+    const errorMessage = window.i18n ? window.i18n.t('forms.metadata.loading') : "Метадані ще завантажуються, спробуйте пізніше.";
     showError(errorMessage);
     showNotification({
       type: "warning",
-      title: "Метадані не готові",
+      title: window.i18n ? window.i18n.t('forms.metadata.notReady') : "Метадані не готові",
       message: errorMessage,
       duration: 4000,
     });
@@ -7504,7 +7706,7 @@ function fillRandomDemoData() {
   demoUsed = true;
   // Оновлюємо підпис кнопки, якщо все заповнено
   if (demoButton && isPredictionFormComplete()) {
-    demoButton.textContent = "Перезаповнити ще раз";
+    demoButton.textContent = window.i18n ? window.i18n.t('forms.prediction.demoRefill') : "Перезаповнити ще раз";
   }
   // Після рандомного заповнення: розміщення кнопок — зліва submit, справа demo
   const actions = document.querySelector(".form__actions");
@@ -7514,8 +7716,8 @@ function fillRandomDemoData() {
   
   showNotification({
     type: "info",
-    title: "Демо-дані заповнено",
-    message: "Форма заповнена випадковими значеннями. Можете розрахувати прогноз або змінити дані.",
+    title: window.i18n ? window.i18n.t('forms.prediction.demoNotifications.filled') : "Демо-дані заповнено",
+    message: window.i18n ? window.i18n.t('forms.prediction.demoNotifications.filledMessage') : "Форма заповнена випадковими значеннями. Можете розрахувати прогноз або змінити дані.",
     duration: 4000,
   });
 }
@@ -7544,7 +7746,7 @@ async function loadAnalyticsData() {
       headers: { "Cache-Control": "no-cache" },
     });
     if (!response.ok) {
-      throw new Error("Не вдалося завантажити статистику вибірки.");
+      throw new Error(window.i18n ? window.i18n.t('forms.prediction.analytics.loadError') : "Не вдалося завантажити статистику вибірки.");
     }
     const data = await response.json();
     analyticsCache = data;
@@ -7553,7 +7755,7 @@ async function loadAnalyticsData() {
     return data;
   } catch (error) {
     analyticsLoadError = error;
-    updateAnalyticsError("Не вдалося завантажити статистику вибірки. Спробуйте пізніше або перевірте наявність файлу analytics_summary.json.");
+    updateAnalyticsError(window.i18n ? window.i18n.t('forms.prediction.analytics.loadErrorDetailed') : "Не вдалося завантажити статистику вибірки. Спробуйте пізніше або перевірте наявність файлу analytics_summary.json.");
     throw error;
   }
 }
@@ -7582,7 +7784,7 @@ function renderProfileOverviewChart() {
     toggleChartVisibility(canvasId, false);
     toggleHidden(empty, false);
     if (note) {
-      note.textContent = "Кольори відображають, чи знаходиться показник у межах норми, попереджувальній або ризиковій зоні.";
+      note.textContent = window.i18n ? window.i18n.t('charts.colorsNote') : "Кольори відображають, чи знаходиться показник у межах норми, попереджувальній або ризиковій зоні.";
     }
     if (dashboardCharts[canvasId]) {
       dashboardCharts[canvasId].destroy();
@@ -7642,14 +7844,14 @@ function renderProfileOverviewChart() {
       labels,
       datasets: [
         {
-          label: "Ваш показник",
+          label: window.i18n ? window.i18n.t('charts.yourValue') : "Ваш показник",
           data: userValues,
           backgroundColor: barColors,
           borderRadius: 12,
           maxBarThickness: 46,
         },
         {
-          label: "Верхня межа норми",
+          label: window.i18n ? window.i18n.t('charts.upperLimit') : "Верхня межа норми",
           data: normalValues,
           backgroundColor: styles.accentLight,
           borderRadius: 12,
@@ -7672,12 +7874,14 @@ function renderProfileOverviewChart() {
               const { classification, feature, value } = info;
               const lines = [];
               lines.push(`${context.dataset.label}: ${formatMetricValue(feature, value)}`);
-              lines.push(`Категорія: ${classification.label}`);
+              const categoryText = window.i18n ? window.i18n.t('charts.tooltip.category') : 'Категорія';
+              lines.push(`${categoryText}: ${classification.label}`);
               lines.push(classification.explanation);
               const normalDataset = context.chart?.data?.datasets?.[1];
               const normalValue = normalDataset?.data?.[context.dataIndex];
               if (normalValue !== undefined) {
-                lines.push(`Норма: ${formatMetricValue(feature, normalValue)}`);
+                const normalText = window.i18n ? window.i18n.t('charts.tooltip.normal', { value: formatMetricValue(feature, normalValue) }) : `Норма: ${formatMetricValue(feature, normalValue)}`;
+                lines.push(normalText);
               }
               return lines;
             },
@@ -7705,11 +7909,13 @@ function renderProfileOverviewChart() {
   const summary = meta
     .map((item) => `${getFeatureName(item.feature)} — ${item.classification.label.toLowerCase()}`)
     .join("; ");
-  const updated = formatDateTime(latest.data.savedAt) || "щойно";
+  const updated = formatDateTime(latest.data.savedAt) || (window.i18n ? window.i18n.t('charts.time.justNow') : "щойно");
   if (note) {
-    note.textContent = summary
-      ? `Оновлено ${updated}: ${summary}.`
-      : "Кольори відображають, чи знаходиться показник у межах норми, попереджувальній або ризиковій зоні.";
+    if (summary) {
+      note.textContent = window.i18n ? window.i18n.t('charts.updatedAt', { date: updated, summary: summary }) : `Оновлено ${updated}: ${summary}.`;
+    } else {
+      note.textContent = window.i18n ? window.i18n.t('charts.colorsNote') : "Кольори відображають, чи знаходиться показник у межах норми, попереджувальній або ризиковій зоні.";
+    }
   }
 }
 
@@ -7720,8 +7926,8 @@ function renderRiskComparisonChart() {
   const styles = getChartStyles();
 
   const targets = [
-    { key: "diabetes_present", label: TARGET_LABELS.diabetes_present },
-    { key: "obesity_present", label: TARGET_LABELS.obesity_present },
+    { key: "diabetes_present", label: getTargetLabel("diabetes_present") },
+    { key: "obesity_present", label: getTargetLabel("obesity_present") },
   ];
 
   const dataset = targets.map((item) => {
@@ -7745,7 +7951,7 @@ function renderRiskComparisonChart() {
     toggleChartVisibility(canvasId, false);
     toggleHidden(empty, false);
     if (note) {
-      note.textContent = "Щойно обидва ризики будуть розраховані, тут з'явиться порівняння.";
+      note.textContent = window.i18n ? window.i18n.t('charts.comparisonNote') : "Щойно обидва ризики будуть розраховані, тут з'явиться порівняння.";
     }
     if (dashboardCharts[canvasId]) {
       dashboardCharts[canvasId].destroy();
@@ -7766,7 +7972,7 @@ function renderRiskComparisonChart() {
       labels: dataset.map((item) => item.label),
       datasets: [
         {
-          label: "Ймовірність, %",
+          label: window.i18n ? window.i18n.t('charts.probability') : "Ймовірність, %",
           data: dataValues,
           backgroundColor: barColors,
           borderRadius: 14,
@@ -7785,7 +7991,8 @@ function renderRiskComparisonChart() {
             label(context) {
               const info = dataset[context.dataIndex];
               if (!info.available) {
-                return `${info.label}: ризик ще не розрахований`;
+                const notCalculatedText = window.i18n ? window.i18n.t('charts.history.riskDistribution.notCalculated') : 'ризик ще не розрахований';
+                return `${info.label}: ${notCalculatedText}`;
               }
               const lines = [];
               lines.push(`${info.label}: ${info.percentage.toFixed(2)}%`);
@@ -7794,7 +8001,8 @@ function renderRiskComparisonChart() {
                 lines.push(window.i18n ? window.i18n.t('charts.history.riskDistribution.category', { category: label }) : `Категорія: ${label}`);
               }
               if (info.updatedAt) {
-                lines.push(`Оновлено: ${formatDateTime(info.updatedAt)}`);
+                const updatedText = window.i18n ? window.i18n.t('charts.history.riskDistribution.updated', { date: formatDateTime(info.updatedAt) }) : `Оновлено: ${formatDateTime(info.updatedAt)}`;
+                lines.push(updatedText);
               }
               return lines;
             },
@@ -7818,9 +8026,13 @@ function renderRiskComparisonChart() {
   if (note) {
     if (availableCount === targets.length) {
       const highest = [...dataset].sort((a, b) => b.percentage - a.percentage)[0];
-      note.textContent = `Зараз найвищий ${highest.label.toLowerCase()} — ${highest.percentage.toFixed(1)}%.`;
+      note.textContent = window.i18n 
+        ? window.i18n.t('charts.highestRisk', { risk: highest.label.toLowerCase(), percentage: highest.percentage.toFixed(1) })
+        : `Зараз найвищий ${highest.label.toLowerCase()} — ${highest.percentage.toFixed(1)}%.`;
     } else {
-      note.textContent = "Розрахуйте ще один ризик, щоб побачити повне порівняння.";
+      note.textContent = window.i18n 
+        ? window.i18n.t('charts.calculateMore')
+        : "Розрахуйте ще один ризик, щоб побачити повне порівняння.";
     }
   }
 }
@@ -7866,7 +8078,7 @@ function renderInsightsFactorsChart() {
       labels,
       datasets: [
         {
-          label: "Вплив фактору",
+          label: window.i18n ? window.i18n.t('charts.factorImpact') : "Вплив фактору",
           data: values,
           backgroundColor: styles.accent,
           borderRadius: 12,
@@ -7887,7 +8099,7 @@ function renderInsightsFactorsChart() {
               const details = [];
               details.push(`${getFeatureName(info.feature)} (${info.feature})`);
               details.push(getFeatureDescription(info.feature));
-              details.push(`Вплив: ${info.value.toFixed(3)}`);
+              details.push(`${window.i18n ? window.i18n.t('charts.impact') : 'Вплив'}: ${info.value.toFixed(3)}`);
               return details;
             },
           },
@@ -7921,7 +8133,7 @@ function renderBmiDistributionChart(analytics) {
       labels: data.map((item) => item.category),
       datasets: [
         {
-          label: "Частка, %",
+          label: window.i18n ? window.i18n.t('charts.percentage') : "Частка, %",
           data: data.map((item) => item.percentage),
           backgroundColor: data.map(() => styles.accent),
           borderRadius: 12,
@@ -7939,8 +8151,8 @@ function renderBmiDistributionChart(analytics) {
               const item = data[context.dataIndex];
               return [
                 `${item.category}`,
-                `Частка: ${item.percentage.toFixed(2)}%`,
-                `Кількість людей: ${item.count}`,
+                `${window.i18n ? window.i18n.t('charts.share') : 'Частка'}: ${item.percentage.toFixed(2)}%`,
+                `${window.i18n ? window.i18n.t('charts.peopleCount') : 'Кількість людей'}: ${item.count}`,
               ];
             },
           },
@@ -7980,7 +8192,7 @@ function renderBpDistributionChart(analytics) {
       labels: data.map((item) => item.category),
       datasets: [
         {
-          label: "Частка, %",
+          label: window.i18n ? window.i18n.t('charts.percentage') : "Частка, %",
           data: data.map((item) => item.percentage),
           backgroundColor: colors,
         },
@@ -7997,7 +8209,7 @@ function renderBpDistributionChart(analytics) {
           callbacks: {
             label(context) {
               const info = data[context.dataIndex];
-              return `${info.category}: ${info.percentage.toFixed(2)}% (${info.count} осіб)`;
+              return window.i18n ? window.i18n.t('charts.dataset.category', { category: info.category, percentage: info.percentage.toFixed(2), count: info.count }) : `${info.category}: ${info.percentage.toFixed(2)}% (${info.count} осіб)`;
             },
           },
         },
@@ -8020,7 +8232,7 @@ function renderCholDistributionChart(analytics) {
       labels: data.map((item) => item.category),
       datasets: [
         {
-          label: "Частка, %",
+          label: window.i18n ? window.i18n.t('charts.percentage') : "Частка, %",
           data: data.map((item) => item.percentage),
           backgroundColor: styles.accentAlt,
           borderRadius: 12,
@@ -8036,7 +8248,7 @@ function renderCholDistributionChart(analytics) {
           callbacks: {
             label(context) {
               const info = data[context.dataIndex];
-              return `${info.category}: ${info.percentage.toFixed(2)}% (${info.count} осіб)`;
+              return window.i18n ? window.i18n.t('charts.dataset.category', { category: info.category, percentage: info.percentage.toFixed(2), count: info.count }) : `${info.category}: ${info.percentage.toFixed(2)}% (${info.count} осіб)`;
             },
           },
         },
@@ -8078,7 +8290,7 @@ function renderGlucoseDistributionChart(analytics) {
       labels: data.map((item) => item.category),
       datasets: [
         {
-          label: "Частка, %",
+          label: window.i18n ? window.i18n.t('charts.percentage') : "Частка, %",
           data: data.map((item) => item.percentage),
           backgroundColor: ["rgba(63, 194, 114, 0.85)", "rgba(245, 182, 73, 0.85)", "rgba(241, 94, 111, 0.85)"],
           borderRadius: 12,
@@ -8094,7 +8306,7 @@ function renderGlucoseDistributionChart(analytics) {
           callbacks: {
             label(context) {
               const info = data[context.dataIndex];
-              return `${info.category}: ${info.percentage.toFixed(2)}% (${info.count} осіб)`;
+              return window.i18n ? window.i18n.t('charts.dataset.category', { category: info.category, percentage: info.percentage.toFixed(2), count: info.count }) : `${info.category}: ${info.percentage.toFixed(2)}% (${info.count} осіб)`;
             },
           },
         },
@@ -8127,7 +8339,7 @@ function renderAgePrevalenceChart(analytics, key, canvasId) {
       labels: data.map((item) => item.age_group),
       datasets: [
         {
-          label: "Частка, %",
+          label: window.i18n ? window.i18n.t('charts.percentage') : "Частка, %",
           data: data.map((item) => item.prevalence),
           borderColor: styles.accent,
           backgroundColor: "rgba(88, 101, 242, 0.15)",
@@ -8147,7 +8359,7 @@ function renderAgePrevalenceChart(analytics, key, canvasId) {
           callbacks: {
             label(context) {
               const info = data[context.dataIndex];
-              return `${info.age_group}: ${info.prevalence.toFixed(2)}% (${info.count} осіб)`;
+              return window.i18n ? window.i18n.t('charts.dataset.category', { category: info.age_group, percentage: info.prevalence.toFixed(2), count: info.count }) : `${info.age_group}: ${info.prevalence.toFixed(2)}% (${info.count} осіб)`;
             },
           },
         },
@@ -8216,7 +8428,7 @@ function renderCorrelationChart(analytics) {
       labels: pairs.map((item) => item.label),
       datasets: [
         {
-          label: "Коефіцієнт кореляції",
+          label: window.i18n ? window.i18n.t('charts.correlationCoefficient') : "Коефіцієнт кореляції",
           data: pairs.map((item) => item.value),
           backgroundColor: pairs.map((item) => (item.value >= 0 ? styles.accent : "rgba(241, 94, 111, 0.75)")),
           borderRadius: 10,
@@ -8298,7 +8510,7 @@ function renderHistoryTimelineChart(stats) {
   const datasets = [];
   if (dataByTarget.diabetes_present.length > 0) {
     datasets.push({
-      label: TARGET_LABELS.diabetes_present,
+      label: getTargetLabel("diabetes_present"),
       data: dataByTarget.diabetes_present.map((item) => ({ x: item.x, y: item.y })),
       borderColor: "rgba(116, 137, 255, 0.95)",
       backgroundColor: "rgba(116, 137, 255, 0.2)",
@@ -8308,7 +8520,7 @@ function renderHistoryTimelineChart(stats) {
   }
   if (dataByTarget.obesity_present.length > 0) {
     datasets.push({
-      label: TARGET_LABELS.obesity_present,
+      label: getTargetLabel("obesity_present"),
       data: dataByTarget.obesity_present.map((item) => ({ x: item.x, y: item.y })),
       borderColor: "rgba(241, 94, 111, 0.95)",
       backgroundColor: "rgba(241, 94, 111, 0.2)",
@@ -8343,7 +8555,7 @@ function renderHistoryTimelineChart(stats) {
       return entry ? entry.y : null;
     });
     processedDatasets.push({
-      label: TARGET_LABELS.diabetes_present,
+      label: getTargetLabel("diabetes_present"),
       data,
       borderColor: "rgba(116, 137, 255, 0.95)",
       backgroundColor: "rgba(116, 137, 255, 0.2)",
@@ -8358,7 +8570,7 @@ function renderHistoryTimelineChart(stats) {
       return entry ? entry.y : null;
     });
     processedDatasets.push({
-      label: TARGET_LABELS.obesity_present,
+      label: getTargetLabel("obesity_present"),
       data,
       borderColor: "rgba(241, 94, 111, 0.95)",
       backgroundColor: "rgba(241, 94, 111, 0.2)",
@@ -8432,9 +8644,9 @@ function renderHistoryRiskDistributionChart(stats) {
   const byTargetAndRisk = stats.by_target_and_risk || {};
   const riskBuckets = ["low", "medium", "high"];
   const riskLabelsMap = {
-    low: "Низький",
-    medium: "Помірний",
-    high: "Високий",
+    low: window.i18n ? window.i18n.t('forms.riskLevel.low') : "Низький",
+    medium: window.i18n ? window.i18n.t('forms.riskLevel.medium') : "Помірний",
+    high: window.i18n ? window.i18n.t('forms.riskLevel.high') : "Високий",
   };
   const riskColors = {
     low: "rgba(63, 194, 114, 0.85)",
@@ -8443,7 +8655,7 @@ function renderHistoryRiskDistributionChart(stats) {
   };
 
   const targets = ["diabetes_present", "obesity_present"];
-  const labels = targets.map((target) => TARGET_LABELS[target] || target);
+  const labels = targets.map((target) => getTargetLabel(target));
   
   const datasets = riskBuckets.map((bucket) => {
     const data = targets.map((target) => {
@@ -8497,7 +8709,12 @@ function renderHistoryRiskDistributionChart(stats) {
             label(context) {
               const datasetLabel = context.dataset.label;
               const value = context.parsed.y;
-              return `${datasetLabel}: ${value} прогноз${value === 1 ? "" : value < 5 ? "и" : "ів"}`;
+              const predictionWord = window.i18n ? (
+                value === 1 ? window.i18n.t('charts.predictionSingular') : 
+                value < 5 ? window.i18n.t('charts.predictionPlural') : 
+                window.i18n.t('charts.predictionGenitive')
+              ) : (value === 1 ? "" : value < 5 ? "и" : "ів");
+              return `${datasetLabel}: ${value} ${predictionWord}`;
             },
           },
         },
@@ -8539,14 +8756,14 @@ function renderHistoryModelsChart(stats) {
 
   const byModel = stats.by_model || {};
   const modelLabels = {
-    auto: "Автоматично (чемпіон)",
-    logreg: "Логістична регресія",
-    random_forest: "Random Forest",
-    xgb: "XGBoost",
-    svm: "SVM",
-    knn: "K-Nearest Neighbors",
-    mlp: "Нейромережа (MLP)",
-    unknown: "Невідомо",
+    auto: window.i18n ? window.i18n.t('forms.model.autoChampion') : "Автоматично (чемпіон)",
+    logreg: window.i18n ? window.i18n.t('forms.model.logreg') : "Логістична регресія",
+    random_forest: window.i18n ? window.i18n.t('forms.model.random_forest') : "Random Forest",
+    xgb: window.i18n ? window.i18n.t('forms.model.xgb') : "XGBoost",
+    svm: window.i18n ? window.i18n.t('forms.model.svm') : "SVM",
+    knn: window.i18n ? window.i18n.t('forms.model.knn') : "K-Nearest Neighbors",
+    mlp: window.i18n ? window.i18n.t('forms.model.mlp') : "Нейромережа (MLP)",
+    unknown: window.i18n ? window.i18n.t('forms.model.unknown') : "Невідомо",
   };
 
   const labels = Object.keys(byModel).map((key) => modelLabels[key] || key);
@@ -8879,8 +9096,8 @@ function registerEventListeners() {
       // Показуємо нотифікацію про зміну кольору (інформативну)
       showNotification({
         type: "info",
-        title: "Колір аватара змінено",
-        message: "Не забудьте зберегти зміни, щоб застосувати новий колір.",
+        title: window.i18n ? window.i18n.t('profile.avatar.colorChanged') : "Колір аватара змінено",
+        message: window.i18n ? window.i18n.t('profile.avatar.saveToApply') : "Не забудьте зберегти зміни, щоб застосувати новий колір.",
         duration: 3000,
       });
     });
@@ -9244,24 +9461,29 @@ function showUnreadMessagesNotification() {
   if (unreadChats.length === 1) {
     // Один чат з непрочитаними повідомленнями
     const chat = unreadChats[0];
-    const senderName = chat.other_user?.display_name || chat.other_user?.email || "Користувач";
+    const senderName = chat.other_user?.display_name || chat.other_user?.email || (window.i18n ? window.i18n.t('charts.chats.user') : "Користувач");
     const lastMsg = chat.last_message?.content || "";
     const preview = lastMsg.length > 50 ? lastMsg.substring(0, 50) + "..." : lastMsg;
-    message = `${senderName}: ${preview || "Нове повідомлення"}`;
+    const newMessageText = window.i18n ? window.i18n.t('charts.chats.newMessage') : "Нове повідомлення";
+    message = `${senderName}: ${preview || newMessageText}`;
   } else {
     // Кілька чатів з непрочитаними повідомленнями
     // Показуємо перші 2-3 чати
     const topChats = unreadChats.slice(0, 3);
+    const userText = window.i18n ? window.i18n.t('charts.chats.user') : "Користувач";
+    const newMessageLowerText = window.i18n ? window.i18n.t('charts.chats.newMessageLower') : "нове повідомлення";
     const chatPreviews = topChats.map(chat => {
-      const senderName = chat.other_user?.display_name || chat.other_user?.email || "Користувач";
+      const senderName = chat.other_user?.display_name || chat.other_user?.email || userText;
       const lastMsg = chat.last_message?.content || "";
       const preview = lastMsg.length > 30 ? lastMsg.substring(0, 30) + "..." : lastMsg;
-      return `${senderName}: ${preview || "нове повідомлення"}`;
+      return `${senderName}: ${preview || newMessageLowerText}`;
     }).join("\n");
     
     const remaining = unreadChats.length - 3;
     if (remaining > 0) {
-      message = `${chatPreviews}\n... та ще ${remaining} ${remaining === 1 ? 'чат' : 'чатів'}`;
+      const chatText = remaining === 1 ? (window.i18n ? window.i18n.t('charts.chats.chat') : 'чат') : (window.i18n ? window.i18n.t('charts.chats.chats') : 'чатів');
+      const andMoreText = window.i18n ? window.i18n.t('charts.chats.andMore', { count: remaining, chats: chatText }) : `... та ще ${remaining} ${chatText}`;
+      message = `${chatPreviews}\n${andMoreText}`;
     } else {
       message = chatPreviews;
     }
@@ -9270,7 +9492,7 @@ function showUnreadMessagesNotification() {
   // Показуємо сповіщення
   showNotification({
     type: "info",
-    title: `У вас ${totalUnread} ${totalUnread === 1 ? 'нове повідомлення' : totalUnread < 5 ? 'нові повідомлення' : 'нових повідомлень'}`,
+    title: window.i18n ? window.i18n.t('notifications.unreadMessages', { count: totalUnread }) : `У вас ${totalUnread} ${totalUnread === 1 ? 'нове повідомлення' : totalUnread < 5 ? 'нові повідомлення' : 'нових повідомлень'}`,
     message: message,
     duration: 6000,
   });
@@ -9392,7 +9614,7 @@ function renderChatsList() {
           <button type="button" class="chats-item__action-btn chats-item__pin-btn" data-chat-uuid="${chat.uuid}" aria-label="${chat.is_pinned ? 'Відкріпити' : 'Закріпити'}">
             <span class="icon" data-lucide="${chat.is_pinned ? 'pin-off' : 'pin'}"></span>
           </button>
-          <button type="button" class="chats-item__action-btn chats-item__delete-btn" data-chat-uuid="${chat.uuid}" aria-label="Видалити чат">
+          <button type="button" class="chats-item__action-btn chats-item__delete-btn" data-chat-uuid="${chat.uuid}" aria-label="${window.i18n ? window.i18n.t('aria.deleteChat') : 'Видалити чат'}">
             <span class="icon" data-lucide="trash-2"></span>
           </button>
         </div>
@@ -9457,7 +9679,7 @@ function renderUsersList() {
   if (usersList.length === 0) {
     container.innerHTML = "";
     if (empty) {
-      empty.textContent = "Немає доступних користувачів";
+      empty.textContent = window.i18n ? window.i18n.t('chats.noUsersAvailable') : "Немає доступних користувачів";
       empty.hidden = false;
     }
     return;
@@ -9511,7 +9733,7 @@ function renderUsersList() {
   if (allUsers.length === 0) {
     container.innerHTML = "";
     if (empty) {
-      empty.textContent = "Немає доступних користувачів для нового чату";
+      empty.textContent = window.i18n ? window.i18n.t('chats.noUsersForNewChat') : "Немає доступних користувачів для нового чату";
       empty.hidden = false;
     }
     return;
@@ -9531,14 +9753,14 @@ function renderUsersList() {
             <div class="chats-item__content-inner">
               <div class="chats-item__header">
                 <span class="chats-item__name">${user.display_name}</span>
-                <span class="chats-item__blocked-badge">Заблокований</span>
+                <span class="chats-item__blocked-badge">${window.i18n ? window.i18n.t('chats.blocked') : 'Заблокований'}</span>
               </div>
               <p class="chats-item__preview">${user.email}</p>
             </div>
           </div>
-          <button type="button" class="button button--ghost button--small btn-unblock-user" data-user-id="${user.id}" aria-label="Розблокувати користувача">
+          <button type="button" class="button button--ghost button--small btn-unblock-user" data-user-id="${user.id}" aria-label="${window.i18n ? window.i18n.t('aria.unblockUser') : 'Розблокувати користувача'}">
             <span class="icon" data-lucide="user-check"></span>
-            <span>Розблокувати</span>
+            <span>${window.i18n ? window.i18n.t('chats.unblock') : 'Розблокувати'}</span>
           </button>
         </div>
       `;
@@ -9551,7 +9773,7 @@ function renderUsersList() {
             <div class="chats-item__content-inner">
               <div class="chats-item__header">
                 <span class="chats-item__name">${user.display_name}</span>
-                ${isRecentlyUnblocked ? '<span class="chats-item__unblocked-badge">Нещодавно розблокований</span>' : ''}
+                ${isRecentlyUnblocked ? `<span class="chats-item__unblocked-badge">${window.i18n ? window.i18n.t('chats.recentlyUnblocked') : 'Нещодавно розблокований'}</span>` : ''}
               </div>
               <p class="chats-item__preview">${user.email}</p>
             </div>
@@ -9618,7 +9840,7 @@ function renderUsersList() {
         showNotification({
           type: "error",
           title: "Помилка",
-          message: "Не можна створити чат з заблокованим користувачем",
+          message: window.i18n ? window.i18n.t('chats.cannotCreateWithBlocked') : "Не можна створити чат з заблокованим користувачем",
           duration: 3000,
         });
         return;
@@ -9641,7 +9863,7 @@ function renderUsersList() {
         showNotification({
           type: "error",
           title: "Помилка",
-          message: "Не вдалося створити чат",
+          message: window.i18n ? window.i18n.t('chats.createError') : "Не вдалося створити чат",
           duration: 3000,
         });
       }
@@ -9666,7 +9888,7 @@ async function loadChat(uuid) {
       showNotification({
         type: "error",
         title: "Помилка",
-        message: "Не вдалося завантажити чат",
+          message: window.i18n ? window.i18n.t('chats.loadError') : "Не вдалося завантажити чат",
         duration: 3000,
       });
       return;
@@ -9684,7 +9906,7 @@ async function loadChat(uuid) {
     showNotification({
       type: "error",
       title: "Помилка",
-      message: "Не вдалося завантажити чат",
+          message: window.i18n ? window.i18n.t('chats.loadError') : "Не вдалося завантажити чат",
       duration: 3000,
     });
   }
@@ -9714,7 +9936,7 @@ function renderChat(chat) {
   if (blockBtn) {
     const isBlocked = chat.other_user.is_blocked === true;
     blockBtn.hidden = false;
-    blockBtn.setAttribute("aria-label", isBlocked ? "Розблокувати користувача" : "Заблокувати користувача");
+    blockBtn.setAttribute("aria-label", isBlocked ? (window.i18n ? window.i18n.t('aria.unblockUser') : "Розблокувати користувача") : (window.i18n ? window.i18n.t('aria.blockUser') : "Заблокувати користувача"));
     blockBtn.removeAttribute("data-tooltip");
     blockBtn.dataset.userId = String(chat.other_user.id);
     blockBtn.dataset.isBlocked = isBlocked ? "true" : "false";
@@ -9770,7 +9992,7 @@ function renderChat(chat) {
 
 // Функція для форматування часу блокування (X хв/год/днів тому)
 function formatBlockedTime(blockedAt) {
-  if (!blockedAt) return "нещодавно";
+  if (!blockedAt) return window.i18n ? window.i18n.t('charts.time.recently') : "нещодавно";
   
   const now = new Date();
   const blocked = new Date(blockedAt);
@@ -9779,18 +10001,33 @@ function formatBlockedTime(blockedAt) {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
   
-  if (diffMins < 1) return "щойно";
+  if (diffMins < 1) return window.i18n ? window.i18n.t('charts.time.justNow') : "щойно";
   if (diffMins < 60) {
-    return `${diffMins} ${diffMins === 1 ? 'хвилину' : diffMins < 5 ? 'хвилини' : 'хвилин'} тому`;
+    const minuteText = diffMins === 1 ? (window.i18n ? window.i18n.t('charts.time.minute') : 'хвилину') : 
+                       diffMins < 5 ? (window.i18n ? window.i18n.t('charts.time.minutes') : 'хвилини') : 
+                       (window.i18n ? window.i18n.t('charts.time.minutesMany') : 'хвилин');
+    const agoText = window.i18n ? window.i18n.t('charts.time.ago') : 'тому';
+    return `${diffMins} ${minuteText} ${agoText}`;
   }
   if (diffHours < 24) {
     const remainingMins = diffMins % 60;
+    const hourText = diffHours === 1 ? (window.i18n ? window.i18n.t('charts.time.hour') : 'годину') : 
+                     diffHours < 5 ? (window.i18n ? window.i18n.t('charts.time.hours') : 'години') : 
+                     (window.i18n ? window.i18n.t('charts.time.hoursMany') : 'годин');
+    const agoText = window.i18n ? window.i18n.t('charts.time.ago') : 'тому';
     if (remainingMins === 0) {
-      return `${diffHours} ${diffHours === 1 ? 'годину' : diffHours < 5 ? 'години' : 'годин'} тому`;
+      return `${diffHours} ${hourText} ${agoText}`;
     }
-    return `${diffHours} ${diffHours === 1 ? 'годину' : diffHours < 5 ? 'години' : 'годин'} ${remainingMins} ${remainingMins === 1 ? 'хвилину' : remainingMins < 5 ? 'хвилини' : 'хвилин'} тому`;
+    const minuteText = remainingMins === 1 ? (window.i18n ? window.i18n.t('charts.time.minute') : 'хвилину') : 
+                       remainingMins < 5 ? (window.i18n ? window.i18n.t('charts.time.minutes') : 'хвилини') : 
+                       (window.i18n ? window.i18n.t('charts.time.minutesMany') : 'хвилин');
+    return `${diffHours} ${hourText} ${remainingMins} ${minuteText} ${agoText}`;
   }
-  return `${diffDays} ${diffDays === 1 ? 'день' : diffDays < 5 ? 'дні' : 'днів'} тому`;
+  const dayText = diffDays === 1 ? (window.i18n ? window.i18n.t('charts.time.day') : 'день') : 
+                 diffDays < 5 ? (window.i18n ? window.i18n.t('charts.time.days') : 'дні') : 
+                 (window.i18n ? window.i18n.t('charts.time.daysMany') : 'днів');
+  const agoText = window.i18n ? window.i18n.t('charts.time.ago') : 'тому';
+  return `${diffDays} ${dayText} ${agoText}`;
 }
 
 // Функція для показу inline popup підтвердження розблокування
@@ -9883,7 +10120,7 @@ async function handleUnblockUser(userId, user) {
     const result = await apiFetch(`/users/${userId}/unblock`, { method: "PATCH" }, { skipAuthCheck: true });
     
     if (!result || result.is_blocked === undefined) {
-      throw new Error("Некоректна відповідь від сервера");
+      throw new Error(window.i18n ? window.i18n.t('errors.invalidServerResponse') : "Некоректна відповідь від сервера");
     }
     
     // Додаємо користувача до списку нещодавно розблокованих
@@ -9910,7 +10147,7 @@ async function handleUnblockUser(userId, user) {
       // Ігноруємо помилки
     }
   } catch (e) {
-    let errorMessage = "Не вдалося розблокувати користувача";
+    let errorMessage = window.i18n ? window.i18n.t('chats.unblockError') : "Не вдалося розблокувати користувача";
     if (e.message) {
       errorMessage = e.message;
     } else if (e.detail) {
@@ -9946,7 +10183,7 @@ async function toggleUserBlock(userId, isCurrentlyBlocked, userName) {
       const result = await apiFetch(`/users/${userId}/unblock`, { method: "PATCH" }, { skipAuthCheck: true });
       
       if (!result || result.is_blocked === undefined) {
-        throw new Error("Некоректна відповідь від сервера");
+        throw new Error(window.i18n ? window.i18n.t('errors.invalidServerResponse') : "Некоректна відповідь від сервера");
       }
       
       // Додаємо користувача до списку нещодавно розблокованих
@@ -9954,8 +10191,8 @@ async function toggleUserBlock(userId, isCurrentlyBlocked, userName) {
       
       showNotification({
         type: "success",
-        title: "Користувача розблоковано",
-        message: result.message || "Користувач успішно розблокований",
+        title: window.i18n ? window.i18n.t('chats.userUnblocked') : "Користувача розблоковано",
+        message: result.message || (window.i18n ? window.i18n.t('chats.userUnblockedSuccess') : "Користувач успішно розблокований"),
         duration: 3000,
       });
       
@@ -10000,7 +10237,7 @@ async function toggleUserBlock(userId, isCurrentlyBlocked, userName) {
     const result = await apiFetch(`/users/${userId}/block`, { method: "PATCH" }, { skipAuthCheck: true });
     
     if (!result || result.is_blocked === undefined) {
-      throw new Error("Некоректна відповідь від сервера");
+      throw new Error(window.i18n ? window.i18n.t('errors.invalidServerResponse') : "Некоректна відповідь від сервера");
     }
     
     // Оновлюємо список чатів ПЕРЕД перевіркою закріплення та закриттям чату
@@ -10025,8 +10262,8 @@ async function toggleUserBlock(userId, isCurrentlyBlocked, userName) {
     
     showNotification({
       type: "success",
-      title: "Користувача заблоковано",
-      message: result.message || "Користувач успішно заблокований",
+      title: window.i18n ? window.i18n.t('chats.userBlocked') : "Користувача заблоковано",
+      message: result.message || (window.i18n ? window.i18n.t('chats.userBlockedSuccess') : "Користувач успішно заблокований"),
       duration: 3000,
     });
     
@@ -10045,8 +10282,8 @@ async function toggleUserBlock(userId, isCurrentlyBlocked, userName) {
         navigateTo("/chats", { replace: true });
         showNotification({
           type: "info",
-          title: "Чат закрито",
-          message: "Чат з заблокованим користувачем було закрито",
+          title: window.i18n ? window.i18n.t('chats.chatClosed') : "Чат закрито",
+          message: window.i18n ? window.i18n.t('chats.chatClosedWithBlocked') : "Чат з заблокованим користувачем було закрито",
           duration: 2000,
         });
       }
@@ -10064,7 +10301,7 @@ async function toggleUserBlock(userId, isCurrentlyBlocked, userName) {
   } catch (e) {
     // Не викликаємо handleUnauthorized тут, щоб не вилогінювати користувача
     
-    let errorMessage = "Не вдалося заблокувати/розблокувати користувача";
+    let errorMessage = window.i18n ? window.i18n.t('chats.blockUnblockError') : "Не вдалося заблокувати/розблокувати користувача";
     if (e.message) {
       errorMessage = e.message;
     } else if (e.detail) {
@@ -10203,7 +10440,7 @@ async function togglePinChat(uuid, skipAuthCheck = false) {
     await loadChatsList({ skipAuthCheck });
     showNotification({
       type: "success",
-      title: result.is_pinned ? "Чат закріплено" : "Чат відкріплено",
+      title: result.is_pinned ? (window.i18n ? window.i18n.t('chats.chatPinned') : "Чат закріплено") : (window.i18n ? window.i18n.t('chats.chatUnpinned') : "Чат відкріплено"),
       message: "",
       duration: 2000,
     });
@@ -10214,7 +10451,7 @@ async function togglePinChat(uuid, skipAuthCheck = false) {
     showNotification({
       type: "error",
       title: "Помилка",
-      message: "Не вдалося закріпити/відкріпити чат",
+          message: window.i18n ? window.i18n.t('chats.pinUnpinError') : "Не вдалося закріпити/відкріпити чат",
       duration: 3000,
     });
   }
@@ -10239,7 +10476,7 @@ async function deleteChat(uuid) {
     }
     showNotification({
       type: "success",
-      title: "Чат видалено",
+      title: window.i18n ? window.i18n.t('chats.chatDeleted') : "Чат видалено",
       message: "",
       duration: 2000,
     });
@@ -10250,7 +10487,7 @@ async function deleteChat(uuid) {
     showNotification({
       type: "error",
       title: "Помилка",
-      message: "Не вдалося видалити чат",
+          message: window.i18n ? window.i18n.t('chats.deleteError') : "Не вдалося видалити чат",
       duration: 3000,
     });
   }
@@ -10345,8 +10582,8 @@ function initializeChats() {
     editModeBtn.addEventListener("click", () => {
       isEditMode = !isEditMode;
       editModeBtn.classList.toggle("button--active", isEditMode);
-      editModeBtn.setAttribute("aria-label", isEditMode ? "Завершити редагування" : "Редагувати порядок");
-      editModeBtn.setAttribute("data-tooltip", isEditMode ? "Завершити редагування" : "Редагувати порядок");
+      editModeBtn.setAttribute("aria-label", isEditMode ? (window.i18n ? window.i18n.t('chats.finishEditing') : "Завершити редагування") : (window.i18n ? window.i18n.t('chats.editOrder') : "Редагувати порядок"));
+      editModeBtn.setAttribute("data-tooltip", isEditMode ? (window.i18n ? window.i18n.t('chats.finishEditing') : "Завершити редагування") : (window.i18n ? window.i18n.t('chats.editOrder') : "Редагувати порядок"));
       // Оновлюємо відображення списків чатів
       renderChatsList();
       const sidebarContainer = document.getElementById("chats-sidebar-list");
@@ -10419,7 +10656,7 @@ function initializeChats() {
         showNotification({
           type: "error",
           title: "Помилка",
-          message: "Не вдалося відправити повідомлення",
+          message: window.i18n ? window.i18n.t('chats.sendMessageError') : "Не вдалося відправити повідомлення",
           duration: 3000,
         });
       }
@@ -10600,6 +10837,58 @@ async function initializeReportPage() {
       renderPredictionsList(history, hasCurrentResult);
     };
   }
+  
+  // Обробник зміни мови для оновлення карточок прогнозів
+  const languageChangeHandler = async () => {
+    // Перевіряємо, чи сторінка звітів активна
+    const reportPage = document.getElementById("page-report");
+    if (!reportPage || reportPage.hidden) return;
+    
+    // Зберігаємо вибрану карточку перед оновленням
+    const savedSelectedId = selectedPredictionId;
+    
+    // Отримуємо актуальні дані
+    const currentHasResult = resultCard && !resultCard.hidden && probabilityValue && probabilityValue.textContent !== "—";
+    
+    let currentHistory = [];
+    try {
+      if (authState.history && authState.history.length > 0) {
+        currentHistory = authState.history;
+      } else {
+        currentHistory = await loadHistory(50);
+      }
+    } catch (e) {
+      currentHistory = [];
+    }
+    
+    // Оновлюємо список прогнозів з новою мовою
+    renderPredictionsList(currentHistory, currentHasResult);
+    
+    // Відновлюємо вибір карточки після оновлення
+    if (savedSelectedId) {
+      setTimeout(() => {
+        const predictionsList = document.getElementById("report-predictions-list");
+        if (predictionsList) {
+          const selectedCard = predictionsList.querySelector(`[data-prediction-id="${savedSelectedId}"]`);
+          if (selectedCard) {
+            predictionsList.querySelectorAll(".report-prediction-card").forEach(c => {
+              c.classList.remove("report-prediction-card--selected");
+            });
+            selectedCard.classList.add("report-prediction-card--selected");
+          }
+        }
+      }, 0);
+    }
+  };
+  
+  // Видаляємо старий обробник, якщо він існує
+  if (window.reportLanguageChangeHandler) {
+    window.removeEventListener('languageChanged', window.reportLanguageChangeHandler);
+  }
+  
+  // Зберігаємо посилання на обробник для можливості видалення
+  window.reportLanguageChangeHandler = languageChangeHandler;
+  window.addEventListener('languageChanged', languageChangeHandler);
 }
 
 // Рендеринг списку прогнозувань
@@ -10660,19 +10949,24 @@ function createPredictionCard(prediction) {
   card.dataset.predictionId = prediction.id;
   
   const date = new Date(prediction.created_at);
-  const formattedDate = date.toLocaleString("uk-UA", {
+  // Використовуємо i18n для форматування дати
+  const locale = window.i18n && window.i18n.getCurrentLanguage ? 
+    (window.i18n.getCurrentLanguage() === 'en' ? 'en-US' : 'uk-UA') : 
+    'uk-UA';
+  const formattedDate = new Intl.DateTimeFormat(locale, {
     year: "numeric",
     month: "long",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit"
-  });
+  }).format(date);
   
   const probability = prediction.probability || 0;
-  const riskLevel = probability < 0.3 ? "низький" : probability < 0.7 ? "середній" : "високий";
-  
-  // Визначаємо bucket для отримання кольору
+  // Використовуємо i18n для рівня ризику
   const riskBucket = probability < 0.3 ? "low" : probability < 0.7 ? "medium" : "high";
+  const riskLevel = getRiskLabel(riskBucket);
+  
+  // riskBucket вже визначено вище
   const riskColor = getRiskColor(riskBucket);
   
   // Створюємо більш приглушені кольори (зменшуємо насиченість)
@@ -10684,13 +10978,13 @@ function createPredictionCard(prediction) {
   const badgeColor = mutedColors[riskBucket] || mutedColors.low;
   
   const target = prediction.target || "diabetes_present";
-  const targetLabel = TARGET_LABELS[target] || target;
+  const targetLabel = getTargetLabel(target);
   
   card.innerHTML = `
     <div class="report-prediction-card__info">
       <h4 class="report-prediction-card__title">
         ${targetLabel}
-        ${prediction.isCurrent ? '<span style="margin-left: 8px; font-size: 0.75rem; color: var(--accent-color);">(Поточний)</span>' : ''}
+        ${prediction.isCurrent ? `<span style="margin-left: 8px; font-size: 0.75rem; color: var(--accent-color);">(${window.i18n ? window.i18n.t('reports.current') : 'Поточний'})</span>` : ''}
       </h4>
       <p class="report-prediction-card__meta">${formattedDate}</p>
     </div>
@@ -10712,8 +11006,8 @@ function createPredictionCard(prediction) {
       currentPredictionData = {
         target: document.getElementById("target-select")?.value || "diabetes",
         probability: parseFloat(probabilityValue.textContent.replace("%", "")) / 100,
-        riskLevel: riskBadge?.textContent || "N/A",
-        model: modelName?.textContent || "N/A",
+        riskLevel: riskBadge?.textContent || (window.i18n ? window.i18n.t('forms.common.na') : "N/A"),
+        model: modelName?.textContent || (window.i18n ? window.i18n.t('forms.common.na') : "N/A"),
         formData: getCurrentFormData()
       };
     } else {
@@ -10892,6 +11186,15 @@ async function ensurePdfFontInitialized(jsPDF) {
 }
 
 // Словник назв факторів для PDF-звіту
+function getFactorLabel(code) {
+  if (window.i18n) {
+    const label = window.i18n.t(`forms.factors.${code}.name`);
+    return label && label !== `forms.factors.${code}.name` ? label : (FACTOR_LABELS[code] || code);
+  }
+  return FACTOR_LABELS[code] || code;
+}
+
+// FACTOR_LABELS тепер використовує локалізацію через getFactorLabel
 const FACTOR_LABELS = {
   RIDAGEYR: "Вік учасника у повних роках",
   RIAGENDR: "Стать",
@@ -10940,13 +11243,13 @@ const PDF_THEME_PRESETS = {
 
 const PDF_THEME_METADATA = {
   light: {
-    title: "Світлий",
-    description: "Класичне світле оформлення HealthRisk.AI",
+    title: window.i18n ? window.i18n.t('reports.pdfTheme.light.title') : "Світлий",
+    description: window.i18n ? window.i18n.t('reports.pdfTheme.light.description') : "Класичне світле оформлення HealthRisk.AI",
     icon: "sun"
   },
   dark: {
-    title: "Темний",
-    description: "Контрастна темна тема під нічний режим сайту",
+    title: window.i18n ? window.i18n.t('reports.pdfTheme.dark.title') : "Темний",
+    description: window.i18n ? window.i18n.t('reports.pdfTheme.dark.description') : "Контрастна темна тема під нічний режим сайту",
     icon: "moon"
   }
 };
@@ -11012,7 +11315,7 @@ async function loadLucideSvgTemplate(iconName) {
     }
   }
   lucideSvgTemplateCache.set(iconName, null);
-  throw new Error(`Unable to load Lucide icon "${iconName}" from provided CDNs`);
+  throw new Error(window.i18n ? window.i18n.t('errors.lucideIconLoadError', { icon: iconName }) : `Unable to load Lucide icon "${iconName}" from provided CDNs`);
 }
 
 function normalizeLucideSvg(svgString, {
@@ -11506,7 +11809,7 @@ async function generatePDFReport(data, options = {}) {
       showNotification({
         type: "error",
         title: "Помилка",
-        message: "Бібліотека PDF не завантажена. Будь ласка, оновіть сторінку.",
+        message: window.i18n ? window.i18n.t('reports.pdfLibraryNotLoaded') : "Бібліотека PDF не завантажена. Будь ласка, оновіть сторінку.",
         duration: 5000
       });
       return;
@@ -11520,8 +11823,8 @@ async function generatePDFReport(data, options = {}) {
     } catch (error) {
       showNotification({
         type: "error",
-        title: "Помилка завантаження шрифту",
-        message: "Не вдалося завантажити шрифт для PDF. Спробуйте пізніше.",
+        title: window.i18n ? window.i18n.t('reports.fontLoadErrorTitle') : "Помилка завантаження шрифту",
+        message: window.i18n ? window.i18n.t('reports.fontLoadError') : "Не вдалося завантажити шрифт для PDF. Спробуйте пізніше.",
         duration: 5000
       });
       return;
@@ -11562,7 +11865,7 @@ async function generatePDFReport(data, options = {}) {
       showNotification({
         type: "error",
         title: "Помилка",
-        message: "Шрифт DejaVuSans не доступний. PDF може не відображати кирилицю коректно.",
+        message: window.i18n ? window.i18n.t('reports.fontNotAvailable') : "Шрифт DejaVuSans не доступний. PDF може не відображати кирилицю коректно.",
         duration: 5000
       });
       // Не продовжуємо генерацію без правильного шрифту
@@ -11580,7 +11883,7 @@ async function generatePDFReport(data, options = {}) {
     const contentWidth = pageWidth - (margin * 2);
     
     // Обчислюємо дані (зберігаємо існуючу логіку)
-    const targetLabel = TARGET_LABELS[data.target] || data.target;
+    const targetLabel = getTargetLabel(data.target);
     const probability = data.probability || 0;
     const probabilityPercent = (probability * 100).toFixed(1);
     
@@ -11614,7 +11917,7 @@ async function generatePDFReport(data, options = {}) {
     const dateStr = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
     const dateStrShort = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
     
-    const model = data.model_name || data.model || "Автоматично";
+    const model = data.model_name || data.model || (window.i18n ? window.i18n.t('forms.model.auto') : "Автоматично");
     
     // Встановлюємо шрифт для всього документа
     doc.setFont("DejaVuSans", "normal");
@@ -11810,7 +12113,7 @@ async function generatePDFReport(data, options = {}) {
   
   if (factorsToShow.length > 0) {
     factorsToShow.forEach((factor, index) => {
-      const factorCode = factor.feature || factor.name || "Невідомий фактор";
+      const factorCode = factor.feature || factor.name || (window.i18n ? window.i18n.t('pdf.report.keyFactors.unknownFactor') : "Невідомий фактор");
       let factorImpact = factor.impact || 0;
       
       // Виправлення для старих даних: якщо impact > 1.0, це означає, що це старі дані
@@ -11825,7 +12128,7 @@ async function generatePDFReport(data, options = {}) {
       }
       
       // Отримуємо читабельну назву з словника
-      const label = FACTOR_LABELS[factorCode] || factorCode;
+      const label = getFactorLabel(factorCode);
       const value = (factorImpact * 100).toFixed(1);
       
       // Легка сіра лінія між рядками
@@ -12236,8 +12539,8 @@ async function generatePDFReport(data, options = {}) {
   if (chartImages.length === 0) {
     showNotification({
       type: "warning",
-      title: "Діаграми не знайдено",
-      message: `Не вдалося експортувати діаграми. Перевірте консоль для деталей. Знайдено діаграм: ${chartImages.length}`,
+      title: window.i18n ? window.i18n.t('pdf.report.errors.chartsNotFound') : "Діаграми не знайдено",
+      message: window.i18n ? window.i18n.t('pdf.report.errors.chartsNotFoundMessage', { count: chartImages.length }) : `Не вдалося експортувати діаграми. Перевірте консоль для деталей. Знайдено діаграм: ${chartImages.length}`,
       duration: 5000
     });
   }
@@ -12333,7 +12636,7 @@ async function generatePDFReport(data, options = {}) {
     // Нумеруємо як сторінку (pageNum - 1), оскільки обкладинка не рахується
     const contentPageNum = pageNum - 1;
     const totalContentPages = lastContentPage - 1; // Загальна кількість сторінок з контентом (без обкладинки та фінальної)
-    const pageNumText = `Сторінка ${contentPageNum} з ${totalContentPages}`;
+    const pageNumText = window.i18n ? window.i18n.t('pdf.report.page', { current: contentPageNum, total: totalContentPages }) : `Сторінка ${contentPageNum} з ${totalContentPages}`;
     const pageNumWidth = doc.getTextWidth(pageNumText);
     doc.text(pageNumText, (pageWidth - pageNumWidth) / 2, pageHeight - 5);
   }
@@ -12380,8 +12683,8 @@ async function generatePDFReport(data, options = {}) {
     
     showNotification({
       type: "success",
-      title: "Звіт згенеровано",
-      message: `PDF звіт збережено як ${filename} та відкрито в новій вкладці`,
+      title: window.i18n ? window.i18n.t('pdf.report.success.title') : "Звіт згенеровано",
+      message: window.i18n ? window.i18n.t('pdf.report.errors.reportSaved', { filename: filename }) : `PDF звіт збережено як ${filename} та відкрито в новій вкладці`,
       duration: 3000
     });
   } finally {
@@ -12419,7 +12722,7 @@ function generateExcelPreviewHTML(data, options = {}) {
   // Отримуємо дані
   const factors = data.top_factors || data.inputs?.top_factors || [];
   const factorsToShow = factors.slice(0, 10).map((factor, index) => {
-    const factorCode = factor.feature || factor.name || "Невідомий фактор";
+    const factorCode = factor.feature || factor.name || (window.i18n ? window.i18n.t('forms.factors.unknown') : "Невідомий фактор");
     let factorImpact = factor.impact || 0;
     if (factorCode === "RIAGENDR" && factorImpact > 1.0) {
       factorImpact = factorImpact / 2.0;
@@ -12430,7 +12733,7 @@ function generateExcelPreviewHTML(data, options = {}) {
     return {
       rank: index + 1,
       code: factorCode,
-      name: FACTOR_LABELS[factorCode] || factorCode,
+      name: getFactorLabel(factorCode),
       impact: (factorImpact * 100).toFixed(1)
     };
   });
@@ -12564,7 +12867,7 @@ function generateExcelPreviewHTML(data, options = {}) {
             <tbody>
               <tr>
                 <th style="width: 40%;">${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.parameter') : "Параметр"}</th>
-                <td>${TARGET_LABELS[data.target] || data.target}</td>
+                <td>${getTargetLabel(data.target)}</td>
               </tr>
               <tr>
                 <th>${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.probability') : "Ймовірність"}</th>
@@ -12572,7 +12875,7 @@ function generateExcelPreviewHTML(data, options = {}) {
               </tr>
               <tr>
                 <th>${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.riskLevel') : "Рівень ризику"}</th>
-                <td>${data.riskLevel || "N/A"}</td>
+                <td>${data.riskLevel || (window.i18n ? window.i18n.t('forms.common.na') : "N/A")}</td>
               </tr>
               <tr>
                 <th>${window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.model') : "Модель"}</th>
@@ -12644,7 +12947,7 @@ function generateExcelPreviewHTML(data, options = {}) {
             <tbody>
               ${Object.entries(data.formData).map(([key, value]) => `
                 <tr>
-                  <th style="width: 40%;">${FACTOR_LABELS[key] || key}</th>
+                  <th style="width: 40%;">${getFactorLabel(key)}</th>
                   <td>${value}</td>
                 </tr>
               `).join("")}
@@ -12655,7 +12958,7 @@ function generateExcelPreviewHTML(data, options = {}) {
       ` : ""}
     </div>
     <div class="footer">
-      Згенеровано: ${new Date().toLocaleString("uk-UA")}
+      ${window.i18n ? window.i18n.t('pdf.report.excel.generated') : "Згенеровано"}: ${new Date().toLocaleString("uk-UA")}
     </div>
   </div>
 </body>
@@ -12783,9 +13086,9 @@ function generateExcelReport(data, options = {}) {
   
   // Дані основної інформації
   const mainInfo = [
-    { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.target') : "Ціль", value: TARGET_LABELS[data.target] || data.target },
+    { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.target') : "Ціль", value: getTargetLabel(data.target) },
     { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.probability') : "Ймовірність", value: `${(data.probability * 100).toFixed(2)}%` },
-    { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.riskLevel') : "Рівень ризику", value: data.riskLevel || "N/A" },
+    { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.riskLevel') : "Рівень ризику", value: data.riskLevel || (window.i18n ? window.i18n.t('forms.common.na') : "N/A") },
     { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.model') : "Модель", value: data.model || data.model_name || "Автоматично" },
     { label: window.i18n ? window.i18n.t('pdf.report.excel.tableHeaders.createdAt') : "Дата створення", value: new Date(data.created_at || new Date()).toLocaleString("uk-UA") }
   ];
@@ -12874,7 +13177,7 @@ function generateExcelReport(data, options = {}) {
     // Дані факторів (топ-10)
     const factorsToShow = factors.slice(0, 10);
     factorsToShow.forEach((factor, index) => {
-      const factorCode = factor.feature || factor.name || "Невідомий фактор";
+      const factorCode = factor.feature || factor.name || (window.i18n ? window.i18n.t('pdf.report.keyFactors.unknownFactor') : "Невідомий фактор");
       let factorImpact = factor.impact || 0;
       
       // Нормалізація для старих даних
@@ -12885,7 +13188,7 @@ function generateExcelReport(data, options = {}) {
         factorImpact = 1.0;
       }
       
-      const label = FACTOR_LABELS[factorCode] || factorCode;
+      const label = getFactorLabel(factorCode);
       const impactPercent = (factorImpact * 100).toFixed(1);
       const isEven = index % 2 === 0;
       const bgColor = isEven ? colors.rowEven : colors.rowOdd;
@@ -13033,7 +13336,7 @@ function generateExcelReport(data, options = {}) {
     formDataEntries.forEach(([key, value], index) => {
       const isEven = index % 2 === 0;
       const bgColor = isEven ? colors.rowEven : colors.rowOdd;
-      const label = FACTOR_LABELS[key] || key;
+      const label = getFactorLabel(key);
       
       // Мітка
       addCell(currentRow, 0, label, {
@@ -13177,9 +13480,10 @@ function generateCSVPreviewHTML(data) {
   // Основна інформація
   lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.mainInfo') : "=== ОСНОВНА ІНФОРМАЦІЯ ===");
   lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.parameter') : "Параметр"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.value') : "Значення"}`);
-  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.target') : "Ціль"},"${TARGET_LABELS[data.target] || data.target}"`);
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.target') : "Ціль"},"${getTargetLabel(data.target)}"`);
   lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.probability') : "Ймовірність (%)"},${(data.probability * 100).toFixed(2)}`);
-  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.riskLevel') : "Рівень ризику"},"${data.riskLevel || "N/A"}"`);
+  const naText = window.i18n ? window.i18n.t('forms.common.na') : "N/A";
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.riskLevel') : "Рівень ризику"},"${data.riskLevel || naText}"`);
   lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.model') : "Модель"},"${data.model || data.model_name || "Автоматично"}"`);
   lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.createdAt') : "Дата створення"},"${new Date(data.created_at || new Date()).toLocaleString("uk-UA")}"`);
   lines.push("");
@@ -13202,7 +13506,7 @@ function generateCSVPreviewHTML(data) {
         factorImpact = 1.0;
       }
       
-      const label = FACTOR_LABELS[factorCode] || factorCode;
+      const label = getFactorLabel(factorCode);
       const impactPercent = (factorImpact * 100).toFixed(1);
       
       lines.push(`${index + 1},"${label}","${factorCode}",${impactPercent}`);
@@ -13225,7 +13529,7 @@ function generateCSVPreviewHTML(data) {
     lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.formData') : "=== ВВЕДЕНІ ДАНІ ===");
     lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.parameter') : "Параметр"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.value') : "Значення"}`);
     Object.entries(data.formData).forEach(([key, value]) => {
-      const label = FACTOR_LABELS[key] || key;
+      const label = getFactorLabel(key);
       lines.push(`"${label}","${value}"`);
     });
     lines.push("");
@@ -13348,28 +13652,30 @@ function generateCSVReport(data) {
   const lines = [];
   
   // Заголовок звіту
-  lines.push("HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я");
+  lines.push(window.i18n ? window.i18n.t('reports.csvTitle') : "HealthRisk.AI - Звіт про прогнозування ризиків для здоров'я");
   lines.push("");
   
   // Основна інформація
-  lines.push("=== ОСНОВНА ІНФОРМАЦІЯ ===");
-  lines.push("Параметр,Значення");
-  lines.push(`Ціль,"${TARGET_LABELS[data.target] || data.target}"`);
-  lines.push(`Ймовірність (%),${(data.probability * 100).toFixed(2)}`);
-  lines.push(`Рівень ризику,"${data.riskLevel || "N/A"}"`);
-  lines.push(`Модель,"${data.model || data.model_name || "Автоматично"}"`);
-  lines.push(`Дата створення,"${new Date(data.created_at || new Date()).toLocaleString("uk-UA")}"`);
+  lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.mainInfo') : "=== ОСНОВНА ІНФОРМАЦІЯ ===");
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.parameter') : "Параметр"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.value') : "Значення"}`);
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.target') : "Ціль"},"${getTargetLabel(data.target)}"`);
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.probability') : "Ймовірність (%)"},${(data.probability * 100).toFixed(2)}`);
+  const naText = window.i18n ? window.i18n.t('forms.common.na') : "N/A";
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.riskLevel') : "Рівень ризику"},"${data.riskLevel || naText}"`);
+  const modelText = data.model || data.model_name || (window.i18n ? window.i18n.t('forms.model.auto') : "Автоматично");
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.model') : "Модель"},"${modelText}"`);
+  lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.createdAt') : "Дата створення"},"${new Date(data.created_at || new Date()).toLocaleString("uk-UA")}"`);
   lines.push("");
   
   // Ключові фактори
   const factors = data.top_factors || data.inputs?.top_factors || [];
   if (factors.length > 0) {
-    lines.push("=== КЛЮЧОВІ ФАКТОРИ, ЩО ВПЛИНУЛИ НА РИЗИК ===");
-    lines.push("№,Фактор,Код,Вплив (%)");
+    lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.keyFactors') : "=== КЛЮЧОВІ ФАКТОРИ, ЩО ВПЛИНУЛИ НА РИЗИК ===");
+    lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.number') : "№"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.factor') : "Фактор"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.code') : "Код"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.impact') : "Вплив (%)"}`);
     
     const factorsToShow = factors.slice(0, 10);
     factorsToShow.forEach((factor, index) => {
-      const factorCode = factor.feature || factor.name || "Невідомий фактор";
+      const factorCode = factor.feature || factor.name || (window.i18n ? window.i18n.t('pdf.report.keyFactors.unknownFactor') : "Невідомий фактор");
       let factorImpact = factor.impact || 0;
       
       // Нормалізація для старих даних
@@ -13380,7 +13686,7 @@ function generateCSVReport(data) {
         factorImpact = 1.0;
       }
       
-      const label = FACTOR_LABELS[factorCode] || factorCode;
+      const label = getFactorLabel(factorCode);
       const impactPercent = (factorImpact * 100).toFixed(1);
       
       lines.push(`${index + 1},"${label}","${factorCode}",${impactPercent}`);
@@ -13391,7 +13697,7 @@ function generateCSVReport(data) {
   // Рекомендації
   const recommendations = getRecommendations(data);
   if (recommendations.length > 0) {
-    lines.push("=== РЕКОМЕНДАЦІЇ / НАСТУПНІ КРОКИ ===");
+    lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.recommendations') : "=== РЕКОМЕНДАЦІЇ / НАСТУПНІ КРОКИ ===");
     recommendations.forEach((rec, index) => {
       lines.push(`${index + 1},"${rec}"`);
     });
@@ -13400,18 +13706,19 @@ function generateCSVReport(data) {
   
   // Дані форми
   if (data.formData && Object.keys(data.formData).length > 0) {
-    lines.push("=== ВВЕДЕНІ ДАНІ ===");
-    lines.push("Параметр,Значення");
+    lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.formData') : "=== ВВЕДЕНІ ДАНІ ===");
+    lines.push(`${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.parameter') : "Параметр"},${window.i18n ? window.i18n.t('pdf.report.csv.tableHeaders.value') : "Значення"}`);
     Object.entries(data.formData).forEach(([key, value]) => {
-      const label = FACTOR_LABELS[key] || key;
+      const label = getFactorLabel(key);
       lines.push(`"${label}","${value}"`);
     });
     lines.push("");
   }
   
   // Футер
-  lines.push("=== КІНЕЦЬ ЗВІТУ ===");
-  lines.push(`Згенеровано: ${new Date().toLocaleString("uk-UA")}`);
+  lines.push(window.i18n ? window.i18n.t('pdf.report.csv.sections.end') : "=== КІНЕЦЬ ЗВІТУ ===");
+  const generatedText = window.i18n ? window.i18n.t('pdf.report.csv.generated') : "Згенеровано";
+  lines.push(`${generatedText}: ${new Date().toLocaleString("uk-UA")}`);
   
   const csv = lines.join("\n");
   
@@ -13740,7 +14047,7 @@ function generateJSONReport(data) {
   // Обробка факторів
   const factors = data.top_factors || data.inputs?.top_factors || [];
   const processedFactors = factors.slice(0, 10).map((factor, index) => {
-    const factorCode = factor.feature || factor.name || "Невідомий фактор";
+    const factorCode = factor.feature || factor.name || (window.i18n ? window.i18n.t('forms.factors.unknown') : "Невідомий фактор");
     let factorImpact = factor.impact || 0;
     
     // Нормалізація для старих даних
@@ -13754,7 +14061,7 @@ function generateJSONReport(data) {
     return {
       rank: index + 1,
       code: factorCode,
-      name: FACTOR_LABELS[factorCode] || factorCode,
+      name: getFactorLabel(factorCode),
       impact: factorImpact,
       impactPercent: (factorImpact * 100).toFixed(1)
     };
@@ -13766,7 +14073,7 @@ function generateJSONReport(data) {
     Object.entries(data.formData).forEach(([key, value]) => {
       processedFormData[key] = {
         code: key,
-        label: FACTOR_LABELS[key] || key,
+        label: getFactorLabel(key),
         value: value
       };
     });
@@ -13802,11 +14109,11 @@ function generateJSONReport(data) {
     summary: {
       target: {
         code: data.target,
-        label: TARGET_LABELS[data.target] || data.target
+        label: getTargetLabel(data.target)
       },
       probability: data.probability,
       probabilityPercent: (data.probability * 100).toFixed(2),
-      riskLevel: data.riskLevel || "N/A",
+      riskLevel: data.riskLevel || (window.i18n ? window.i18n.t('forms.common.na') : "N/A"),
       riskBucket: riskBucket,
       model: data.model || data.model_name || "Автоматично",
       createdAt: data.created_at || new Date().toISOString(),
@@ -13854,8 +14161,8 @@ function generateJSONReport(data) {
   
   showNotification({
     type: "success",
-    title: "Звіт згенеровано",
-    message: "JSON звіт завантажено та відкрито попередній перегляд",
+    title: window.i18n ? window.i18n.t('pdf.report.json.success.title') : "Звіт згенеровано",
+    message: window.i18n ? window.i18n.t('pdf.report.json.success.message') : "JSON звіт завантажено та відкрито попередній перегляд",
     duration: 3000
   });
 }
@@ -13897,7 +14204,7 @@ function generateIncidentsFromHistory() {
         dayIncident.services.push({
           name: record.service,
           type: 'down',
-          message: record.error || `${record.service} недоступний`
+          message: record.error || (window.i18n ? window.i18n.t('apiStatus.serviceUnavailable', { service: record.service }) : `${record.service} недоступний`)
         });
       }
     } else if (record.latency && record.latency > 1000) {
@@ -13906,7 +14213,7 @@ function generateIncidentsFromHistory() {
         dayIncident.services.push({
           name: record.service,
           type: 'degraded',
-          message: `Погіршена продуктивність ${record.service}`
+          message: window.i18n ? window.i18n.t('apiStatus.degradedPerformance', { service: record.service }) : `Погіршена продуктивність ${record.service}`
         });
       }
     } else {
@@ -13932,9 +14239,9 @@ function generateIncidentsFromHistory() {
       // Дні без помилок - показуємо зелений статус
       incidents.push({
         date: dayIncident.date,
-        service: 'Всі сервіси',
+        service: window.i18n ? window.i18n.t('apiStatus.status.allSystemsOperational') : 'Всі сервіси',
         type: 'operational',
-        message: 'Всі системи працюють нормально',
+        message: window.i18n ? window.i18n.t('apiStatus.status.allSystemsOperational') : 'Всі системи працюють нормально',
         severity: 'operational'
       });
     }
@@ -13947,7 +14254,20 @@ function generateIncidentsFromHistory() {
 }
 
 function formatHistoryDateRange() {
-  const months = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
+  const months = window.i18n ? [
+    window.i18n.t('date.months.short.jan'),
+    window.i18n.t('date.months.short.feb'),
+    window.i18n.t('date.months.short.mar'),
+    window.i18n.t('date.months.short.apr'),
+    window.i18n.t('date.months.short.may'),
+    window.i18n.t('date.months.short.jun'),
+    window.i18n.t('date.months.short.jul'),
+    window.i18n.t('date.months.short.aug'),
+    window.i18n.t('date.months.short.sep'),
+    window.i18n.t('date.months.short.oct'),
+    window.i18n.t('date.months.short.nov'),
+    window.i18n.t('date.months.short.dec')
+  ] : ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
   const monthStr = `${months[historyCurrentMonth]} ${historyCurrentYear}`;
   return monthStr;
 }
@@ -14029,9 +14349,9 @@ function renderApiStatusHistory() {
         date: dayDate,
         incidents: [{
           date: dayDate,
-          service: 'Всі сервіси',
+          service: window.i18n ? window.i18n.t('apiStatus.allServices') : 'Всі сервіси',
           type: 'operational',
-          message: 'Всі системи працюють нормально',
+          message: window.i18n ? window.i18n.t('apiStatus.allSystemsOperational') : 'Всі системи працюють нормально',
           severity: 'operational'
         }]
       });
@@ -14041,8 +14361,29 @@ function renderApiStatusHistory() {
   // Сортуємо дні (найновіші спочатку)
   allDays.sort((a, b) => b.date.getTime() - a.date.getTime());
   
-  const months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
-  const daysOfWeek = ['Неділя', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'П\'ятниця', 'Субота'];
+  const months = window.i18n ? [
+    window.i18n.t('date.months.full.january'),
+    window.i18n.t('date.months.full.february'),
+    window.i18n.t('date.months.full.march'),
+    window.i18n.t('date.months.full.april'),
+    window.i18n.t('date.months.full.may'),
+    window.i18n.t('date.months.full.june'),
+    window.i18n.t('date.months.full.july'),
+    window.i18n.t('date.months.full.august'),
+    window.i18n.t('date.months.full.september'),
+    window.i18n.t('date.months.full.october'),
+    window.i18n.t('date.months.full.november'),
+    window.i18n.t('date.months.full.december')
+  ] : ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
+  const daysOfWeek = window.i18n ? [
+    window.i18n.t('date.daysOfWeek.sunday'),
+    window.i18n.t('date.daysOfWeek.monday'),
+    window.i18n.t('date.daysOfWeek.tuesday'),
+    window.i18n.t('date.daysOfWeek.wednesday'),
+    window.i18n.t('date.daysOfWeek.thursday'),
+    window.i18n.t('date.daysOfWeek.friday'),
+    window.i18n.t('date.daysOfWeek.saturday')
+  ] : ['Неділя', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'П\'ятниця', 'Субота'];
   const monthName = months[historyCurrentMonth];
   
   let html = `<div class="api-status-history-page__month">
@@ -14064,9 +14405,9 @@ function renderApiStatusHistory() {
     dayData.incidents.forEach(incident => {
       const severityClass = incident.severity === 'down' ? 'down' : (incident.severity === 'degraded' ? 'degraded' : 'operational');
       
-      let statusMessage = 'Всі зачеплені сервіси тепер повністю відновлені.';
+      let statusMessage = window.i18n ? window.i18n.t('apiStatus.status.allServicesRestored') : 'Всі зачеплені сервіси тепер повністю відновлені.';
       if (incident.severity === 'operational') {
-        statusMessage = 'Всі системи працюють нормально.';
+        statusMessage = window.i18n ? window.i18n.t('apiStatus.status.allSystemsOperational') + '.' : 'Всі системи працюють нормально.';
       }
       
       html += `
