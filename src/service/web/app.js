@@ -5987,44 +5987,66 @@ function stopDbDotsAnimation() {
 }
 
 // Ініціалізація табів
+function switchApiStatusTab(tabName) {
+  const tabs = document.querySelectorAll(".api-status-tab");
+  const panels = document.querySelectorAll(".api-status-tab-panel");
+  
+  // Видаляємо активний клас з усіх табів
+  tabs.forEach((t) => {
+    t.classList.remove("api-status-tab--active");
+    t.setAttribute("aria-selected", "false");
+  });
+  
+  // Видаляємо активний клас з усіх панелей
+  panels.forEach((p) => {
+    p.classList.remove("api-status-tab-panel--active");
+  });
+  
+  // Знаходимо вибраний таб
+  const selectedTab = Array.from(tabs).find(t => t.dataset.tab === tabName);
+  if (selectedTab) {
+    selectedTab.classList.add("api-status-tab--active");
+    selectedTab.setAttribute("aria-selected", "true");
+  }
+  
+  // Показуємо відповідну панель
+  const targetPanel = document.getElementById(`api-status-tab-${tabName}`);
+  if (targetPanel) {
+    targetPanel.classList.add("api-status-tab-panel--active");
+  }
+  
+  // Якщо відкрили таб "Система", запускаємо перевірку БД та оновлюємо компонент статусу
+  // ВИПРАВЛЕНО: Викликаємо checkDbStatus(), який сам запустить анімацію
+  if (tabName === "system") {
+    if (typeof window.checkDbStatus === "function") {
+      window.checkDbStatus();
+    }
+  }
+  
+  refreshIcons();
+}
+
 function initializeApiStatusTabs() {
   const tabs = document.querySelectorAll(".api-status-tab");
   const panels = document.querySelectorAll(".api-status-tab-panel");
+  
+  // Відновлюємо вибраний таб з localStorage
+  const savedTab = localStorage.getItem('api-status-selected-tab');
+  const validTabs = ['api', 'ollama', 'system'];
+  const initialTab = savedTab && validTabs.includes(savedTab) ? savedTab : 'api';
+  
+  // Встановлюємо початковий таб
+  switchApiStatusTab(initialTab);
   
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
       const tabName = tab.dataset.tab;
       
-      // Видаляємо активний клас з усіх табів
-      tabs.forEach((t) => {
-        t.classList.remove("api-status-tab--active");
-        t.setAttribute("aria-selected", "false");
-      });
+      // Зберігаємо вибраний таб в localStorage
+      localStorage.setItem('api-status-selected-tab', tabName);
       
-      // Видаляємо активний клас з усіх панелей
-      panels.forEach((p) => {
-        p.classList.remove("api-status-tab-panel--active");
-      });
-      
-      // Додаємо активний клас до вибраного табу
-      tab.classList.add("api-status-tab--active");
-      tab.setAttribute("aria-selected", "true");
-      
-      // Показуємо відповідну панель
-      const targetPanel = document.getElementById(`api-status-tab-${tabName}`);
-      if (targetPanel) {
-        targetPanel.classList.add("api-status-tab-panel--active");
-      }
-      
-      // Якщо відкрили таб "Система", запускаємо перевірку БД та оновлюємо компонент статусу
-      // ВИПРАВЛЕНО: Викликаємо checkDbStatus(), який сам запустить анімацію
-      if (tabName === "system") {
-        if (typeof window.checkDbStatus === "function") {
-          window.checkDbStatus();
-        }
-      }
-      
-      refreshIcons();
+      // Перемикаємо таб
+      switchApiStatusTab(tabName);
     });
   });
 }
