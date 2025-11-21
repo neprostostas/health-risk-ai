@@ -95,6 +95,7 @@ const ROUTE_SECTIONS = {
   "/profile": "page-profile",
   "/history": "page-history",
   "/api-status": "page-api-status",
+  "/api-status/history": "page-api-status-history",
   "/forgot-password": "page-forgot-password",
   "/reset-password": "page-reset-password",
   "/assistant": "page-assistant",
@@ -115,6 +116,7 @@ const SECTION_TO_ROUTE = {
   "page-profile": "/profile",
   "page-history": "/history",
   "page-api-status": "/api-status",
+  "page-api-status-history": "/api-status/history",
   "page-forgot-password": "/forgot-password",
   "page-reset-password": "/reset-password",
   "page-assistant": "/assistant",
@@ -341,6 +343,7 @@ const pageTitles = {
   "page-profile": "Профіль",
   "page-history": "Історія прогнозів",
   "page-api-status": "Статус API",
+  "page-api-status-history": "Історія інцидентів",
   "page-login": "Вхід до облікового запису",
   "page-register": "Створення облікового запису",
   "page-forgot-password": "Відновлення пароля",
@@ -1920,7 +1923,7 @@ function showSectionForPath(pathname) {
   // Auth gating: require authentication for main app pages
   // Перевіряємо автентифікацію тільки після того, як authState.initialized === true
   // Це дозволяє правильно завантажити сторінку при оновленні (якщо є токен)
-  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant", "page-chats", "page-report"];
+  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant", "page-chats", "page-report", "page-api-status-history"];
   
   // Додаткова перевірка для захищених секцій (на випадок, якщо щось пропустили вище)
   if (protectedSections.includes(section) && !authState.user) {
@@ -1948,7 +1951,7 @@ function showSectionForPath(pathname) {
   
   // ВАЖЛИВО: Перевіряємо валідні захищені роути
   // Якщо користувач на валідному захищеному роуті - залишаємо його там, не редіректимо
-  const validProtectedRoutes = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant", "/reports"];
+  const validProtectedRoutes = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant", "/reports", "/api-status/history"];
   const isOnValidProtectedRoute = validProtectedRoutes.some(route => pathname.toLowerCase().startsWith(route));
   
   // Додаткова перевірка для валідних захищених роутів (на випадок, якщо щось пропустили вище)
@@ -2856,7 +2859,7 @@ async function initializeAuth() {
   const currentPath = window.location.pathname;
   const hasUser = Boolean(authState.user);
   
-  const validProtectedRoutes = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant", "/reports"];
+  const validProtectedRoutes = ["/chats", "/c/", "/app", "/diagrams", "/history", "/profile", "/assistant", "/reports", "/api-status/history"];
   const isOnValidProtectedRoute = validProtectedRoutes.some(route => currentPath.toLowerCase().startsWith(route));
   
   // КРИТИЧНО: Обробка для НЕзалогінених користувачів
@@ -5763,11 +5766,7 @@ function initializeSystemStatusOverview() {
   const historyBtn = document.querySelector('.system-status-overview__history-btn');
   if (historyBtn) {
     historyBtn.addEventListener('click', () => {
-      // Прокручуємо до початку компонента
-      const container = document.querySelector('.system-status-overview');
-      if (container) {
-        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      navigateTo('/api-status/history');
     });
   }
   
@@ -6722,7 +6721,7 @@ function initializeTheme() {
 function activateSection(sectionId) {
   // Для захищених сторінок перевіряємо автентифікацію перед активацією
   // Але тільки якщо authState.initialized === true (як для діаграм)
-  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant", "page-chats", "page-report"];
+  const protectedSections = ["page-form", "page-insights", "page-profile", "page-history", "page-assistant", "page-chats", "page-report", "page-api-status-history"];
   if (protectedSections.includes(sectionId) && !authState.user && authState.initialized) {
     // Якщо користувач не автентифікований і автентифікація вже ініціалізована, не активуємо сторінку
     // Вже перенаправлено в showSectionForPath, просто виходимо
@@ -6864,6 +6863,10 @@ function activateSection(sectionId) {
   if (sectionId === "page-api-status") {
     // Завантажуємо та відображаємо інформацію про статус API
     initializeApiStatusPage();
+  }
+  if (sectionId === "page-api-status-history") {
+    // Завантажуємо та відображаємо історію інцидентів
+    initializeApiStatusHistoryPage();
   }
 }
 
@@ -13369,4 +13372,290 @@ function generateJSONReport(data) {
     message: "JSON звіт завантажено та відкрито попередній перегляд",
     duration: 3000
   });
+}
+
+// ===== API Status History Page =====
+let historyCurrentMonth = new Date().getMonth();
+let historyCurrentYear = new Date().getFullYear();
+
+function generateIncidentsFromHistory() {
+  const incidents = [];
+  const allHistory = [
+    ...(apiStatusHistory || []).map(h => ({ ...h, service: 'API' })),
+    ...(ollamaStatusHistory || []).map(h => ({ ...h, service: 'Ollama' })),
+    ...(dbStatusHistory || []).map(h => ({ ...h, service: 'База даних' }))
+  ];
+  
+  // Групуємо по днях та визначаємо інциденти
+  const incidentsByDay = new Map();
+  
+  allHistory.forEach(record => {
+    const date = new Date(record.timestamp);
+    const dayKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    
+    if (!incidentsByDay.has(dayKey)) {
+      incidentsByDay.set(dayKey, {
+        date: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+        services: [],
+        hasErrors: false,
+        hasHighLatency: false,
+        hasOperational: false
+      });
+    }
+    
+    const dayIncident = incidentsByDay.get(dayKey);
+    
+    if (!record.isOnline || record.error) {
+      dayIncident.hasErrors = true;
+      if (!dayIncident.services.find(s => s.name === record.service && s.type === 'down')) {
+        dayIncident.services.push({
+          name: record.service,
+          type: 'down',
+          message: record.error || `${record.service} недоступний`
+        });
+      }
+    } else if (record.latency && record.latency > 1000) {
+      dayIncident.hasHighLatency = true;
+      if (!dayIncident.services.find(s => s.name === record.service && s.type === 'degraded')) {
+        dayIncident.services.push({
+          name: record.service,
+          type: 'degraded',
+          message: `Погіршена продуктивність ${record.service}`
+        });
+      }
+    } else {
+      // Всі сервіси працюють нормально
+      dayIncident.hasOperational = true;
+    }
+  });
+  
+  // Конвертуємо в масив інцидентів (включаючи дні без помилок)
+  incidentsByDay.forEach((dayIncident, dayKey) => {
+    if (dayIncident.hasErrors || dayIncident.hasHighLatency) {
+      // Дні з помилками
+      dayIncident.services.forEach(service => {
+        incidents.push({
+          date: dayIncident.date,
+          service: service.name,
+          type: service.type,
+          message: service.message,
+          severity: service.type === 'down' ? 'down' : 'degraded'
+        });
+      });
+    } else if (dayIncident.hasOperational) {
+      // Дні без помилок - показуємо зелений статус
+      incidents.push({
+        date: dayIncident.date,
+        service: 'Всі сервіси',
+        type: 'operational',
+        message: 'Всі системи працюють нормально',
+        severity: 'operational'
+      });
+    }
+  });
+  
+  // Сортуємо за датою (найновіші спочатку)
+  incidents.sort((a, b) => b.date.getTime() - a.date.getTime());
+  
+  return incidents;
+}
+
+function formatHistoryDateRange() {
+  const months = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
+  const monthStr = `${months[historyCurrentMonth]} ${historyCurrentYear}`;
+  return monthStr;
+}
+
+function renderApiStatusHistory() {
+  const container = document.getElementById('api-status-history-content');
+  if (!container) return;
+  
+  const allIncidents = generateIncidentsFromHistory();
+  
+  // Оновлюємо діапазон дат
+  const dateRangeEl = document.getElementById('history-date-range');
+  if (dateRangeEl) {
+    dateRangeEl.textContent = formatHistoryDateRange();
+  }
+  
+  // Оновлюємо кнопки навігації
+  updateHistoryNavButtons();
+  
+  // Створюємо мапу інцидентів по днях для поточного місяця
+  const incidentsByDay = new Map();
+  
+  allIncidents.forEach(incident => {
+    const date = incident.date;
+    if (date.getMonth() === historyCurrentMonth && date.getFullYear() === historyCurrentYear) {
+      const dayKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      
+      if (!incidentsByDay.has(dayKey)) {
+        incidentsByDay.set(dayKey, {
+          date: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+          incidents: []
+        });
+      }
+      
+      incidentsByDay.get(dayKey).incidents.push(incident);
+    }
+  });
+  
+  // Генеруємо всі дні місяця
+  const daysInMonth = new Date(historyCurrentYear, historyCurrentMonth + 1, 0).getDate();
+  const allDays = [];
+  
+  // Визначаємо межі: від початку місяця або від STATISTICS_START_DATE, до поточної дати або кінця місяця
+  const now = new Date();
+  const startDate = new Date(STATISTICS_START_DATE);
+  const isCurrentMonth = historyCurrentYear === now.getFullYear() && historyCurrentMonth === now.getMonth();
+  const isStartMonth = historyCurrentYear === startDate.getFullYear() && historyCurrentMonth === startDate.getMonth();
+  
+  const firstDay = isStartMonth ? startDate.getDate() : 1;
+  const lastDay = isCurrentMonth ? now.getDate() : daysInMonth;
+  
+  for (let day = firstDay; day <= lastDay; day++) {
+    const dayDate = new Date(historyCurrentYear, historyCurrentMonth, day);
+    const dayKey = `${historyCurrentYear}-${historyCurrentMonth}-${day}`;
+    
+    if (incidentsByDay.has(dayKey)) {
+      // Якщо є дані для цього дня
+      allDays.push(incidentsByDay.get(dayKey));
+    } else {
+      // Якщо немає даних - створюємо operational статус
+      allDays.push({
+        date: dayDate,
+        incidents: [{
+          date: dayDate,
+          service: 'Всі сервіси',
+          type: 'operational',
+          message: 'Всі системи працюють нормально',
+          severity: 'operational'
+        }]
+      });
+    }
+  }
+  
+  // Сортуємо дні (найновіші спочатку)
+  allDays.sort((a, b) => b.date.getTime() - a.date.getTime());
+  
+  const months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
+  const daysOfWeek = ['Неділя', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'П\'ятниця', 'Субота'];
+  const monthName = months[historyCurrentMonth];
+  
+  let html = `<div class="api-status-history-page__month">
+    <h2 class="api-status-history-page__month-title">${monthName}</h2>
+    <div class="api-status-history-page__incidents">`;
+  
+  allDays.forEach(dayData => {
+    const day = dayData.date.getDate();
+    const dayOfWeek = daysOfWeek[dayData.date.getDay()];
+    const dayName = dayOfWeek; // Повна назва дня
+    
+    html += `<div class="api-status-history-page__day">
+      <div class="api-status-history-page__day-header">
+        <span class="api-status-history-page__day-number">${day}</span>
+        <span class="api-status-history-page__day-name">${dayName}</span>
+      </div>
+      <div class="api-status-history-page__day-incidents">`;
+    
+    dayData.incidents.forEach(incident => {
+      const severityClass = incident.severity === 'down' ? 'down' : (incident.severity === 'degraded' ? 'degraded' : 'operational');
+      
+      let statusMessage = 'Всі зачеплені сервіси тепер повністю відновлені.';
+      if (incident.severity === 'operational') {
+        statusMessage = 'Всі системи працюють нормально.';
+      }
+      
+      html += `
+        <div class="api-status-history-page__incident api-status-history-page__incident--${severityClass}">
+          <div class="api-status-history-page__incident-indicator"></div>
+          <div class="api-status-history-page__incident-content">
+            <h3 class="api-status-history-page__incident-title">${incident.message}</h3>
+            <p class="api-status-history-page__incident-status">${statusMessage}</p>
+          </div>
+          <div class="api-status-history-page__incident-time">
+            ${incident.date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </div>
+      `;
+    });
+    
+    html += `</div></div>`;
+  });
+  
+  html += `</div></div>`;
+  
+  container.innerHTML = html;
+  refreshIcons();
+}
+
+function updateHistoryNavButtons() {
+  const prevBtn = document.getElementById('history-nav-prev');
+  const nextBtn = document.getElementById('history-nav-next');
+  
+  const now = new Date();
+  const startDate = new Date(STATISTICS_START_DATE);
+  const minMonth = startDate.getMonth();
+  const minYear = startDate.getFullYear();
+  const maxMonth = now.getMonth();
+  const maxYear = now.getFullYear();
+  
+  // Перевіряємо, чи досягнуто мінімального місяця
+  const isAtMin = historyCurrentYear === minYear && historyCurrentMonth === minMonth;
+  
+  // Перевіряємо, чи досягнуто максимального місяця
+  const isAtMax = historyCurrentYear === maxYear && historyCurrentMonth === maxMonth;
+  
+  if (prevBtn) {
+    prevBtn.disabled = isAtMin;
+    prevBtn.classList.toggle('api-status-history-page__nav-btn--disabled', isAtMin);
+  }
+  
+  if (nextBtn) {
+    nextBtn.disabled = isAtMax;
+    nextBtn.classList.toggle('api-status-history-page__nav-btn--disabled', isAtMax);
+  }
+}
+
+function initializeApiStatusHistoryPage() {
+  // Встановлюємо поточний місяць як поточну дату
+  const now = new Date();
+  historyCurrentMonth = now.getMonth();
+  historyCurrentYear = now.getFullYear();
+  
+  renderApiStatusHistory();
+  
+  // Обробники навігації по місяцях
+  const prevBtn = document.getElementById('history-nav-prev');
+  const nextBtn = document.getElementById('history-nav-next');
+  
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      if (prevBtn.disabled) return;
+      
+      // Переходимо на попередній місяць
+      historyCurrentMonth--;
+      if (historyCurrentMonth < 0) {
+        historyCurrentMonth = 11;
+        historyCurrentYear--;
+      }
+      
+      renderApiStatusHistory();
+    });
+  }
+  
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      if (nextBtn.disabled) return;
+      
+      // Переходимо на наступний місяць
+      historyCurrentMonth++;
+      if (historyCurrentMonth > 11) {
+        historyCurrentMonth = 0;
+        historyCurrentYear++;
+      }
+      
+      renderApiStatusHistory();
+    });
+  }
 }

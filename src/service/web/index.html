@@ -1207,6 +1207,32 @@
         </div>
       </section>
 
+      <!-- API Status History Page -->
+      <section id="page-api-status-history" class="page" aria-labelledby="page-title" hidden>
+        <div class="api-status-history-page">
+          <div class="api-status-history-page__header">
+            <div class="api-status-history-page__breadcrumbs">
+              <a href="#" onclick="navigateTo('/api-status'); return false;" class="api-status-history-page__breadcrumb-link">Статус API</a>
+              <span class="api-status-history-page__breadcrumb-separator">/</span>
+              <span class="api-status-history-page__breadcrumb-current">Історія</span>
+            </div>
+            <h1 class="api-status-history-page__title">Історія</h1>
+            <div class="api-status-history-page__date-nav">
+              <button type="button" class="api-status-history-page__nav-btn" id="history-nav-prev" aria-label="Попередній період">
+                <span class="icon" data-lucide="chevron-left"></span>
+              </button>
+              <span class="api-status-history-page__date-range" id="history-date-range">Сер 2024 - Гру 2025</span>
+              <button type="button" class="api-status-history-page__nav-btn" id="history-nav-next" aria-label="Наступний період">
+                <span class="icon" data-lucide="chevron-right"></span>
+              </button>
+            </div>
+          </div>
+          <div class="api-status-history-page__content" id="api-status-history-content">
+            <!-- History incidents will be rendered here -->
+          </div>
+        </div>
+      </section>
+
       <section id="page-report" class="page" aria-labelledby="page-title" hidden>
         <div class="page__grid">
           <section class="glass-card">
