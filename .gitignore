@@ -1,9 +1,28 @@
+# ============================================
 # Python
+# ============================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ============================================
+# Virtual Environment
+# ============================================
+venv/
+env/
+ENV/
+.venv/
+.venv*/
+
+# ============================================
+# Build & Distribution
+# ============================================
 build/
 develop-eggs/
 dist/
@@ -16,27 +35,27 @@ parts/
 sdist/
 var/
 wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+.eggs/
 
-# Virtual Environment
-venv/
-env/
-ENV/
-.venv
-.venv*/
-
-# IDE
+# ============================================
+# IDE & Editors
+# ============================================
 .vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
 *~
 *.sublime-project
 *.sublime-workspace
+*.code-workspace
 
+# ============================================
+# OS Specific
+# ============================================
 # macOS
 .DS_Store
 .AppleDouble
@@ -49,7 +68,10 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 
-# Artifacts (моделі та результати навчання)
+# ============================================
+# Project Artifacts
+# ============================================
+# ML Models & Training Results
 artifacts/
 *.pkl
 *.joblib
@@ -65,78 +87,94 @@ datasets/processed/
 !**/small_*.csv
 !**/config_*.csv
 
-# Certificates and keys
+# ============================================
+# Security & Certificates
+# ============================================
 certs/
 *.key
 *.crt
 *.pem
 
-# Local data
+# ============================================
+# Database & Local Data
+# ============================================
 data/avatars/*
 !data/avatars/.gitkeep
 data/app.db
 data/*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb
-
-# Environment variables
+# ============================================
+# Environment & Configuration
+# ============================================
 .env
 .env.local
 .env.*.local
+config.local.yaml
+*.local.yaml
 
-# Logs
+# ============================================
+# Logs & Temporary Files
+# ============================================
 *.log
 logs/
+*.log.*
 .dev/
-
-# Temporary files
 *.tmp
 *.temp
 *.bak
-*.swp
+*.cache
 
-# Coverage reports
+# ============================================
+# Testing & Coverage
+# ============================================
+.pytest_cache/
+.tox/
 htmlcov/
 .coverage
 .coverage.*
 coverage.xml
 *.cover
+test-results/
 
-# pytest
-.pytest_cache/
-.tox/
-
-# mypy
+# ============================================
+# Type Checking
+# ============================================
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# Pyre type checker
+.pytype/
 .pyre/
 
-# Node modules (якщо використовується)
+# ============================================
+# Jupyter Notebooks
+# ============================================
+.ipynb_checkpoints/
+*.ipynb
+
+# ============================================
+# Node.js (if any frontend build tools)
+# ============================================
 node_modules/
 package-lock.json
 yarn.lock
+pnpm-lock.yaml
 
-# Python type checking
-.pytype/
+# ============================================
+# Generated Documentation
+# ============================================
+docs/_build/
+site/
 
-# Editor directories and files (детальні налаштування)
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.code-workspace
+# ============================================
+# Web Static Files (Generated/Cached)
+# ============================================
+src/service/web/data/analytics_summary.json
 
-# Project specific
+# ============================================
+# Project Specific
+# ============================================
 to do
 *.md.bak
-
-# Database backups
-*.db-journal
-*.db-wal
-*.db-shm

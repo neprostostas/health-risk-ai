@@ -6579,7 +6579,6 @@ async function initializeApiStatusPage() {
                 showRouteDetails(routeData);
               }
             } catch (e) {
-              console.error('Error parsing route data:', e);
             }
           });
         });
