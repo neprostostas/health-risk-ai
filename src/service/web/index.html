@@ -96,6 +96,10 @@
           <span class="nav-item__text" data-i18n="sidebar.nav.chats">Чати</span>
           <span class="nav-item__badge" id="nav-chats-badge" hidden>0</span>
         </button>
+        <button type="button" class="nav-item" data-section="page-about" id="nav-about">
+          <span class="icon" data-lucide="info"></span>
+          <span class="nav-item__text" data-i18n="sidebar.nav.about">Про систему</span>
+        </button>
       </nav>
     </aside>
 
@@ -1525,6 +1529,215 @@
               </div>
             </main>
           </div>
+        </div>
+      </section>
+
+      <!-- Сторінка "Про систему" -->
+      <section id="page-about" class="page" aria-labelledby="page-title" hidden>
+        <div class="about-page">
+          <!-- Заголовок сторінки -->
+          <div class="about-page__header">
+            <h1 class="about-page__title" data-i18n="about.title">Про систему</h1>
+            <p class="about-page__subtitle" data-i18n="about.subtitle">Автоматизована система оцінки й прогнозування ризиків для здоров'я</p>
+          </div>
+
+          <!-- Швидка навігація по секціям -->
+          <nav class="about-page__nav">
+            <a href="#main-idea" class="about-page__nav-link" data-i18n="about.nav.mainIdea">Що це?</a>
+            <a href="#how-it-works" class="about-page__nav-link" data-i18n="about.nav.howItWorks">Як працює?</a>
+            <a href="#architecture" class="about-page__nav-link" data-i18n="about.nav.architecture">Архітектура</a>
+            <a href="#models" class="about-page__nav-link" data-i18n="about.nav.models">Моделі</a>
+            <a href="#ai-assistant" class="about-page__nav-link" data-i18n="about.nav.aiAssistant">AI-асистент</a>
+            <a href="#limitations" class="about-page__nav-link" data-i18n="about.nav.limitations">Обмеження</a>
+            <a href="#technical" class="about-page__nav-link" data-i18n="about.nav.technical">Технічні деталі</a>
+          </nav>
+
+          <!-- Основна ідея -->
+          <section id="main-idea" class="about-page__section">
+            <div class="glass-card">
+              <h2 class="glass-card__title" data-i18n="about.mainIdea.title">Основна ідея</h2>
+              <div class="about-page__content">
+                <div class="about-page__block">
+                  <h3 data-i18n="about.mainIdea.whatIs.title">Що таке HealthRisk.AI?</h3>
+                  <p data-i18n="about.mainIdea.whatIs.content">HealthRisk.AI — це автоматизована система, яка допомагає оцінити ризики для здоров'я на основі медичних показників.</p>
+                </div>
+                <div class="about-page__block">
+                  <h3 data-i18n="about.mainIdea.purpose.title">Для чого створений</h3>
+                  <p data-i18n="about.mainIdea.purpose.content">Система створена для освітніх та аналітичних цілей, щоб допомогти користувачам зрозуміти свої ризики здоров'я.</p>
+                </div>
+                <div class="about-page__block">
+                  <h3 data-i18n="about.mainIdea.tasks.title">Які задачі вирішує</h3>
+                  <ul>
+                    <li data-i18n="about.mainIdea.tasks.item1">Оцінка ризиків здоров'я</li>
+                    <li data-i18n="about.mainIdea.tasks.item2">Візуалізація даних</li>
+                    <li data-i18n="about.mainIdea.tasks.item3">Освітня функція</li>
+                  </ul>
+                </div>
+                <div class="about-page__block">
+                  <h3 data-i18n="about.mainIdea.benefits.title">Користь для користувача</h3>
+                  <ul>
+                    <li data-i18n="about.mainIdea.benefits.item1">Персоналізовані прогнози</li>
+                    <li data-i18n="about.mainIdea.benefits.item2">Історія змін</li>
+                    <li data-i18n="about.mainIdea.benefits.item3">Рекомендації</li>
+                  </ul>
+                </div>
+                <div class="about-page__block about-page__block--warning">
+                  <h3 data-i18n="about.mainIdea.notMedical.title">Що система НЕ робить</h3>
+                  <ul>
+                    <li data-i18n="about.mainIdea.notMedical.item1">⚠️ Не є медичною діагностикою</li>
+                    <li data-i18n="about.mainIdea.notMedical.item2">⚠️ Не замінює лікаря</li>
+                    <li data-i18n="about.mainIdea.notMedical.item3">⚠️ Не призначає лікування</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Як працює -->
+          <section id="how-it-works" class="about-page__section">
+            <div class="glass-card">
+              <h2 class="glass-card__title" data-i18n="about.howItWorks.title">Як працює система</h2>
+              <div class="about-page__content">
+                <p data-i18n="about.howItWorks.description">Система аналізує введені медичні показники та використовує навчені моделі машинного навчання для прогнозування ризиків.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Архітектура -->
+          <section id="architecture" class="about-page__section">
+            <div class="glass-card">
+              <h2 class="glass-card__title" data-i18n="about.architecture.title">Архітектура системи</h2>
+              <div class="about-architecture">
+                <div class="about-architecture__block">
+                  <h3 data-i18n="about.architecture.frontend.title">Frontend</h3>
+                  <ul>
+                    <li data-i18n="about.architecture.frontend.item1">SPA (single-page application)</li>
+                    <li data-i18n="about.architecture.frontend.item2">Діаграми та візуалізації</li>
+                    <li data-i18n="about.architecture.frontend.item3">Історія прогнозів</li>
+                    <li data-i18n="about.architecture.frontend.item4">Профіль користувача</li>
+                    <li data-i18n="about.architecture.frontend.item5">Генерація PDF</li>
+                    <li data-i18n="about.architecture.frontend.item6">AI-чат-асистент</li>
+                  </ul>
+                </div>
+                <div class="about-architecture__block">
+                  <h3 data-i18n="about.architecture.backend.title">Backend</h3>
+                  <ul>
+                    <li data-i18n="about.architecture.backend.item1">FastAPI framework</li>
+                    <li data-i18n="about.architecture.backend.item2">Маршрути /api/*</li>
+                    <li data-i18n="about.architecture.backend.item3">Обробка прогнозування</li>
+                    <li data-i18n="about.architecture.backend.item4">Логіка аутентифікації</li>
+                    <li data-i18n="about.architecture.backend.item5">Статистика системи</li>
+                  </ul>
+                </div>
+                <div class="about-architecture__block">
+                  <h3 data-i18n="about.architecture.mlModels.title">ML-моделі</h3>
+                  <ul>
+                    <li data-i18n="about.architecture.mlModels.item1">Логістична регресія</li>
+                    <li data-i18n="about.architecture.mlModels.item2">Random Forest</li>
+                    <li data-i18n="about.architecture.mlModels.item3">XGBoost</li>
+                    <li data-i18n="about.architecture.mlModels.item4">Модель прогнозування ризику діабету</li>
+                    <li data-i18n="about.architecture.mlModels.item5">Модель прогнозування ризику ожиріння</li>
+                  </ul>
+                </div>
+                <div class="about-architecture__block">
+                  <h3 data-i18n="about.architecture.aiAssistant.title">AI-асистент</h3>
+                  <ul>
+                    <li data-i18n="about.architecture.aiAssistant.item1">Внутрішня інтеграція з Ollama</li>
+                    <li data-i18n="about.architecture.aiAssistant.item2">Модель LLM (llama3)</li>
+                    <li data-i18n="about.architecture.aiAssistant.item3">Персоналізовані рекомендації</li>
+                  </ul>
+                </div>
+                <div class="about-architecture__block">
+                  <h3 data-i18n="about.architecture.database.title">База даних</h3>
+                  <ul>
+                    <li data-i18n="about.architecture.database.item1">SQLite</li>
+                    <li data-i18n="about.architecture.database.item2">Історія прогнозів</li>
+                    <li data-i18n="about.architecture.database.item3">Користувачі</li>
+                    <li data-i18n="about.architecture.database.item4">Чати</li>
+                    <li data-i18n="about.architecture.database.item5">Логування</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Моделі -->
+          <section id="models" class="about-page__section">
+            <div class="glass-card">
+              <h2 class="glass-card__title" data-i18n="about.models.title">Моделі машинного навчання</h2>
+              <div class="about-page__content">
+                <p data-i18n="about.models.description">Система використовує калібровані моделі машинного навчання для точного прогнозування ризиків.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- AI-асистент -->
+          <section id="ai-assistant" class="about-page__section">
+            <div class="glass-card">
+              <h2 class="glass-card__title" data-i18n="about.aiAssistant.title">AI-асистент</h2>
+              <div class="about-page__content">
+                <p data-i18n="about.aiAssistant.description">AI-асистент допомагає пояснити результати прогнозування та надає персоналізовані рекомендації.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Обмеження -->
+          <section id="limitations" class="about-page__section about-page__section--warning">
+            <div class="glass-card">
+              <h2 class="glass-card__title" data-i18n="about.limitations.title">Важливі обмеження</h2>
+              <div class="about-limitations">
+                <div class="about-limitations__item">
+                  <span class="icon" data-lucide="alert-triangle"></span>
+                  <p data-i18n="about.limitations.notMedical">Не є медичною діагностикою</p>
+                </div>
+                <div class="about-limitations__item">
+                  <span class="icon" data-lucide="alert-triangle"></span>
+                  <p data-i18n="about.limitations.notDoctor">Не замінює лікаря</p>
+                </div>
+                <div class="about-limitations__item">
+                  <span class="icon" data-lucide="alert-triangle"></span>
+                  <p data-i18n="about.limitations.recommendatory">Прогнози є рекомендаційними</p>
+                </div>
+                <div class="about-limitations__item">
+                  <span class="icon" data-lucide="alert-triangle"></span>
+                  <p data-i18n="about.limitations.educational">Система для освітнього та аналітичного використання</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Технічна інформація -->
+          <section id="technical" class="about-page__section">
+            <div class="glass-card">
+              <h2 class="glass-card__title" data-i18n="about.technical.title">Технічна інформація</h2>
+              <div class="about-technical">
+                <div class="about-technical__tools">
+                  <h3 data-i18n="about.technical.tools.title">Використані інструменти</h3>
+                  <ul>
+                    <li data-i18n="about.technical.tools.item1">jsPDF</li>
+                    <li data-i18n="about.technical.tools.item2">Chart.js</li>
+                    <li data-i18n="about.technical.tools.item3">FastAPI</li>
+                    <li data-i18n="about.technical.tools.item4">Ollama</li>
+                    <li data-i18n="about.technical.tools.item5">SQLite</li>
+                    <li data-i18n="about.technical.tools.item6">Python ML stack</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Контакти та авторство -->
+          <section id="contact" class="about-page__section">
+            <div class="glass-card">
+              <h2 class="glass-card__title" data-i18n="about.contact.title">Контакти та авторство</h2>
+              <div class="about-contact">
+                <div class="about-contact__author">
+                  <p data-i18n="about.contact.author">Автор: Кінаш Станіслав Андрійович</p>
+                  <p data-i18n="about.contact.group">Група: КНУС-23</p>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </section>
     </main>

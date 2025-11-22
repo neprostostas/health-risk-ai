@@ -111,6 +111,7 @@ ALLOWLISTED_ROUTES = {
     "/register",
     "/forgot-password",
     "/reset-password",
+    "/about",  # Public "About System" page
     "/profile",
     "/history",
     "/api-status",
@@ -302,6 +303,17 @@ async def serve_forgot_password_page():
 @app.get("/reset-password", response_class=HTMLResponse)
 async def serve_reset_password_page():
     """Повертає сторінку встановлення нового пароля."""
+    return serve_frontend()
+
+
+@app.get("/about", response_class=HTMLResponse)
+async def serve_about_page():
+    """
+    HTML route for /about - serves SPA page only.
+    Public route, no authentication required.
+    
+    Завжди повертає HTML - автентифікацію перевіряє фронтенд.
+    """
     return serve_frontend()
 
 

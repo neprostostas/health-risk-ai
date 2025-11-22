@@ -1419,7 +1419,8 @@
       "reports": "Reports",
       "assistant": "AI Assistant",
       "chats": "Chats",
-      "profile": "Profile"
+      "profile": "Profile",
+      "about": "About system"
     }
   },
   "notifications": {
@@ -1500,6 +1501,132 @@
       "thursday": "Thursday",
       "friday": "Friday",
       "saturday": "Saturday"
+    }
+  },
+  "about": {
+    "title": "About system",
+    "subtitle": "Automated health risk assessment and prediction system",
+    "nav": {
+      "mainIdea": "What is it?",
+      "howItWorks": "How it works?",
+      "architecture": "Architecture",
+      "models": "Models",
+      "aiAssistant": "AI Assistant",
+      "limitations": "Limitations",
+      "technical": "Technical Details"
+    },
+    "mainIdea": {
+      "title": "Main Idea",
+      "whatIs": {
+        "title": "What is HealthRisk.AI?",
+        "content": "HealthRisk.AI is an automated system that helps assess health risks based on medical indicators."
+      },
+      "purpose": {
+        "title": "Purpose",
+        "content": "The system is created for educational and analytical purposes to help users understand their health risks."
+      },
+      "tasks": {
+        "title": "What problems it solves",
+        "item1": "Health risk assessment",
+        "item2": "Data visualization",
+        "item3": "Educational function"
+      },
+      "benefits": {
+        "title": "Benefits for users",
+        "item1": "Personalized predictions",
+        "item2": "Change history",
+        "item3": "Recommendations"
+      },
+      "notMedical": {
+        "title": "What the system does NOT do",
+        "item1": "⚠️ Not a medical diagnosis",
+        "item2": "⚠️ Does not replace a doctor",
+        "item3": "⚠️ Does not prescribe treatment"
+      }
+    },
+    "howItWorks": {
+      "title": "How the system works",
+      "description": "The system analyzes entered medical indicators and uses trained machine learning models to predict risks."
+    },
+    "architecture": {
+      "title": "System Architecture",
+      "frontend": {
+        "title": "Frontend",
+        "item1": "SPA (single-page application)",
+        "item2": "Charts and visualizations",
+        "item3": "Prediction history",
+        "item4": "User profile",
+        "item5": "PDF generation",
+        "item6": "AI chat assistant"
+      },
+      "backend": {
+        "title": "Backend",
+        "item1": "FastAPI framework",
+        "item2": "Routes /api/*",
+        "item3": "Prediction processing",
+        "item4": "Authentication logic",
+        "item5": "System statistics"
+      },
+      "mlModels": {
+        "title": "ML Models",
+        "item1": "Logistic Regression",
+        "item2": "Random Forest",
+        "item3": "XGBoost",
+        "item4": "Diabetes risk prediction model",
+        "item5": "Obesity risk prediction model"
+      },
+      "aiAssistant": {
+        "title": "AI Assistant",
+        "item1": "Internal integration with Ollama",
+        "item2": "LLM model (llama3)",
+        "item3": "Personalized recommendations"
+      },
+      "database": {
+        "title": "Database",
+        "item1": "SQLite",
+        "item2": "Prediction history",
+        "item3": "Users",
+        "item4": "Chats",
+        "item5": "Logging"
+      }
+    },
+    "models": {
+      "title": "Machine Learning Models",
+      "description": "The system uses calibrated machine learning models for accurate risk prediction."
+    },
+    "aiAssistant": {
+      "title": "AI Assistant",
+      "description": "The AI assistant helps explain prediction results and provides personalized recommendations."
+    },
+    "limitations": {
+      "title": "Important Limitations",
+      "notMedical": "Not a medical diagnosis",
+      "notDoctor": "Does not replace a doctor",
+      "recommendatory": "Predictions are advisory",
+      "educational": "System for educational and analytical use"
+    },
+    "technical": {
+      "title": "Technical Information",
+      "status": {
+        "title": "System Status",
+        "api": "API",
+        "ollama": "Ollama",
+        "database": "Database"
+      },
+      "tools": {
+        "title": "Used Tools",
+        "item1": "jsPDF",
+        "item2": "Chart.js",
+        "item3": "FastAPI",
+        "item4": "Ollama",
+        "item5": "SQLite",
+        "item6": "Python ML stack"
+      }
+    },
+    "contact": {
+      "title": "Contact and Authorship",
+      "author": "Author: Kinash Stanislav Andriyovych",
+      "group": "Group: KNUS-23"
     }
   }
 }

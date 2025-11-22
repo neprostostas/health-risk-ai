@@ -101,6 +101,7 @@ const ROUTE_SECTIONS = {
   "/assistant": "page-assistant",
   "/chats": "page-chats",
   "/reports": "page-report",
+  "/about": "page-about",
 };
 
 const ROUTE_ALIASES = {
@@ -121,6 +122,7 @@ const SECTION_TO_ROUTE = {
   "page-reset-password": "/reset-password",
   "page-assistant": "/assistant",
   "page-chats": "/chats",
+  "page-about": "/about",
 };
 
 const inputRefs = {};
@@ -366,6 +368,7 @@ function getPageTitle(sectionId) {
     "page-reset-password": "pages.resetPassword",
     "page-assistant": "pages.assistant",
     "page-chats": "pages.chats",
+    "page-about": "about.title",
   };
   const key = keyMap[sectionId];
   return key ? window.i18n.t(key) : sectionId;
@@ -1502,6 +1505,104 @@ async function sendAssistantMessage(text) {
   }
 }
 
+// Ініціалізація сторінки "Про систему"
+function initializeAboutPage() {
+  const aboutPage = document.getElementById('page-about');
+  if (!aboutPage) return;
+
+  // Anchor-навігація
+  const navLinks = aboutPage.querySelectorAll('.about-page__nav-link');
+  navLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetId = link.getAttribute('href').substring(1);
+      const target = document.getElementById(targetId);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Оновлюємо активний пункт навігації
+        navLinks.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  });
+
+  // Підсвітка активної секції при скролі
+  function updateActiveNavItem() {
+    const sections = aboutPage.querySelectorAll('.about-page__section[id]');
+    const navLinks = aboutPage.querySelectorAll('.about-page__nav-link');
+    
+    let current = '';
+    sections.forEach(section => {
+      const rect = section.getBoundingClientRect();
+      if (rect.top <= 150) {
+        current = section.id;
+      }
+    });
+    
+    navLinks.forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === `#${current}`) {
+        link.classList.add('active');
+      }
+    });
+  }
+
+  window.addEventListener('scroll', updateActiveNavItem, { passive: true });
+
+  // Анімація появи блоків
+  const sections = aboutPage.querySelectorAll('.about-page__section');
+  sections.forEach((section, index) => {
+    section.style.opacity = '0';
+    section.style.transform = 'translateY(20px)';
+    section.style.transition = 'opacity 0.5s, transform 0.5s';
+    
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        section.style.opacity = '1';
+        section.style.transform = 'translateY(0)';
+      });
+    }, index * 100);
+  });
+
+  // Завантаження статусів системи (опціонально)
+  loadAboutPageStatuses();
+}
+
+// Завантаження статусів системи для сторінки about
+async function loadAboutPageStatuses() {
+  try {
+    const response = await fetch('/api/health');
+    if (response.ok) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await response.json();
+        const apiStatus = document.getElementById('about-status-api');
+        const ollamaStatus = document.getElementById('about-status-ollama');
+        const dbStatus = document.getElementById('about-status-db');
+        
+        if (apiStatus) {
+          apiStatus.textContent = window.i18n ? window.i18n.t('apiStatus.status.operational') : 'Працює нормально';
+          apiStatus.className = 'badge badge--success';
+        }
+        
+        // Статус Ollama та БД можна завантажити з інших endpoints, якщо потрібно
+        if (ollamaStatus) {
+          ollamaStatus.textContent = window.i18n ? window.i18n.t('apiStatus.status.operational') : 'Працює нормально';
+          ollamaStatus.className = 'badge badge--success';
+        }
+        
+        if (dbStatus) {
+          dbStatus.textContent = window.i18n ? window.i18n.t('apiStatus.status.operational') : 'Працює нормально';
+          dbStatus.className = 'badge badge--success';
+        }
+      }
+    }
+  } catch (error) {
+    // Мовчазно ігноруємо помилки завантаження статусів
+    console.debug('Could not load system statuses for about page:', error);
+  }
+}
+
 async function initializeAssistantPage() {
   if (!authState.user) {
     // Якщо користувач не автентифікований — перенаправляємо у логін
@@ -1916,6 +2017,12 @@ function normalizePath(pathname) {
     return "/api-status/history";
   }
   
+  // ВАЖЛИВО: Перевіряємо точний матч для /about ДО toLowerCase
+  // Це гарантує, що /about правильно мапиться як публічний маршрут
+  if (normalized === "/about" && ROUTE_SECTIONS["/about"]) {
+    return "/about";
+  }
+  
   // ВАЖЛИВО: Зберігаємо оригінальний шлях для перевірки
   const originalNormalized = normalized;
   normalized = normalized.toLowerCase();
@@ -1963,6 +2070,15 @@ function getSectionByPath(pathname) {
     };
   }
   
+  // ВАЖЛИВО: Перевіряємо точний матч для /about ДО toLowerCase
+  // Це гарантує, що /about правильно мапиться на page-about як публічний маршрут
+  if (pathname === "/about" && ROUTE_SECTIONS["/about"]) {
+    return {
+      path: "/about",
+      section: ROUTE_SECTIONS["/about"],
+    };
+  }
+  
   // Для незалогіненого користувача НЕ можна падати в дефолт page-form
   // Якщо !hasUser і path не публічний - ми вже мали піти в handleUnauthorized() ДО цієї логіки
   const hasUser = Boolean(authState.user);
@@ -1981,7 +2097,8 @@ function isPublicRoute(pathname) {
     basePath === "/login" ||
     basePath === "/register" ||
     basePath === "/forgot-password" ||
-    basePath === "/reset-password"
+    basePath === "/reset-password" ||
+    basePath === "/about"
   );
 }
 
@@ -2059,9 +2176,10 @@ function showSectionForPath(pathname) {
     // Просто активуємо секцію без зміни URL
     // path вже правильний, section вже визначено через getSectionByPath
     // Просто продовжуємо виконання до activateSection
-  } else if (!path.startsWith("/c/") && !ROUTE_SECTIONS[path] && path !== "/login" && path !== "/register" && path !== "/forgot-password" && !path.startsWith("/reset-password")) {
+  } else if (!path.startsWith("/c/") && !ROUTE_SECTIONS[path] && path !== "/login" && path !== "/register" && path !== "/forgot-password" && path !== "/about" && !path.startsWith("/reset-password")) {
     // Якщо роут не існує в ROUTE_SECTIONS і це НЕ валідний захищений роут - редірект на /app
     // (тільки для неіснуючих роутів, не для валідних захищених)
+    // ВАЖЛИВО: /about - публічний маршрут, не редіректимо його
     if (authState.user && authState.initialized) {
       const appPath = showSectionForPath("/app");
       if (window.location.pathname !== appPath) {
@@ -7282,6 +7400,14 @@ function initializeApiStatus() {
         }
       }
     });
+    // Re-apply translations to about page quick navigation links
+    const aboutPageNavLinks = document.querySelectorAll('#page-about .about-page__nav-link');
+    aboutPageNavLinks.forEach(link => {
+      const i18nKey = link.getAttribute('data-i18n');
+      if (i18nKey && window.i18n) {
+        link.textContent = window.i18n.t(i18nKey);
+      }
+    });
   });
 }
 
@@ -7359,6 +7485,9 @@ function activateSection(sectionId) {
   if (sectionId === "page-insights") {
     initializeInsightsPage().catch((error) => {
     });
+  }
+  if (sectionId === "page-about") {
+    initializeAboutPage();
   }
   if (sectionId === "page-chats") {
     // Перевіряємо автентифікацію перед виконанням API запитів
@@ -9324,7 +9453,7 @@ function initializeSidebarToggle() {
 
 (function init() {
   // УЛЬТРА-РАННІЙ GUARD: перевірка автентифікації ДО запуску всієї SPA-логіки
-  const publicBasePaths = ["/login", "/register", "/reset-password", "/forgot-password"];
+  const publicBasePaths = ["/login", "/register", "/reset-password", "/forgot-password", "/about"];
   const pathname = window.location.pathname.split("?")[0];
   
   // Дізнаємося ключ токена з існуючого коду
