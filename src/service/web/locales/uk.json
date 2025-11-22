@@ -544,6 +544,7 @@
   },
   "apiStatus": {
     "title": "Статус API",
+    "checkingWithDots": "Перевірка...",
     "tabs": {
       "api": "API",
       "ollama": "AI Модель (Ollama)",

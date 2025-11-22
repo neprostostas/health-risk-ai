@@ -515,6 +515,7 @@
   },
   "apiStatus": {
     "title": "API Status",
+    "checkingWithDots": "Checking...",
     "tabs": {
       "api": "API",
       "ollama": "AI Model (Ollama)",
