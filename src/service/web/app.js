@@ -1722,7 +1722,7 @@ async function initializeAssistantPage() {
     if (quickBtns && quickBtns.length) {
       quickBtns.forEach((btn) => {
         btn.addEventListener("click", async () => {
-          const template = btn.getAttribute("data-template") || "";
+          const template = btn.getAttribute("template") || btn.textContent.trim() || "";
           const input = document.getElementById("assistant-input");
           if (input) input.value = template;
           if (template) {
