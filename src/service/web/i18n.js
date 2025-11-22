@@ -35,7 +35,6 @@ async function loadTranslations(langCode) {
     }
     return await response.json();
   } catch (error) {
-    console.warn(`Failed to load translations for ${langCode}:`, error);
     return {};
   }
 }
@@ -56,15 +55,9 @@ async function initI18n() {
     const hasEmptyLoggedOut = !!ukTranslations.history?.emptyLoggedOut;
     const hasPagesLogin = !!ukTranslations.pages?.login;
     
+    // Critical keys validation (silent)
     if (!hasHistory || !hasPages || !hasEmptyLoggedOut || !hasPagesLogin) {
-      console.warn('i18n: Missing critical keys in ukTranslations', {
-        hasHistory,
-        hasPages,
-        hasEmptyLoggedOut,
-        hasPagesLogin,
-        historyKeys: ukTranslations.history ? Object.keys(ukTranslations.history) : [],
-        pagesKeys: ukTranslations.pages ? Object.keys(ukTranslations.pages) : []
-      });
+      // Missing critical keys - handled silently
     }
   }
   
@@ -132,24 +125,6 @@ function t(key, vars = {}) {
   // If still not found, use key as fallback
   if (value === undefined || value === null) {
     value = key;
-    // Only log warning in development (not in production)
-    if (typeof console !== 'undefined' && console.warn) {
-      // Debug: log what we're looking for
-      if (key === 'history.emptyLoggedOut' || key === 'pages.login') {
-        console.warn(`Translation missing for key: ${key}`, {
-          translationsReady,
-          hasTranslations: !!translations && Object.keys(translations).length > 0,
-          hasUkTranslations: !!ukTranslations && Object.keys(ukTranslations).length > 0,
-          hasHistory: !!ukTranslations?.history,
-          hasPages: !!ukTranslations?.pages,
-          historyKeys: ukTranslations?.history ? Object.keys(ukTranslations.history) : [],
-          pagesKeys: ukTranslations?.pages ? Object.keys(ukTranslations.pages) : [],
-          directAccess: key === 'history.emptyLoggedOut' ? ukTranslations?.history?.emptyLoggedOut : ukTranslations?.pages?.login
-        });
-      } else {
-        console.warn(`Translation missing for key: ${key}`);
-      }
-    }
   }
   
   // Interpolate variables
@@ -202,7 +177,6 @@ function getCurrentLanguage() {
  */
 async function setLanguage(langCode) {
   if (!SUPPORTED_LANGUAGES.includes(langCode)) {
-    console.warn(`Unsupported language: ${langCode}`);
     return;
   }
   

@@ -1599,7 +1599,6 @@ async function loadAboutPageStatuses() {
     }
   } catch (error) {
     // Мовчазно ігноруємо помилки завантаження статусів
-    console.debug('Could not load system statuses for about page:', error);
   }
 }
 
@@ -2367,7 +2366,6 @@ function formatDateTimeLong(timestamp) {
       timeStyle: "short",
     }).format(new Date(timestamp));
   } catch (error) {
-    console.warn("Error formatting date:", error);
     return "";
   }
 }
@@ -7371,7 +7369,7 @@ function initializeApiStatus() {
               descCell.textContent = description;
             }
           } catch (e) {
-            console.warn('Failed to update route description:', e);
+            // Ignore errors updating route description
           }
         }
       });
