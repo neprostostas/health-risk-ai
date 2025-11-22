@@ -53,6 +53,10 @@ wheels/
 *.sublime-workspace
 *.code-workspace
 
+# Type checking configs (keep in repo)
+# pyrightconfig.json - keep in repo
+# .vscode/settings.json - keep in repo
+
 # ============================================
 # OS Specific
 # ============================================
@@ -173,8 +177,19 @@ site/
 # ============================================
 src/service/web/data/analytics_summary.json
 
+# Frontend build artifacts (if any)
+*.min.js
+*.min.css
+*.map
+
 # ============================================
 # Project Specific
 # ============================================
 to do
 *.md.bak
+ABOUT_PAGE_SPECIFICATION.md
+
+# Temporary files
+*.orig
+*.rej
+*.patch

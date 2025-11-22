@@ -3,6 +3,7 @@
 # ============================================
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
+starlette>=0.27.0  # Used directly in middleware
 
 # ============================================
 # Database
@@ -72,3 +73,14 @@ typer>=0.9.0
 # black>=23.0.0
 # flake8>=6.0.0
 # mypy>=1.5.0
+
+# ============================================
+# Notes
+# ============================================
+# - All packages are pinned to minimum versions for compatibility
+# - starlette is included explicitly as it's used directly in middleware
+# - python-jose[cryptography] provides JWT token handling
+# - passlib[bcrypt] provides password hashing
+# - pillow is used for avatar image processing
+# - requests is used for Ollama API integration
+# - xgboost is optional but recommended for better ML model performance
