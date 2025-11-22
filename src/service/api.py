@@ -6,17 +6,17 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator, Optional
 
-import pandas as pd
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
-from starlette.requests import Request as StarletteRequest
-from fastapi.staticfiles import StaticFiles
-from sklearn.inspection import permutation_importance
-from sklearn.model_selection import train_test_split
-from sqlmodel import Session
+import pandas as pd  # type: ignore
+from fastapi import Depends, FastAPI, HTTPException, Query, Request  # type: ignore
+from fastapi.middleware.cors import CORSMiddleware  # type: ignore
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse  # type: ignore
+from starlette.middleware.base import BaseHTTPMiddleware  # type: ignore
+from starlette.types import ASGIApp  # type: ignore
+from starlette.requests import Request as StarletteRequest  # type: ignore
+from fastapi.staticfiles import StaticFiles  # type: ignore
+from sklearn.inspection import permutation_importance  # type: ignore
+from sklearn.model_selection import train_test_split  # type: ignore
+from sqlmodel import Session  # type: ignore
 
 from src.service.auth_utils import get_current_user
 from src.service.db import get_session, init_db
@@ -163,7 +163,7 @@ class PathNormalizationMiddleware(BaseHTTPMiddleware):
             if original_query:
                 new_url = f"{normalized_path}?{original_query}"
             
-            from fastapi.responses import RedirectResponse
+            from fastapi.responses import RedirectResponse  # type: ignore
             return RedirectResponse(url=new_url, status_code=301)  # 301 Permanent Redirect
         
         # Якщо path не змінився, продовжуємо обробку
@@ -439,8 +439,8 @@ async def get_database_stats(session: Session = Depends(get_session)):
         Статистика БД: кількість записів у таблицях, розмір БД, активність
     """
     from datetime import datetime, timedelta
-    from sqlalchemy import func, and_
-    from sqlmodel import select
+    from sqlalchemy import func, and_  # type: ignore
+    from sqlmodel import select  # type: ignore
     from src.service.models import (
         User,
         PredictionHistory,
@@ -801,7 +801,7 @@ async def get_latest_health_risk(
     """
     if not current_user:
         raise HTTPException(status_code=401, detail="Необхідна автентифікація.")
-    from sqlmodel import select
+    from sqlmodel import select  # type: ignore
     from src.service.models import PredictionHistory
     stmt = (
         select(PredictionHistory)
@@ -914,7 +914,7 @@ async def catch_all_route(
 
 
 if __name__ == "__main__":
-    import uvicorn
+    import uvicorn  # type: ignore
     
     # Запускаємо на localhost, щоб браузер вважав походження безпечним (для мікрофона)
     uvicorn.run(app, host="127.0.0.1", port=8000)
