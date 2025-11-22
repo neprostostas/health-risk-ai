@@ -11368,18 +11368,42 @@ const PDF_THEME_PRESETS = {
   }
 };
 
-const PDF_THEME_METADATA = {
-  light: {
-    title: window.i18n ? window.i18n.t('reports.pdfTheme.light.title') : "Світлий",
-    description: window.i18n ? window.i18n.t('reports.pdfTheme.light.description') : "Класичне світле оформлення HealthRisk.AI",
-    icon: "sun"
-  },
-  dark: {
-    title: window.i18n ? window.i18n.t('reports.pdfTheme.dark.title') : "Темний",
-    description: window.i18n ? window.i18n.t('reports.pdfTheme.dark.description') : "Контрастна темна тема під нічний режим сайту",
-    icon: "moon"
+function getPdfThemeMetadata(theme) {
+  if (!window.i18n) {
+    // Fallback значення, якщо i18n не ініціалізований
+    const fallback = {
+      light: {
+        title: "Світлий",
+        description: "Класичне світле оформлення HealthRisk.AI",
+        icon: "sun"
+      },
+      dark: {
+        title: "Темний",
+        description: "Контрастна темна тема під нічний режим сайту",
+        icon: "moon"
+      }
+    };
+    return fallback[theme] || fallback.light;
   }
-};
+  
+  // Динамічна локалізація
+  return {
+    light: {
+      title: window.i18n.t('reports.pdfTheme.light.title'),
+      description: window.i18n.t('reports.pdfTheme.light.description'),
+      icon: "sun"
+    },
+    dark: {
+      title: window.i18n.t('reports.pdfTheme.dark.title'),
+      description: window.i18n.t('reports.pdfTheme.dark.description'),
+      icon: "moon"
+    }
+  }[theme] || {
+    title: window.i18n.t('reports.pdfTheme.light.title'),
+    description: window.i18n.t('reports.pdfTheme.light.description'),
+    icon: "sun"
+  };
+}
 
 const PDF_THEME_OPTIONS = Object.keys(PDF_THEME_PRESETS);
 
@@ -11606,7 +11630,7 @@ function showPdfThemeModal(defaultTheme = "light", formatType = "pdf") {
           <div class="modal__body">
             <div class="pdf-theme-modal__options">
               ${PDF_THEME_OPTIONS.map(theme => {
-                const meta = PDF_THEME_METADATA[theme];
+                const meta = getPdfThemeMetadata(theme);
                 return `
                   <button type="button" class="pdf-theme-option" data-theme="${theme}">
                     <span class="icon pdf-theme-option__icon" data-lucide="${meta.icon}" aria-hidden="true"></span>

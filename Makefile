@@ -1,16 +1,29 @@
 ## Common project commands
-.PHONY: run install clean db-shell help ollama ollama-pull dev reset
+.PHONY: run install clean db-shell help ollama ollama-pull dev reset test test-backend test-backend-unit test-backend-integration test-backend-e2e test-frontend test-ml test-ml-unit test-ml-experimental test-experimental test-coverage
 
 help:
 	@echo "Available targets:"
-	@echo "  run         - Start the API/web server (python3 -m src.service.api)"
-	@echo "  install     - Install Python dependencies from requirements.txt"
-	@echo "  db-shell    - Open SQLite shell for data/app.db (if exists)"
-	@echo "  clean       - Remove Python cache files and build artifacts"
-	@echo "  ollama      - Start Ollama local server (ollama serve)"
-	@echo "  ollama-pull - Pull default LLM model (llama3)"
-	@echo "  dev         - Start Ollama and API together (foreground)"
-	@echo "  reset       - Clean, install, clean, install, then start dev"
+	@echo "  run              - Start the API/web server (python3 -m src.service.api)"
+	@echo "  install          - Install Python dependencies from requirements.txt"
+	@echo "  db-shell         - Open SQLite shell for data/app.db (if exists)"
+	@echo "  clean            - Remove Python cache files and build artifacts"
+	@echo "  ollama           - Start Ollama local server (ollama serve)"
+	@echo "  ollama-pull      - Pull default LLM model (llama3)"
+	@echo "  dev              - Start Ollama and API together (foreground)"
+	@echo "  reset            - Clean, install, clean, install, then start dev"
+	@echo ""
+	@echo "Testing:"
+	@echo "  test                    - Run all tests"
+	@echo "  test-backend            - Run all backend tests"
+	@echo "  test-backend-unit       - Run backend unit tests only"
+	@echo "  test-backend-integration - Run backend integration tests only"
+	@echo "  test-backend-e2e        - Run backend e2e tests only"
+	@echo "  test-frontend           - Run frontend tests only"
+	@echo "  test-ml                 - Run all ML tests"
+	@echo "  test-ml-unit            - Run ML unit tests only"
+	@echo "  test-ml-experimental    - Run ML experimental tests only"
+	@echo "  test-experimental       - Run all experimental tests (backend + ML)"
+	@echo "  test-coverage           - Run tests with coverage report"
 
 # Start API + Web (serves HTTPS if configured inside the app)
 run:
@@ -70,8 +83,44 @@ a:
 	$(MAKE) install
 	$(MAKE) dev
 
+# Testing
+test:
+	pytest tests/
+
+test-backend:
+	pytest tests/backend/
+
+test-backend-unit:
+	pytest tests/backend/unit/
+
+test-backend-integration:
+	pytest tests/backend/integration/
+
+test-backend-e2e:
+	pytest tests/backend/e2e/
+
+test-frontend:
+	pytest tests/frontend/
+
+test-ml:
+	pytest tests/ml/
+
+test-ml-unit:
+	pytest tests/ml/unit/
+
+test-ml-experimental:
+	pytest tests/ml/experimental/
+
+test-experimental:
+	pytest tests/backend/experimental/ tests/ml/experimental/
+
+test-coverage:
+	pytest --cov=src --cov-report=html --cov-report=term tests/
+	@echo "Coverage report generated in htmlcov/index.html"
+
 # Aliases
 d: dev
 i: install
 c: clean
 r: run
+t: test
