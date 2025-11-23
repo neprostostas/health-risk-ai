@@ -1,0 +1,74 @@
+{
+  "metadata": {
+    "title": "Звіт про прогнозування ризиків для здоров'я",
+    "generatedAt": "2025-11-23T00:31:54.877Z",
+    "generatedAtFormatted": "23.11.2025, 01:31:54",
+    "version": "1.0"
+  },
+  "summary": {
+    "target": {
+      "code": "diabetes_present",
+      "label": "Ризик діабету"
+    },
+    "probability": 0.09355454333126545,
+    "probabilityPercent": "9.36",
+    "riskLevel": "N/A",
+    "riskBucket": "low",
+    "model": "XGBoost",
+    "createdAt": "2025-11-16T14:34:41.202314",
+    "createdAtFormatted": "16.11.2025, 14:34:41"
+  },
+  "keyFactors": {
+    "count": 5,
+    "factors": [
+      {
+        "rank": 1,
+        "code": "RIAGENDR",
+        "name": "Стать",
+        "impact": 1,
+        "impactPercent": "100.0"
+      },
+      {
+        "rank": 2,
+        "code": "LBXTC",
+        "name": "Загальний холестерин",
+        "impact": 0.73,
+        "impactPercent": "73.0"
+      },
+      {
+        "rank": 3,
+        "code": "BPXDI1",
+        "name": "Діастолічний тиск",
+        "impact": 0.6533333333333333,
+        "impactPercent": "65.3"
+      },
+      {
+        "rank": 4,
+        "code": "BPXSY1",
+        "name": "Систолічний тиск",
+        "impact": 0.595,
+        "impactPercent": "59.5"
+      },
+      {
+        "rank": 5,
+        "code": "BMXBMI",
+        "name": "Індекс маси тіла (BMI)",
+        "impact": 0.534,
+        "impactPercent": "53.4"
+      }
+    ]
+  },
+  "recommendations": {
+    "riskBucket": "low",
+    "items": [
+      "Продовжуйте підтримувати здоровий спосіб життя",
+      "Регулярно проходьте профілактичні обстеження",
+      "Дотримуйтесь збалансованого раціону харчування",
+      "Занимайтеся фізичною активністю"
+    ]
+  },
+  "inputData": {
+    "count": 0,
+    "fields": {}
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "metadata": {
+    "title": "Health Risk Prediction Report",
+    "generatedAt": "2025-11-23T00:31:48.053Z",
+    "generatedAtFormatted": "23.11.2025, 01:31:48",
+    "version": "1.0"
+  },
+  "summary": {
+    "target": {
+      "code": "diabetes_present",
+      "label": "Diabetes risk"
+    },
+    "probability": 0.0513254813849926,
+    "probabilityPercent": "5.13",
+    "riskLevel": "N/A",
+    "riskBucket": "low",
+    "model": "XGBoost",
+    "createdAt": "2025-11-18T16:28:15.281548",
+    "createdAtFormatted": "18.11.2025, 16:28:15"
+  },
+  "keyFactors": {
+    "count": 5,
+    "factors": [
+      {
+        "rank": 1,
+        "code": "RIAGENDR",
+        "name": "Gender",
+        "impact": 1,
+        "impactPercent": "100.0"
+      },
+      {
+        "rank": 2,
+        "code": "LBXGLU",
+        "name": "Fasting glucose",
+        "impact": 0.875,
+        "impactPercent": "87.5"
+      },
+      {
+        "rank": 3,
+        "code": "LBXTC",
+        "name": "Total cholesterol",
+        "impact": 0.8466666666666667,
+        "impactPercent": "84.7"
+      },
+      {
+        "rank": 4,
+        "code": "BMXBMI",
+        "name": "Body Mass Index (BMI)",
+        "impact": 0.61,
+        "impactPercent": "61.0"
+      },
+      {
+        "rank": 5,
+        "code": "BPXDI1",
+        "name": "Diastolic pressure",
+        "impact": 0.5866666666666667,
+        "impactPercent": "58.7"
+      }
+    ]
+  },
+  "recommendations": {
+    "riskBucket": "low",
+    "items": [
+      "Continue to maintain a healthy lifestyle",
+      "Regularly undergo preventive examinations",
+      "Follow a balanced diet",
+      "Engage in physical activity"
+    ]
+  },
+  "inputData": {
+    "count": 0,
+    "fields": {}
+  }
+}
