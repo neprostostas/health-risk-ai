@@ -2,6 +2,18 @@
 
 ![Health Risk AI Preview](previews/imgs/preview-1.png)
 
+---
+
+## 🎥 Video Presentation
+
+<div align="center">
+
+**[📹 Watch Video Presentation on YouTube →](https://www.youtube.com/watch?v=mCrql3FqR2M)**
+
+</div>
+
+---
+
 Health Risk AI is a comprehensive system for assessing and predicting health risks based on **National Health and Nutrition Examination Survey (NHANES)** medical data. The system uses advanced machine learning methods to transform medical indicators into personalized health risk assessments for diabetes and obesity development.
 
 ## 📊 Dataset
